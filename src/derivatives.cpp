@@ -49,11 +49,13 @@
  */
 
 #include "derivatives.h"
+#include <omp.h>
 
 void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
@@ -92,6 +94,7 @@ void derive_stress_monaghan(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		double Sxxi = particles[i].Sxx - particles[i].p;
 		double Sxyi = particles[i].Sxy;

@@ -105,6 +105,12 @@ double johnson_cook_constants::eps_ref() const {
 	return m_eps_ref;
 }
 
+double johnson_cook_constants::eps_pl_0() const {
+    // Reference plastic strain rate (s⁻¹)
+    // This is used in Johnson-Cook strain rate sensitivity term: (1 + C * ln(eps_dot_pl/eps_dot_0))
+    return m_eps_ref;
+}
+
 bool johnson_cook_constants::valid() const {
 	bool all_zero = m_A == 0. && m_B == 0. && m_C == 0. && m_m == 0. && m_n == 0. && m_Tmelt == 0. && m_Tref == 0. && m_eps_ref == 0.;
 	return !all_zero;
@@ -125,16 +131,16 @@ thermal_constants::thermal_constants(double cp, double Taylor_Quinney, double k)
 
 thermal_constants::thermal_constants() {}
 
-double thermal_constants::cp() const {
-	return m_cp;
+double thermal_constants::cp(double T) const {
+	return m_cp.get(T);
 }
 
 double thermal_constants::Taylor_Quinney() const {
 	return m_Taylor_Quinney;
 }
 
-double thermal_constants::k() const {
-	return m_k;
+double thermal_constants::k(double T) const {
+	return m_k.get(T);
 }
 
 //---------------------------------------------------------------------------
@@ -149,37 +155,37 @@ physical_constants::physical_constants(double nu, double E, double rho0, johnson
 
 physical_constants::physical_constants() {}
 
-double physical_constants::nu() const {
-	return m_nu;
+double physical_constants::nu(double T) const {
+	return m_nu.get(T);
 }
 
-double physical_constants::E() const {
-	return m_E;
+double physical_constants::E(double T) const {
+	return m_E.get(T);
 }
 
-double physical_constants::G() const {
-	return m_E/(2.*(1.+m_nu));
+double physical_constants::G(double T) const {
+	return E(T)/(2.*(1.+nu(T)));
 }
 
-double physical_constants::K()  const {
-	double G = this->G();
-	return 2.0*G*(1+m_nu)/(3*(1-2*m_nu));
+double physical_constants::K(double T)  const {
+	double G_val = this->G(T);
+	return 2.0*G_val*(1+nu(T))/(3*(1-2*nu(T)));
 }
 
-double physical_constants::mu_lame() const {
-	return m_E/(2.0+2.0*m_nu);
+double physical_constants::mu_lame(double T) const {
+	return E(T)/(2.0+2.0*nu(T));
 }
 
-double physical_constants::lambda_lame() const {
-	return  m_nu * m_E / ((1.0+m_nu)*(1.0-2.0*m_nu));
+double physical_constants::lambda_lame(double T) const {
+	return  nu(T) * E(T) / ((1.0+nu(T))*(1.0-2.0*nu(T)));
 }
 
-double physical_constants::rho0() const {
-	return m_rho0;
+double physical_constants::rho0(double T) const {
+	return m_rho0.get(T);
 }
 
-double physical_constants::c0() const {
-	return sqrt(K()/m_rho0);
+double physical_constants::c0(double T) const {
+	return sqrt(K(T)/rho0(T));
 }
 
 johnson_cook_constants physical_constants::jc() const {

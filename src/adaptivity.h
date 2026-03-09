@@ -52,6 +52,7 @@
 #define ADAPTIVITY_H_
 
 #include <math.h>
+#include <vector>
 #include <assert.h>
 #include <algorithm>
 #include <glm/glm.hpp>

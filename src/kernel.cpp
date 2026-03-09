@@ -49,7 +49,7 @@
  */
 
 #include "kernel.h"
-
+#include <cmath>
 #include <stdio.h>
 
 kernel_result cubic_spline(double xi, double yi, double xj, double yj, double h) {

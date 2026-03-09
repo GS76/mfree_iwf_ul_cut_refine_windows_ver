@@ -48,6 +48,9 @@
  *
  */
 
+#include <cmath>
+#include <algorithm>
+#include <cfloat>
 #include "tool.h"
 
 static glm::dvec2 solve_quad(double a, double b, double c) {

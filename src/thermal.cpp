@@ -49,13 +49,16 @@
  */
 
 #include "thermal.h"
-
+#include <cmath>
 #include "body.h"
+#include <omp.h>
 
 void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < num_part; i++) {
 		const double Ti = particles[i].T;
 		const double xi = particles[i].x;
@@ -82,14 +85,22 @@ void thermal::heat_conduction_pse(body &b) const {
 			T_lapl += (Tj-Ti)*w_pse*mj/rhoj/(hi2);
 		}
 
-		particles[i].T_t += m_alpha*T_lapl;
+		double denominator = phys_const.rho0(Ti) * phys_const.tc().cp(Ti);
+		if (denominator < 1e-12) {
+			particles[i].T_t = 0;
+			continue;
+		}
+		double alpha = phys_const.tc().k(Ti) / denominator;
+		particles[i].T_t += alpha*T_lapl;
 	}
 }
 
 void thermal::heat_conduction_brookshaw(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < num_part; i++) {
 		double Ti = particles[i].T;
 		double xi = particles[i].x;
@@ -125,7 +136,8 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			T_lapl += 2.0*(mj/rhoj)*(Ti-Tj)*rij1*(eijx*w.w_x + eijy*w.w_y);
 		}
 
-		particles[i].T_t += m_alpha*T_lapl;
+		double alpha = phys_const.tc().k(Ti) / (phys_const.rho0(Ti) * phys_const.tc().cp(Ti));
+		particles[i].T_t += alpha*T_lapl;
 	}
 }
 
@@ -148,5 +160,4 @@ void thermal::conduction(body &body) const {
 
 thermal::thermal(physical_constants pc) {
 	assert(pc.tc().k() != 0.);
-	m_alpha = pc.tc().k()/(pc.rho0()*pc.tc().cp());
 }

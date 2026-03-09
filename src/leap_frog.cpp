@@ -49,6 +49,7 @@
  */
 
 #include "leap_frog.h"
+#include <omp.h>
 
 void leap_frog::init(body &body) {
 	std::vector<particle> &particles  = body.get_particles();
@@ -60,6 +61,7 @@ void leap_frog::init(body &body) {
 		m_init.resize(particles.size());
 	}
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < body.get_num_part(); i++) {
 		m_init[i] = particles[i];
 	}
@@ -70,6 +72,7 @@ void leap_frog::predict(body &body) const {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < body.get_num_part(); i++) {
 		particles[i].x   = m_init[i].x   + 0.5*dt*particles[i].x_t;
 		particles[i].y   = m_init[i].y   + 0.5*dt*particles[i].y_t;
@@ -90,6 +93,7 @@ void leap_frog::correct(body &body) const {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < body.get_num_part(); i++) {
 		particles[i].x   = m_init[i].x   + dt*particles[i].x_t;
 		particles[i].y   = m_init[i].y   + dt*particles[i].y_t;
@@ -115,6 +119,7 @@ void leap_frog::step(body &body) {
 	predict(body);
 
 	// compute temporal derivatives
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < body.get_num_part(); i++) {
 		body.get_particles()[i].reset();
 	}

@@ -49,10 +49,12 @@
  */
 
 #include "cont_mech.h"
+#include <omp.h>
 
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		const double rho  = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
@@ -66,6 +68,7 @@ void contmech_continuity(body &b) {
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		const double Sxx_x = particles[i].Sxx_x;
 		const double Sxy_y = particles[i].Sxy_y;
@@ -82,6 +85,7 @@ void contmech_momentum(body &b) {
 void contmech_advection(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
@@ -94,6 +98,7 @@ void do_boundary_conditions(body &b) {
 	// this enforces the fixed boundary conditions
 	// demonstrated in Fig. 10 of the manuscript
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		if(particles[i].fixed) {
 			particles[i].x    = particles[i].X;

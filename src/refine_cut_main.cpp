@@ -49,12 +49,11 @@
  */
 
 #include <iostream>
+#include <float.h>
 #include <stdlib.h>
 #include <fenv.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <chrono>
+#include <filesystem>
 #include <omp.h>
 
 #include "particle.h"
@@ -79,33 +78,40 @@ logger *global_logger;
 #error "Do NOT compile using -ffast-math"
 #endif
 
+namespace fs = std::filesystem;
+
 int main(int argc, char * argv[]) {
+#ifndef _WIN32
 	feenableexcept(FE_INVALID | FE_OVERFLOW);
+#elif defined(_WIN32)
+	// Windows-compatible floating-point exception control
+	_fpreset();
+	_controlfp(_EM_INVALID | _EM_OVERFLOW, _MCW_EM);
+#endif
 
 	// clear the "results" directory for a fresh run
-	const char *folder = "results";
-	struct stat st = {0};
-	if (stat(folder, &st) == -1) {
-		mkdir(folder, 0777);
+	const fs::path folder = "results";
+	if (!fs::exists(folder)) {
+		fs::create_directory(folder);
+	} else {
+		for (const auto& entry : fs::directory_iterator(folder)) {
+			if (entry.is_regular_file()) {
+				std::string ext = entry.path().extension().string();
+				if (ext == ".txt" || ext == ".vtk") {
+					fs::remove(entry.path());
+				}
+			}
+		}
 	}
-	int ret;
-	ret = system("rm results/*.txt");
-	ret = system("rm results/*.vtk");
-	if(ret!=0) printf("results folder was empty!\n");
 
 	// inputs
-	opterr = 0;
-	int c;
-
 	int model = 1;
 
-	while ((c = getopt (argc, argv, "n:r:m:h:d:")) != -1) {
-		switch (c)
-		{
-		case 'm':
-			sscanf(optarg, "%d", &model);
+	for (int i = 1; i < argc; ++i) {
+		std::string arg = argv[i];
+		if (arg == "-m" && i + 1 < argc) {
+			model = std::atoi(argv[++i]);
 			printf("running model %d\n", model);
-			break;
 		}
 	}
 
@@ -151,8 +157,7 @@ int main(int argc, char * argv[]) {
 	int num_print = 150;
 	unsigned int freq = num_step / num_print;
 	unsigned int print_iter = 0;
-	struct timeval begin, end, intermediate;
-	gettimeofday(&begin, NULL);
+	auto begin = std::chrono::high_resolution_clock::now();
 
 	freq = std::max(1, (int) freq);
 
@@ -185,8 +190,9 @@ int main(int argc, char * argv[]) {
 				global_logger->log(*b, print_iter);
 
 				// Report the time left to finish
-				gettimeofday(&intermediate, NULL);
-				double seconds_so_far = (intermediate.tv_sec - begin.tv_sec) + ((intermediate.tv_usec - begin.tv_usec)/1000000.0);
+				auto intermediate = std::chrono::high_resolution_clock::now();
+				std::chrono::duration<double> diff = intermediate - begin;
+				double seconds_so_far = diff.count();
 
 				double percent_done = 100*time->get_step()/((double) num_step);
 				double time_left = seconds_so_far/percent_done*100;
@@ -206,9 +212,9 @@ int main(int argc, char * argv[]) {
 		time->increment_time();
 	}
 
-	gettimeofday(&end, NULL);
-	double elapsed = (end.tv_sec - begin.tv_sec) + ((end.tv_usec - begin.tv_usec)/1000000.0);
-	printf("Runtime: %f\n", elapsed);
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = end - begin;
+	printf("Runtime: %f\n", elapsed.count());
 
 	return EXIT_SUCCESS;
 }

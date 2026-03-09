@@ -50,6 +50,7 @@
 
 #include "plasticity.h"
 #include "body.h"
+#include <omp.h>
 
 void plasticity::plastic_state_by_radial_return(body &b) {
 	if (!b.get_sim_data().get_physical_constants().jc().valid()) return;
@@ -83,12 +84,16 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) {			// 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
-	double mu = data.get_physical_constants().G();
+	
+	const auto& phys_const = data.get_physical_constants();
+	double tq = phys_const.tc().Taylor_Quinney();
 
-	double cp = data.get_physical_constants().tc().cp();
-	double tq = data.get_physical_constants().tc().Taylor_Quinney();
-
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < num_part; i++) {
+		double T = particles[i].T;
+		double mu = phys_const.G(T);
+		double cp = phys_const.tc().cp(T);
+
 				// deviatoric stress (trial)
 		double Strialxx = particles[i].Sxx;
 		double Strialyy = particles[i].Syy;
@@ -110,6 +115,7 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 		if (svm2 < 0.0) svm2 = 0.0;
 		double svm  = sqrt(svm2);
 
+		// Use const methods on shared model to avoid copy overhead and race conditions
 		double sigmaY = m_plasticity_model->sigma_yield(eps_pl_equiv_init, eps_pl_equiv_init_dot, particles[i].T);
 
 		if (svm < sigmaY) {
@@ -120,15 +126,24 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 
 		double delta_lambda = 0.;   //delta lambda = \dot{lambda}\delta t, NOT lambda_new - lambda_old !!!1
 
-		m_plasticity_model->set_eps_init(eps_pl_equiv_init);
-		m_plasticity_model->set_temp(particles[i].T);
-		m_plasticity_model->set_norm_s_trial(norm_Strial);
+		// Create lightweight lambda for solver instead of copying model
+		// This captures local state variables for thread-safe evaluation
+		auto flow_func = [&, norm_Strial, eps_pl_equiv_init, T, mu, delta_t](double dl) {
+			return m_plasticity_model->evaluate_flow_rule(dl, norm_Strial, eps_pl_equiv_init, T, mu, delta_t);
+		};
 
 		bool failed = false;
-		delta_lambda = solve_zero_secant(m_plasticity_model, fmax(particles[i].eps_pl_equiv_dot*delta_t*sqrt(2./3.), 1e-8), m_tol, failed);
+		delta_lambda = solve_zero_secant(flow_func, fmax(particles[i].eps_pl_equiv_dot*delta_t*sqrt(2./3.), 1e-8), m_tol, failed);
 		if (failed) {
-			print_debug(particles, num_part, i);
-			exit(-1);
+			#pragma omp critical
+			{
+				print_debug(particles, num_part, i);
+				fprintf(stderr, "Plasticity solver failed at particle %u\n", i);
+			}
+			// Set error flag and break from parallel region gracefully
+			#pragma omp atomic write
+			m_solver_failed = true;
+			continue;
 		}
 
 		double eps_pl_new = eps_pl_equiv_init + sqrt(2.0/3.0) * fmax(delta_lambda,0.);

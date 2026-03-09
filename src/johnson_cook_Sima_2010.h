@@ -109,11 +109,14 @@ public:
 	void set_eps_init(double eps_init);
 	void set_temp(double theta);
 
-	double sigma_yield(double eps_pl, double eps_dot_pl);
-	double sigma_yield(double eps_pl, double eps_dot_pl, double theta);
+	double sigma_yield(double eps_pl, double eps_dot_pl) const;
+	double sigma_yield(double eps_pl, double eps_dot_pl, double theta) const;
 
 	double operator() (double delta_lambda);
 	double f(double delta_lambda);
+
+	// Stateless evaluation method for thread safety
+	double evaluate_flow_rule(double delta_lambda, double norm_Strial, double eps_pl_equiv_init, double T, double mu, double delta_t) const;
 
 	johnson_cook_Sima_2010(physical_constants pc);
 	johnson_cook_Sima_2010();

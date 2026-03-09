@@ -52,6 +52,7 @@
 #define SIMULATION_DATA_H_
 
 #include <math.h>
+#include "property.h"
 
 /*
  * for a given body:
@@ -60,6 +61,7 @@
  */
 
 class johnson_cook_constants {
+// ... existing private members ...
 private:
 	double m_A = 0.;
 	double m_B = 0.;
@@ -104,24 +106,27 @@ public:
 };
 
 class thermal_constants {
-	double m_cp = 0.;
+	TableProperty m_cp;
 	double m_Taylor_Quinney = 0.;
-	double m_k = 0.;
+	TableProperty m_k;
 
 public:
 	thermal_constants(double cp, double Taylor_Quinney, double k = 0.);
 	thermal_constants();
 
-	double cp() const;				/*!< Heat capacity */
+	double cp(double T = 293.0) const;				/*!< Heat capacity */
 	double Taylor_Quinney() const;	/*!< Percentage of plastic work converted into thermal energy */
-	double k() const;				/*!< Thermal conduction coefficient */
+	double k(double T = 293.0) const;				/*!< Thermal conduction coefficient */
+	
+	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_cp.set_table(temps, values); }
+	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_k.set_table(temps, values); }
 };
 
 class physical_constants {
 private:
-	double m_nu = 0.;
-	double m_E = 0.;
-	double m_rho0 = 0.;
+	TableProperty m_nu;
+	TableProperty m_E;
+	TableProperty m_rho0;
 
 	johnson_cook_constants m_jc;
 	thermal_constants m_tc;
@@ -130,16 +135,24 @@ public:
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc);
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc, thermal_constants tc);
 	physical_constants();
-	double nu() const;
-	double E() const;
-	double G() const;
-	double K() const;
-	double rho0() const;
-	double c0() const;
-	double mu_lame() const;
-	double lambda_lame() const;
+	
+	double nu(double T = 293.0) const;
+	double E(double T = 293.0) const;
+	double G(double T = 293.0) const;
+	double K(double T = 293.0) const;
+	double rho0(double T = 293.0) const;
+	double c0(double T = 293.0) const;
+	double mu_lame(double T = 293.0) const;
+	double lambda_lame(double T = 293.0) const;
+	
 	johnson_cook_constants jc() const;
 	thermal_constants tc() const;
+
+	void set_E_table(const std::vector<double>& temps, const std::vector<double>& values) { m_E.set_table(temps, values); }
+	void set_nu_table(const std::vector<double>& temps, const std::vector<double>& values) { m_nu.set_table(temps, values); }
+	void set_rho0_table(const std::vector<double>& temps, const std::vector<double>& values) { m_rho0.set_table(temps, values); }
+	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_cp_table(temps, values); }
+	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_k_table(temps, values); }
 };
 
 class constants_monaghan {

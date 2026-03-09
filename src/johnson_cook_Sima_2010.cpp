@@ -66,21 +66,25 @@ double johnson_cook_Sima_2010::operator() (double delta_lambda) {
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
 
-	double eps_pl_equiv = m_eps_pl_equiv_init + sqrt(2.0/3.0) * fmax(delta_lambda,0.);
-	double eps_pl_equiv_dot = sqrt(2.0/3.0) *  fmax(delta_lambda,0.) / delta_t;
-
-	double sigmaY = sigma_yield(eps_pl_equiv, eps_pl_equiv_dot);
-
-	return m_norm_Strial - 2*m_mu*delta_lambda - sqrt(2.0/3.0)*sigmaY;
+	return evaluate_flow_rule(delta_lambda, m_norm_Strial, m_eps_pl_equiv_init, m_t, m_mu, delta_t);
 }
 
-double johnson_cook_Sima_2010::sigma_yield(double eps_pl, double eps_dot_pl) {
+double johnson_cook_Sima_2010::evaluate_flow_rule(double delta_lambda, double norm_Strial, double eps_pl_equiv_init, double T, double mu, double delta_t) const {
+	double eps_pl_equiv = eps_pl_equiv_init + sqrt(2.0/3.0) * fmax(delta_lambda,0.);
+	double eps_pl_equiv_dot = sqrt(2.0/3.0) *  fmax(delta_lambda,0.) / delta_t;
+
+	double sigmaY = sigma_yield(eps_pl_equiv, eps_pl_equiv_dot, T);
+
+	return norm_Strial - 2*mu*delta_lambda - sqrt(2.0/3.0)*sigmaY;
+}
+
+double johnson_cook_Sima_2010::sigma_yield(double eps_pl, double eps_dot_pl) const {
 	return sigma_yield(eps_pl, eps_dot_pl, m_t);
 }
 
-double johnson_cook_Sima_2010::sigma_yield(double eps_pl, double eps_dot_pl, double t) {
+double johnson_cook_Sima_2010::sigma_yield(double eps_pl, double eps_dot_pl, double t) const {
 	if (t < m_Tref) {
-		printf("Temp (%e) smaller than JC-Reference Temp (%e) - adapted\n", t, m_Tref);
+		// printf("Temp (%e) smaller than JC-Reference Temp (%e) - adapted\n", t, m_Tref);
 		t = m_Tref;
 	}
 

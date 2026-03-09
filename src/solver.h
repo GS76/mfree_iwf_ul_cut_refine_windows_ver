@@ -71,9 +71,9 @@ double solve_zero_secant(ftor f, double init, double t, bool &failed) {
 	failed = false;
 
 	do {
-		double g = (*f)(delta_lambda);
+		double g = f(delta_lambda);
 		double delta_lambda_1 = delta_lambda*1.01;
-		double g_1 = (*f)(delta_lambda_1);
+		double g_1 = f(delta_lambda_1);
 
 		double slope = (g - g_1) / (delta_lambda - delta_lambda_1);
 

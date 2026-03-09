@@ -52,10 +52,13 @@
 
 void material_eos(body &b) {
 	std::vector<particle> &particles = b.get_particles();
-	double K    = b.get_sim_data().get_physical_constants().K();
-	double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+		double T = particles[i].T;
+		double K = phys_const.K(T);
+		double rho0 = phys_const.rho0(T);
+		
 		const double c0 = sqrt(K/rho0);
 		particles[i].p = c0*c0*(particles[i].rho - rho0);
 	}
@@ -63,9 +66,12 @@ void material_eos(body &b) {
 
 void material_stress_rate_jaumann(body &b) {
 	std::vector<particle> &particles = b.get_particles();
-	double G = b.get_sim_data().get_physical_constants().G();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+		double T = particles[i].T;
+		double G = phys_const.G(T);
+
 		const glm::dmat3x3 epsdot = glm::dmat3x3(particles[i].vx_x, 0.5*(particles[i].vx_y + particles[i].vy_x), 0., 0.5*(particles[i].vx_y + particles[i].vy_x), particles[i].vy_y, 0., 0., 0., 0.);
 		const glm::dmat3x3 omega  = glm::dmat3x3(0.     , 0.5*(particles[i].vy_x - particles[i].vx_y), 0., 0.5*(particles[i].vx_y - particles[i].vy_x), 0., 0., 0., 0., 0.);
 		const glm::dmat3x3 S      = glm::dmat3x3(particles[i].Sxx, particles[i].Sxy, 0., particles[i].Sxy, particles[i].Syy, 0., 0., 0., particles[i].Szz);

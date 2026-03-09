@@ -95,7 +95,6 @@ public:
 	thermal(physical_constants pc);
 
 private:
-	double m_alpha = 0.;
 	thermal_solver m_thermal_solver = thermal_pse;
 
 	void heat_conduction_pse(body &b) const;

@@ -1,0 +1,23 @@
+# Tasks
+
+- [x] **Analyze Architecture**:
+    - [x] Review `refine_cut_main.cpp` for the high-level control flow.
+    - [x] Review `leap_frog.cpp` for the time integration loop.
+    - [x] Map out the dependencies between `body`, `particle`, and physics modules (`thermal`, `contact`, etc.).
+- [x] **Analyze Configurable Parameters**:
+    - [x] Identify all command-line arguments in `refine_cut_main.cpp`.
+    - [x] Document `simulation_data` class hierarchy in `simulation_data.h` and `simulation_data.cpp`.
+    - [x] Extract material properties from `material_library.h` and `material_library.cpp`.
+    - [x] List numerical constants (Monaghan, XSPH) from `simulation_data.h`.
+    - [x] Identify geometry/boundary condition settings in `benchmarks/`.
+- [x] **Create TECHNICAL_OVERVIEW.md**:
+    - [x] Write "Introduction" and "Core Purpose".
+    - [x] Write "Software Architecture" (Modules, Data Flow, Parallelism).
+    - [x] Write "Key Algorithms" (UL-RKPM, Plasticity, Contact).
+- [x] **Create CONFIGURATION_GUIDE.md**:
+    - [x] Write "Command Line Interface".
+    - [x] Write "Simulation Configuration" (Time, Output).
+    - [x] Write "Material Parameters" (Johnson-Cook).
+    - [x] Write "Numerical Parameters".
+    - [x] Write "Geometry and Boundary Conditions".
+    - [x] Provide examples of how to modify these (recompilation vs runtime if any).

@@ -62,10 +62,6 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fenv.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <omp.h>
 
 extern logger *global_logger;

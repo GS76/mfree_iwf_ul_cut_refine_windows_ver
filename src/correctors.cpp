@@ -49,6 +49,7 @@
  */
 
 #include "correctors.h"
+#include <omp.h>
 
 static double stress_angle(double sxx, double sxy, double syy, double eps) {
 	double numer = 2.*sxy;
@@ -67,16 +68,20 @@ void correctors_mghn_artificial_viscosity(body &b) {
 	const double beta  = b.get_sim_data().get_correction_constants().get_art_visc_const().artvisc_beta();
 	const double eta   = b.get_sim_data().get_correction_constants().get_art_visc_const().artvisc_eta();
 
-	const double K = b.get_sim_data().get_physical_constants().K();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		const double xi   = particles[i].x;
 		const double yi   = particles[i].y;
 		const double vxi  = particles[i].vx;
 		const double vyi  = particles[i].vy;
+		
+		const double K_i = phys_const.K(particles[i].T);
+
 
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
@@ -107,7 +112,7 @@ void correctors_mghn_artificial_viscosity(body &b) {
 			}
 
 			assert(rhoi > 0.);
-			const double ci   = sqrt(K/rhoi);
+			const double ci   = sqrt(K_i/rhoi);
 
 			const double hj   = particles[jdx].h;
 			const double mj   = particles[jdx].m;
@@ -119,7 +124,9 @@ void correctors_mghn_artificial_viscosity(body &b) {
 			}
 
 			assert(rhoj > 0.);
-			const double cj   = sqrt(K/rhoj);
+			
+			const double K_j = phys_const.K(particles[jdx].T);
+			const double cj   = sqrt(K_j/rhoj);
 
 			const double cij = 0.5*(ci+cj);
 			const double hij = 0.5*(hi+hj);
@@ -141,6 +148,7 @@ void correctors_mghn_artificial_stress(body &b) {
 
 	const double eps = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_eps();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		double rhoi = particles[i].rho;
 		double rhoi21 = 1./(rhoi*rhoi);
@@ -180,6 +188,7 @@ void correctors_xsph(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		const double vxi = particles[i].vx;
 		const double vyi = particles[i].vy;

@@ -49,6 +49,7 @@
  */
 
 #include "contact.h"
+#include <omp.h>
 
 static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
 	// friction force according to
@@ -90,6 +91,7 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
 
 	const double alpha = 0.1;
 
+	#pragma omp parallel for
 	for (unsigned int i = 0; i < slave.get_num_part(); i++) {
 
 		double qx = particles[i].x;

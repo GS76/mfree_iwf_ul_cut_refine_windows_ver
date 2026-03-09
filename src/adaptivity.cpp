@@ -49,6 +49,7 @@
  */
 
 #include "adaptivity.h"
+#include <cmath>
 #include "body.h"
 
 static bool inside_bounding_box(glm::dvec2 xlim, glm::dvec2 ylim, glm::dvec2 pos) {
