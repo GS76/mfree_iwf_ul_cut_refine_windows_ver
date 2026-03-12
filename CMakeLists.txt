@@ -19,9 +19,15 @@ include_directories(src/benchmarks)
 include_directories(${glm_SOURCE_DIR})
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
+list(FILTER SOURCES EXCLUDE REGEX ".*/tests/.*")
+list(FILTER SOURCES EXCLUDE REGEX ".*test_omp_scaling\\.cpp$")
 
 add_executable(mfree_iwf_ul_cut_refine_windows_ver ${SOURCES})
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(mfree_iwf_ul_cut_refine_windows_ver PUBLIC OpenMP::OpenMP_CXX)
+    
+    # Add validation target
+    add_executable(validate_omp src/benchmarks/test_omp_scaling.cpp)
+    target_link_libraries(validate_omp PUBLIC OpenMP::OpenMP_CXX)
 endif()

@@ -13,7 +13,7 @@ This project has been ported to support Windows.
 You can build the project using the following command from the project root:
 
 ```powershell
-$files = Get-ChildItem -Recurse src -Filter *.cpp
+$files = Get-ChildItem -Recurse src -Filter *.cpp | Where-Object { $_.FullName -notmatch '\\src\\tests\\' }
 g++ -o mfree_iwf.exe $files.FullName -I src -I src/benchmarks -I deps/glm-0.9.9.8 -std=c++17 -fopenmp -D_USE_MATH_DEFINES
 ```
 

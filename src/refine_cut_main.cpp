@@ -55,6 +55,9 @@
 #include <chrono>
 #include <filesystem>
 #include <omp.h>
+#include <signal.h>
+#include <stdexcept>
+#include <exception>
 
 #include "particle.h"
 #include "contact.h"
@@ -80,25 +83,43 @@ logger *global_logger;
 
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+void fpe_signal_handler(int sig) {
+    _fpreset(); // Reset floating point state
+    throw std::runtime_error("Floating Point Exception Detected (SIGFPE)");
+}
+#endif
+
 int main(int argc, char * argv[]) {
 #ifndef _WIN32
 	feenableexcept(FE_INVALID | FE_OVERFLOW);
 #elif defined(_WIN32)
 	// Windows-compatible floating-point exception control
 	_fpreset();
-	_controlfp(_EM_INVALID | _EM_OVERFLOW, _MCW_EM);
+	// Enable (Unmask) Invalid, ZeroDivide, and Overflow exceptions
+	// _controlfp(0, ...) clears the mask bits, enabling the exceptions
+	_controlfp(0, _EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW);
+	
+	// Register signal handler for SIGFPE
+	signal(SIGFPE, fpe_signal_handler);
 #endif
 
 	// clear the "results" directory for a fresh run
-	const fs::path folder = "results";
-	if (!fs::exists(folder)) {
-		fs::create_directory(folder);
-	} else {
-		for (const auto& entry : fs::directory_iterator(folder)) {
-			if (entry.is_regular_file()) {
+	const fs::path folder = fs::current_path() / "results";
+	std::error_code fs_ec;
+	if (!fs::exists(folder, fs_ec)) {
+		fs::create_directory(folder, fs_ec);
+	} else if (!fs::is_directory(folder, fs_ec)) {
+		fs::remove(folder, fs_ec);
+		fs::create_directory(folder, fs_ec);
+	}
+	if (!fs_ec) {
+		for (fs::directory_iterator it(folder, fs_ec), end; !fs_ec && it != end; it.increment(fs_ec)) {
+			const fs::directory_entry& entry = *it;
+			if (entry.is_regular_file(fs_ec)) {
 				std::string ext = entry.path().extension().string();
 				if (ext == ".txt" || ext == ".vtk") {
-					fs::remove(entry.path());
+					fs::remove(entry.path(), fs_ec);
 				}
 			}
 		}
@@ -160,6 +181,8 @@ int main(int argc, char * argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	freq = std::max(1, (int) freq);
+	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%u print_every=%u\n",
+		   (*b).get_num_part(), time->get_dt(), time->get_t_final(), num_step, freq);
 
 	/*
 	  ========================
@@ -177,39 +200,46 @@ int main(int argc, char * argv[]) {
 	 * Fig. 5. Flowchart of the model logic for each time-step.
 	 *
 	 */
-	while(!time->finished()) {
+	try {
+		while(!time->finished()) {
 
-		// plot with given frequency
-		if (time->get_step() % freq == 0) {
+			// plot with given frequency
+			if (time->get_step() % freq == 0) {
+				if (global_logger) {
+					global_logger->log(*b, print_iter);
+				}
 
-			if (global_logger) {
-
-				/* Write out the results in the desired format (*.txt, *.vtk)
-				 * to be read in Matlab or ParaView
-				 */
-				global_logger->log(*b, print_iter);
-
-				// Report the time left to finish
 				auto intermediate = std::chrono::high_resolution_clock::now();
 				std::chrono::duration<double> diff = intermediate - begin;
 				double seconds_so_far = diff.count();
 
-				double percent_done = 100*time->get_step()/((double) num_step);
-				double time_left = seconds_so_far/percent_done*100;
+				double percent_done = (num_step > 0) ? (100.0 * time->get_step() / ((double) num_step)) : 0.0;
+				double seconds_left = 0.0;
+				if (percent_done > 0.0) {
+					double time_left = seconds_so_far/percent_done*100.0;
+					seconds_left = time_left - seconds_so_far;
+				}
 
-				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_dt()*time->get_step(), percent_done, time_left-seconds_so_far);
+				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_dt()*time->get_step(), percent_done, seconds_left);
+				fflush(stdout);
 				print_iter++;
 			}
+
+			/* Carry out the time-stepper:
+			 * this is to update the system by evolving the variables
+			 * over time using the LeapFrog time stepping
+			 */
+			stepper.step(*b);
+
+			time->increment_step();
+			time->increment_time();
 		}
-
-		/* Carry out the time-stepper:
-		 * this is to update the system by evolving the variables
-		 * over time using the LeapFrog time stepping
-		 */
-		stepper.step(*b);
-
-		time->increment_step();
-		time->increment_time();
+	} catch (const std::exception& e) {
+		std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: " << e.what() << std::endl;
+		return EXIT_FAILURE;
+	} catch (...) {
+		std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: Unknown Exception" << std::endl;
+		return EXIT_FAILURE;
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
