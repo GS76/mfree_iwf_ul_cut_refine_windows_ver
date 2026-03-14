@@ -127,12 +127,15 @@ int main(int argc, char * argv[]) {
 
 	// inputs
 	int model = 1;
+	bool smoke = false;
 
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "-m" && i + 1 < argc) {
 			model = std::atoi(argv[++i]);
 			printf("running model %d\n", model);
+		} else if (arg == "--smoke") {
+			smoke = true;
 		}
 	}
 
@@ -174,8 +177,13 @@ int main(int argc, char * argv[]) {
 	 ===================================
 	 */
 	simulation_time *time = &simulation_time::getInstance();
-	unsigned int num_step = time->get_t_final()/time->get_dt();
 	int num_print = 150;
+	if (smoke) {
+		global_logger = 0;
+		time->set_t_final(time->get_dt() * 1000.0);
+		num_print = 1;
+	}
+	unsigned int num_step = time->get_t_final()/time->get_dt();
 	unsigned int freq = num_step / num_print;
 	unsigned int print_iter = 0;
 	auto begin = std::chrono::high_resolution_clock::now();

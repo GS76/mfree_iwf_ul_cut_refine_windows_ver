@@ -2,23 +2,38 @@
 #include <vector>
 #include <cmath>
 #include <omp.h>
-#include <windows.h>
 #include <iomanip>
 #include <algorithm>
 #include <map>
 #include <numeric>
 #include <string>
 
-// Function to get current core ID on Windows
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#if defined(__linux__)
+#include <sched.h>
+#endif
+#endif
+
 int get_core_id() {
+#ifdef _WIN32
     return GetCurrentProcessorNumber();
+#elif defined(__linux__)
+    return sched_getcpu();
+#else
+    return -1;
+#endif
 }
 
-// Function to get system processor count
 int get_system_procs() {
-    // try to get active processor count for all groups (handles > 64 cores)
-    // ALL_PROCESSOR_GROUPS is 0xffff
+#ifdef _WIN32
     return GetActiveProcessorCount(0xffff);
+#else
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    return (n > 0) ? (int)n : omp_get_num_procs();
+#endif
 }
 
 // Compute-bound kernel: Monte Carlo Pi estimation
@@ -128,7 +143,7 @@ int main(int argc, char* argv[]) {
     
     std::cout << "System Topology Verification:" << std::endl;
     std::cout << "  OpenMP Max Threads: " << omp_max << std::endl;
-    std::cout << "  System Processors:  " << sys_procs << " (GetActiveProcessorCount)" << std::endl;
+    std::cout << "  System Processors:  " << sys_procs << std::endl;
     
     if (omp_max == sys_procs) {
         std::cout << "  -> Status: MATCH (Correctly detected)" << std::endl;

@@ -1,0 +1,11 @@
+- [x] CMake minimum version is ≥ 3.16 and documented.
+- [x] Main executable target builds without including benchmark `main()` sources.
+- [x] Benchmark targets (including OpenMP scaling) build as separate executables.
+- [x] Debug/Release flags match the spec across GCC/Clang/MSVC.
+- [x] OpenMP detection/linking works and fails with clear guidance when unavailable.
+- [x] GLM dependency is automatically resolved (FetchContent or find_package).
+- [x] build.sh and build.bat can configure, build, install, and support parallel builds.
+- [x] Documentation includes OS-specific CMake install + PATH verification + troubleshooting.
+- [x] CTest (or equivalent) can run existing unit tests and a smoke test.
+- [x] Clean-build reproducibility steps are documented and validated.
+- [x] Compatibility matrix exists and includes at least: GCC 9+, Clang 10+, MSVC 2019+ across target OSes.

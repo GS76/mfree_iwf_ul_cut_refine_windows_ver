@@ -47,3 +47,12 @@ Result frames presented above can be viewed using [ParaView](https://www.paravie
 * Hagen Klippel, hklippel@ethz.ch
 
 **mfree_iwf-ul_cut-refine** is free software and licensed under GPLv3.
+
+## Building
+The recommended build system is CMake (cross-platform) with Ninja or Makefiles, with OpenMP enabled.
+
+- See [BUILDING.md](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/BUILDING.md) for:
+  - CMake installation and PATH verification (Windows/Linux/macOS)
+  - Build scripts (`build.sh`, `build.bat`)
+  - OpenMP notes per toolchain
+  - Clean-build reproducibility steps and troubleshooting
