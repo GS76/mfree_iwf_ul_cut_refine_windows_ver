@@ -54,7 +54,19 @@ function(mfree_apply_target_defaults target_name)
 	endif()
 endfunction()
 
-set(MFREE_CORE_SOURCES
+function(mfree_apply_openmp_flags_if_needed target_name)
+	if(MSVC)
+		target_link_libraries(${target_name} PRIVATE OpenMP::OpenMP_CXX)
+		return()
+	endif()
+	if(NOT OpenMP_CXX_FLAGS)
+		return()
+	endif()
+	separate_arguments(_mfree_omp_flags NATIVE_COMMAND "${OpenMP_CXX_FLAGS}")
+	target_link_options(${target_name} PRIVATE ${_mfree_omp_flags})
+endfunction()
+
+set(MFREE_CORE_LIB_SOURCES
 	src/adaptivity.cpp
 	src/body.cpp
 	src/cont_mech.cpp
@@ -70,12 +82,15 @@ set(MFREE_CORE_SOURCES
 	src/particle.cpp
 	src/plasticity.cpp
 	src/precomp_shape_functions.cpp
-	src/refine_cut_main.cpp
 	src/simulation_data.cpp
 	src/simulation_time.cpp
 	src/thermal.cpp
 	src/tool.cpp
 	src/vtk_writer.cpp
+)
+
+set(MFREE_MAIN_SOURCE
+	src/refine_cut_main.cpp
 )
 
 set(MFREE_BENCH_SOURCES
@@ -85,9 +100,27 @@ set(MFREE_BENCH_SOURCES
 	src/benchmarks/test_density.cpp
 )
 
-add_executable(mfree_iwf
-	${MFREE_CORE_SOURCES}
+add_library(mfree_core STATIC
+	${MFREE_CORE_LIB_SOURCES}
+)
+target_include_directories(mfree_core PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(mfree_core PUBLIC glm::glm OpenMP::OpenMP_CXX)
+mfree_apply_target_defaults(mfree_core)
+
+add_library(mfree_benchmark_support STATIC
 	${MFREE_BENCH_SOURCES}
+)
+target_include_directories(mfree_benchmark_support PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/src
+	${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
+)
+target_link_libraries(mfree_benchmark_support PUBLIC mfree_core)
+mfree_apply_target_defaults(mfree_benchmark_support)
+
+add_executable(mfree_iwf
+	${MFREE_MAIN_SOURCE}
 )
 
 target_include_directories(mfree_iwf PRIVATE
@@ -95,15 +128,13 @@ target_include_directories(mfree_iwf PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 )
 
-target_link_libraries(mfree_iwf PRIVATE OpenMP::OpenMP_CXX glm::glm)
-if(NOT MSVC)
-	target_link_options(mfree_iwf PRIVATE ${OpenMP_CXX_FLAGS})
-endif()
+target_link_libraries(mfree_iwf PRIVATE mfree_benchmark_support)
 if(MSVC)
 	set_property(TARGET mfree_iwf PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 set_property(TARGET mfree_iwf PROPERTY OUTPUT_NAME "mfree_iwf")
 mfree_apply_target_defaults(mfree_iwf)
+mfree_apply_openmp_flags_if_needed(mfree_iwf)
 
 add_executable(mfree_iwf_ul_cut_refine_windows_ver ALIAS mfree_iwf)
 
@@ -114,10 +145,8 @@ if(MFREE_ENABLE_BENCHMARKS)
 		${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 	)
 	target_link_libraries(validate_omp PRIVATE OpenMP::OpenMP_CXX)
-	if(NOT MSVC)
-		target_link_options(validate_omp PRIVATE ${OpenMP_CXX_FLAGS})
-	endif()
 	mfree_apply_target_defaults(validate_omp)
+	mfree_apply_openmp_flags_if_needed(validate_omp)
 endif()
 
 if(MFREE_ENABLE_TESTS)
@@ -125,12 +154,13 @@ if(MFREE_ENABLE_TESTS)
 
 	add_executable(test_property_interpolation
 		src/tests/test_property_interpolation.cpp
-		src/simulation_data.cpp
 	)
 	target_include_directories(test_property_interpolation PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/src
 	)
+	target_link_libraries(test_property_interpolation PRIVATE mfree_core)
 	mfree_apply_target_defaults(test_property_interpolation)
+	mfree_apply_openmp_flags_if_needed(test_property_interpolation)
 	add_test(NAME test_property_interpolation COMMAND test_property_interpolation)
 
 	add_test(NAME smoke_model_1 COMMAND mfree_iwf --smoke -m 1)

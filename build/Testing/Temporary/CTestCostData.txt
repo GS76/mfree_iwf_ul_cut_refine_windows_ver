@@ -1,3 +1,3 @@
-test_property_interpolation 1 0.287828
-smoke_model_1 1 13.512
+test_property_interpolation 1 0.0706606
+smoke_model_1 1 13.9332
 ---
