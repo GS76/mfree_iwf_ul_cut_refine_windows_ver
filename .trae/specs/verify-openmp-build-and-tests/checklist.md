@@ -1,0 +1,6 @@
+- [x] CMake configuration detects OpenMP and builds all targets successfully.
+- [x] Effective OpenMP compile/link flags are captured for GCC/Clang or MSVC toolchains.
+- [x] OpenMP benchmark/executable(s) run successfully for multiple `OMP_NUM_THREADS` values.
+- [x] MSVC verification is either passing or clearly marked as not available with reason.
+- [x] Parallel regions are reviewed for thread safety; any hazards are documented and resolved.
+- [x] OpenMP compliance report is generated with warnings and test matrix.

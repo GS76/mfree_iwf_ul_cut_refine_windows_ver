@@ -1,0 +1,83 @@
+- [x] Dependencies & Toolchain section is complete.
+  - Required dependencies:
+    - CMake ≥ 3.16
+    - C++17 compiler toolchain (GCC/Clang/MSVC)
+    - OpenMP runtime and compiler OpenMP support
+    - GLM (provided via FetchContent or `find_package`)
+  - Required build artifacts:
+    - Main executable: `mfree_iwf`
+    - OpenMP benchmark: `validate_omp`
+    - Unit tests: `test_property_interpolation` (when tests enabled)
+
+- [x] Configuration Surface section is complete.
+  - CLI flags (entry point: `src/refine_cut_main.cpp`):
+    - `-m {1..4}`: select benchmark model
+    - `--smoke`: short run
+    - Cooldown (optional):
+      - `--cooldown`: enable cooldown stage after cutting
+      - `--cooldown-remove-tool`: remove tool object during cooldown (tool output omitted safely)
+      - `--cooldown-hconv <double>`: convection coefficient in W/m²·K
+  - Scenario-definition locations:
+    - Cutting benchmarks (geometry, tool, BCs): `src/benchmarks/test_cuttings.cpp`
+    - Material presets and temperature-dependent properties: `src/benchmarks/material_library.cpp`
+
+- [x] Input Data & Units section is complete.
+  - Scenario inputs are currently code-defined (no external mesh/BC file formats required by default).
+  - Units:
+    - Geometry: meters
+    - Time: seconds
+    - Temperature: Kelvin internally (ambient target 22 °C = 295.15 K)
+    - Convection coefficient: W/m²·K
+  - Temperature-dependent material properties:
+    - Linear fits (`y = m*T + b`) are supported and clamped to physical bounds.
+
+- [x] Outputs & Metadata section is complete.
+  - Required output folder: `results/`
+  - VTK (legacy ASCII) particle series:
+    - Cutting: `out_%06d.vtk`
+    - Cooldown (if enabled): `cooldown_%06d.vtk`
+    - Residual-stress-ready (at convergence): `residual-stress-ready_%06d.vtk`
+  - VTK tool series (when tool exists):
+    - Cutting: `tool_%06d.vtk`
+    - Cooldown (if tool still exists): `cooldown_tool_%06d.vtk`
+    - Residual-stress-ready (if tool still exists): `residual-stress-ready_tool_%06d.vtk`
+  - Required per-point particle fields (minimum):
+    - Scalars: `temperature`, `density`, `pressure`, `equiv_plastic_strain`, `Svm`
+    - Vectors: `velocity`, `displacement`
+    - Tensors: `stress`
+  - Required metadata tags:
+    - `FIELD FieldData` contains `time` (double) and `stage` (int)
+
+- [x] Performance & OpenMP Gates section is complete.
+  - Build-time OpenMP requirements:
+    - GCC/Clang: `-fopenmp` present on compile and link
+    - MSVC: `/openmp` (or toolchain equivalent) present when MSVC toolchain is used
+  - Runtime OpenMP test matrix:
+    - Run `validate_omp` under `OMP_NUM_THREADS={1,2,4,max}`
+    - Success criteria: executable exits successfully and prints all test sections
+  - Performance benchmark expectations:
+    - Strong-scaling section reports non-decreasing speedup from 1→2 threads
+    - Any affinity warnings are documented; correctness must not be affected
+
+- [x] Error Handling & Logging Standards section is complete.
+  - Failure behavior:
+    - Hard failures are surfaced with actionable diagnostics (exception + message)
+    - Plasticity solver failures set an error flag and emit debug artifacts (when triggered)
+    - Missing/removed tool must not crash logging/output; tool output is omitted
+  - Logging/output naming:
+    - Stage-labeled VTK files use stable prefixes (`cooldown`, `residual-stress-ready`)
+    - Reports:
+      - `cooldown_rate.csv` and `cooldown_summary.txt` (when cooldown enabled)
+      - `OPENMP_REPORT.md` (OpenMP compliance report)
+
+- [x] Validation Procedures & Success Criteria section is complete.
+  - Build:
+    - Configure and build with CMake successfully (no errors).
+  - Tests:
+    - `ctest --test-dir build --output-on-failure` passes (unit + smoke tests)
+  - OpenMP benchmark:
+    - Run `validate_omp` at thread counts `{1,2,4,max}`; all runs exit 0.
+  - Cooldown validation (if enabled):
+    - `cooldown_rate.csv` contains `max_abs_dTdt_C_per_min` and never exceeds 5.0
+    - `cooldown_summary.txt` reports stable BC counts and final temperature thresholds
+    - `residual-stress-ready_%06d.vtk` exists and contains required fields + metadata

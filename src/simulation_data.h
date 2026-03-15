@@ -120,6 +120,8 @@ public:
 	
 	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_cp.set_table(temps, values); }
 	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_k.set_table(temps, values); }
+	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_cp.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_k.set_linear(m, b, use_min, min_val, use_max, max_val); }
 };
 
 class physical_constants {
@@ -127,6 +129,7 @@ private:
 	TableProperty m_nu;
 	TableProperty m_E;
 	TableProperty m_rho0;
+	TableProperty m_alpha;
 
 	johnson_cook_constants m_jc;
 	thermal_constants m_tc;
@@ -141,6 +144,7 @@ public:
 	double G(double T = 293.0) const;
 	double K(double T = 293.0) const;
 	double rho0(double T = 293.0) const;
+	double alpha(double T = 293.0) const;
 	double c0(double T = 293.0) const;
 	double mu_lame(double T = 293.0) const;
 	double lambda_lame(double T = 293.0) const;
@@ -151,8 +155,16 @@ public:
 	void set_E_table(const std::vector<double>& temps, const std::vector<double>& values) { m_E.set_table(temps, values); }
 	void set_nu_table(const std::vector<double>& temps, const std::vector<double>& values) { m_nu.set_table(temps, values); }
 	void set_rho0_table(const std::vector<double>& temps, const std::vector<double>& values) { m_rho0.set_table(temps, values); }
+	void set_alpha_table(const std::vector<double>& temps, const std::vector<double>& values) { m_alpha.set_table(temps, values); }
 	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_cp_table(temps, values); }
 	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_k_table(temps, values); }
+
+	void set_E_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_E.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_nu_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_nu.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_rho0_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_rho0.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_alpha_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_alpha.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_tc.set_cp_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_tc.set_k_linear(m, b, use_min, min_val, use_max, max_val); }
 };
 
 class constants_monaghan {

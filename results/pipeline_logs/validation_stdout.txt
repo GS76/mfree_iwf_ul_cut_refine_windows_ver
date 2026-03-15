@@ -1,0 +1,10 @@
+running model 1
+feed: 0.000100, dt 7.641171e-10, num_part 6231
+<<< single-resolution simulation >>>
+starting simulation: particles=6231 dt=7.641171e-10 t_final=9.169405e-07 steps=1200 print_every=240
+000000: #increments 000000, cur time 0.000000e+00, pctg done 0.000000, seconds left: 0.000000
+000001: #increments 000240, cur time 1.833881e-07, pctg done 20.000000, seconds left: 12.390064
+000002: #increments 000480, cur time 3.667762e-07, pctg done 40.000000, seconds left: 9.181045
+000003: #increments 000720, cur time 5.501643e-07, pctg done 60.000000, seconds left: 6.225770
+000004: #increments 000960, cur time 7.335524e-07, pctg done 80.000000, seconds left: 3.302567
+Runtime: 13.884512

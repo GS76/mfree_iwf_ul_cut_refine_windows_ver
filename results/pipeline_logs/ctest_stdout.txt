@@ -1,0 +1,9 @@
+Test project D:/mfree_iwf_ul_cut_refine_windows_ver/build
+    Start 1: test_property_interpolation
+1/2 Test #1: test_property_interpolation ......   Passed    0.04 sec
+    Start 2: smoke_model_1
+2/2 Test #2: smoke_model_1 ....................   Passed   12.93 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =  12.99 sec

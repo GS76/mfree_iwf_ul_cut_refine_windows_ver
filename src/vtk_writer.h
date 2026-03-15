@@ -62,7 +62,9 @@
 // please see: https://www.google.com/search?q=paraview
 
 void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder = "results");
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label, const char *frame_label);
 void vtk_writer_write(const tool* tool, unsigned int step, const char *folder);
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label);
 
 #endif /* VTK_WRITER_H_ */
 

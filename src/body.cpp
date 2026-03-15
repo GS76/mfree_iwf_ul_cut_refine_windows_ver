@@ -74,6 +74,14 @@ void body::set_tool(tool *tool) {
 	m_tool = tool;
 }
 
+thermal* body::get_thermal() {
+	return m_thermal;
+}
+
+tool* body::get_tool() {
+	return m_tool;
+}
+
 void body::move_tool() {
 	if (m_tool == 0) return;
 	m_tool->update_tool();

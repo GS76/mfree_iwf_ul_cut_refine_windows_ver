@@ -1,21 +1,25 @@
-Start testing: Mar 14 19:14 South Africa Standard Time
+Start testing: Mar 15 19:26 South Africa Standard Time
 ----------------------------------------------------------
 1/2 Testing: test_property_interpolation
 1/2 Test: test_property_interpolation
 Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/test_property_interpolation.exe"
 Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
-"test_property_interpolation" start time: Mar 14 19:14 South Africa Standard Time
+"test_property_interpolation" start time: Mar 15 19:26 South Africa Standard Time
 Output:
 ----------------------------------------------------------
 Testing Linear Interpolation...
 Linear Interpolation Passed!
+Testing Linear Fit + Clamping...
+Linear Fit + Clamping Passed!
 Testing Physical Constants Temperature Dependency...
 Physical Constants Dependency Passed!
+Testing Linear Equation Configuration...
+Linear Equation Configuration Passed!
 <end of output>
-Test time =   0.30 sec
+Test time =   0.04 sec
 ----------------------------------------------------------
 Test Passed.
-"test_property_interpolation" end time: Mar 14 19:14 South Africa Standard Time
+"test_property_interpolation" end time: Mar 15 19:26 South Africa Standard Time
 "test_property_interpolation" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -23,22 +27,21 @@ Test Passed.
 2/2 Test: smoke_model_1
 Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/mfree_iwf.exe" "--smoke" "-m" "1"
 Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
-"smoke_model_1" start time: Mar 14 19:14 South Africa Standard Time
+"smoke_model_1" start time: Mar 15 19:26 South Africa Standard Time
 Output:
 ----------------------------------------------------------
 running model 1
-feed: 0.000100, dt 7.008198e-10, num_part 6231
+feed: 0.000100, dt 7.641171e-10, num_part 6231
 <<< single-resolution simulation >>>
-starting simulation: particles=6231 dt=7.008198e-10 t_final=7.008198e-07 steps=1000 print_every=1000
+starting simulation: particles=6231 dt=7.641171e-10 t_final=7.641171e-07 steps=1000 print_every=1000
 000000: #increments 000000, cur time 0.000000e+00, pctg done 0.000000, seconds left: 0.000000
-000001: #increments 001000, cur time 7.008198e-07, pctg done 100.000000, seconds left: 0.000000
-Runtime: 13.798733
+Runtime: 12.875291
 <end of output>
-Test time =  13.92 sec
+Test time =  12.93 sec
 ----------------------------------------------------------
 Test Passed.
-"smoke_model_1" end time: Mar 14 19:14 South Africa Standard Time
-"smoke_model_1" time elapsed: 00:00:13
+"smoke_model_1" end time: Mar 15 19:26 South Africa Standard Time
+"smoke_model_1" time elapsed: 00:00:12
 ----------------------------------------------------------
 
-End testing: Mar 14 19:14 South Africa Standard Time
+End testing: Mar 15 19:26 South Africa Standard Time

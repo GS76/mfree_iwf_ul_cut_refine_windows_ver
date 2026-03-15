@@ -79,6 +79,7 @@ private:
 	std::vector<unsigned int> m_trace_p;
 	char m_folder[256] = "results";
 	char m_case_name[256] = "case";
+	char m_stage[64] = "";
 
 public:
 	logger(const char *case_name, const char *foldername = "results");
@@ -89,6 +90,7 @@ public:
 	void set_log_vtk(bool log_vtk);
 	void add_tracer_particle(unsigned int tracer_idx);
 	void set_folder(const char* folder);
+	void set_stage(const char* stage);
 
 	void log(const body &body, unsigned int step);
 };

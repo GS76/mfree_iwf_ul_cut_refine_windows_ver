@@ -49,16 +49,45 @@
  */
 
 #include "vtk_writer.h"
+#include "simulation_time.h"
+#include <cstring>
 
 void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
+	vtk_writer_write(particles, step, folder, nullptr, nullptr);
+}
+
+static int vtk_stage_id(const char *stage_label) {
+	if (!stage_label) return 0;
+	if (std::strcmp(stage_label, "cooldown") == 0) return 1;
+	if (std::strcmp(stage_label, "residual-stress-ready") == 0) return 2;
+	return 0;
+}
+
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
 	char buf[256];
-	sprintf(buf, "%s/out_%06d.vtk", folder, step);
+	if (frame_label && frame_label[0] != '\0') {
+		sprintf(buf, "%s/%s_%06d.vtk", folder, frame_label, step);
+	} else if (stage_label && stage_label[0] != '\0') {
+		sprintf(buf, "%s/%s_%06d.vtk", folder, stage_label, step);
+	} else {
+		sprintf(buf, "%s/out_%06d.vtk", folder, step);
+	}
 	FILE *fp = fopen(buf, "w+");
 
 	unsigned int np = particles.size();
 
+	simulation_time *time = &simulation_time::getInstance();
+	const double t = time->get_time();
+	const int stage = vtk_stage_id(stage_label ? stage_label : frame_label);
+
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
-	fprintf(fp, "mfree iwf\n");
+	if (frame_label && frame_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", frame_label);
+	} else if (stage_label && stage_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", stage_label);
+	} else {
+		fprintf(fp, "mfree iwf\n");
+	}
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 
@@ -83,6 +112,20 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 
 	fprintf(fp, "POINT_DATA %d\n", np);
 
+	fprintf(fp, "SCALARS time double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e\n", t);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS stage int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%d\n", stage);
+	}
+	fprintf(fp, "\n");
+
 	fprintf(fp, "SCALARS density float 1\n");		// Current particle density
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
@@ -94,6 +137,13 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].T);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS pressure float 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%f\n", particles[i].p);
 	}
 	fprintf(fp, "\n");
 
@@ -110,6 +160,18 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
+	fprintf(fp, "TENSORS stress float\n");
+	for (unsigned int i = 0; i < np; i++) {
+		const double sxx = particles[i].Sxx - particles[i].p;
+		const double sxy = particles[i].Sxy;
+		const double syy = particles[i].Syy - particles[i].p;
+		const double szz = particles[i].Szz - particles[i].p;
+		fprintf(fp, "%f %f %f\n", sxx, sxy, 0.0);
+		fprintf(fp, "%f %f %f\n", sxy, syy, 0.0);
+		fprintf(fp, "%f %f %f\n", 0.0, 0.0, szz);
+	}
+	fprintf(fp, "\n");
+
 	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n");		// Current particle's equivalent plastic strain
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
@@ -120,6 +182,12 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "VECTORS velocity float\n");		// Particle velocities
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].vx, particles[i].vy, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "VECTORS displacement float\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%f %f %f\n", particles[i].x - particles[i].X, particles[i].y - particles[i].Y, 0.0);
 	}
 	fprintf(fp, "\n");
 
@@ -141,6 +209,10 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 }
 
 void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
+	vtk_writer_write(tool, step, folder, nullptr, nullptr);
+}
+
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
 	auto segments = tool->get_segments();
 	if (segments.size() == 0) return;
 
@@ -190,11 +262,23 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 	int num_tri = triangles.size();
 
 	char buf[256];
-	sprintf(buf, "%s/tool_%06d.vtk", folder, step);
+	if (frame_label && frame_label[0] != '\0') {
+		sprintf(buf, "%s/%s_tool_%06d.vtk", folder, frame_label, step);
+	} else if (stage_label && stage_label[0] != '\0') {
+		sprintf(buf, "%s/%s_tool_%06d.vtk", folder, stage_label, step);
+	} else {
+		sprintf(buf, "%s/tool_%06d.vtk", folder, step);
+	}
 	FILE *fp = fopen(buf, "w+");
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
-	fprintf(fp, "mfree iwf\n");
+	if (frame_label && frame_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", frame_label);
+	} else if (stage_label && stage_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", stage_label);
+	} else {
+		fprintf(fp, "mfree iwf\n");
+	}
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");

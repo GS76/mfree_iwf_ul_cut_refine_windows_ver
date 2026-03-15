@@ -54,6 +54,8 @@
 #include <fenv.h>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <cmath>
 #include <omp.h>
 #include <signal.h>
 #include <stdexcept>
@@ -62,6 +64,7 @@
 #include "particle.h"
 #include "contact.h"
 #include "vtk_writer.h"
+#include "material.h"
 
 #include "benchmarks/test_density.h"
 #include "benchmarks/test_benches.h"
@@ -128,6 +131,10 @@ int main(int argc, char * argv[]) {
 	// inputs
 	int model = 1;
 	bool smoke = false;
+	bool cooldown = false;
+	bool cooldown_remove_tool = false;
+	double cooldown_hconv_W_m2K = 25.0;
+	bool all_steps = false;
 
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
@@ -136,6 +143,16 @@ int main(int argc, char * argv[]) {
 			printf("running model %d\n", model);
 		} else if (arg == "--smoke") {
 			smoke = true;
+		} else if (arg == "--cooldown") {
+			cooldown = true;
+		} else if (arg == "--cooldown-remove-tool") {
+			cooldown = true;
+			cooldown_remove_tool = true;
+		} else if (arg == "--cooldown-hconv" && i + 1 < argc) {
+			cooldown = true;
+			cooldown_hconv_W_m2K = std::atof(argv[++i]);
+		} else if (arg == "--all-steps") {
+			all_steps = true;
 		}
 	}
 
@@ -179,17 +196,40 @@ int main(int argc, char * argv[]) {
 	simulation_time *time = &simulation_time::getInstance();
 	int num_print = 150;
 	if (smoke) {
-		global_logger = 0;
+		if (!cooldown) {
+			global_logger = 0;
+		}
 		time->set_t_final(time->get_dt() * 1000.0);
-		num_print = 1;
+		num_print = cooldown ? 5 : 1;
 	}
-	unsigned int num_step = time->get_t_final()/time->get_dt();
-	unsigned int freq = num_step / num_print;
+
+	const double cut_end_time = time->get_t_final();
+	const double cut_dt_s = time->get_dt();
+	const double ambient_T_K = 273.15 + 22.0;
+	const double ambient_T_stop_K = 273.15 + 22.5;
+	const double max_rate_K_per_s = 5.0 / 60.0;
+	const double cooldown_max_time_s = smoke ? (time->get_dt() * 200.0) : (6.0 * 3600.0);
+	const double cooldown_dt_s = 6.0;
+	if (cooldown) {
+		time->set_t_final(cut_end_time + cooldown_max_time_s);
+	}
+
+	unsigned long long num_step = 0;
+	if (cooldown && !smoke) {
+		const unsigned long long cut_steps = (cut_dt_s > 0.0) ? (unsigned long long) std::ceil(cut_end_time / cut_dt_s) : 0ULL;
+		const unsigned long long cooldown_steps = (cooldown_dt_s > 0.0) ? (unsigned long long) std::ceil(cooldown_max_time_s / cooldown_dt_s) : 0ULL;
+		num_step = cut_steps + cooldown_steps;
+	} else {
+		num_step = (time->get_dt() > 0.0) ? (unsigned long long) std::ceil(time->get_t_final() / time->get_dt()) : 0ULL;
+	}
+
+	unsigned int freq = (num_step > 0) ? (unsigned int) (num_step / (unsigned long long) num_print) : 1;
 	unsigned int print_iter = 0;
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	freq = std::max(1, (int) freq);
-	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%u print_every=%u\n",
+	if (all_steps) freq = 1;
+	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%llu print_every=%u\n",
 		   (*b).get_num_part(), time->get_dt(), time->get_t_final(), num_step, freq);
 
 	/*
@@ -209,7 +249,69 @@ int main(int argc, char * argv[]) {
 	 *
 	 */
 	try {
+		bool cooldown_started = false;
+		unsigned int fixed_count_initial = 0;
+		for (unsigned int i = 0; i < b->get_num_part(); i++) {
+			if (b->get_particles()[i].fixed) fixed_count_initial++;
+		}
+
+		std::ofstream cooldown_csv;
+		std::ofstream cooldown_summary;
+		if (cooldown) {
+			cooldown_csv.open((folder / "cooldown_rate.csv").string(), std::ios::out);
+			cooldown_summary.open((folder / "cooldown_summary.txt").string(), std::ios::out);
+			cooldown_csv << "time_s,max_T_C,min_T_C,max_abs_dTdt_C_per_min,conv_ramp\n";
+			cooldown_summary << "ambient_T_C,22\n";
+			cooldown_summary << "ambient_stop_T_C,22.5\n";
+			cooldown_summary << "max_rate_C_per_min,5\n";
+			cooldown_summary << "cooldown_hconv_W_m2K," << cooldown_hconv_W_m2K << "\n";
+			cooldown_summary << "cooldown_remove_tool," << (cooldown_remove_tool ? 1 : 0) << "\n";
+			cooldown_summary << "fixed_particles_initial," << fixed_count_initial << "\n";
+		}
+
+		std::vector<double> prev_T;
+		double worst_max_abs_rate_C_per_min = 0.0;
+		double worst_positive_deltaT_C = 0.0;
+
 		while(!time->finished()) {
+			if (cooldown && !cooldown_started && (time->get_time() + time->get_dt()) >= cut_end_time) {
+				thermal* trml = b->get_thermal();
+				if (trml) {
+					trml->set_convection(cooldown_hconv_W_m2K, ambient_T_K);
+					trml->set_max_cooling_rate(max_rate_K_per_s);
+					trml->set_convection_enabled(true);
+				}
+				if (global_logger) {
+					global_logger->set_stage("cooldown");
+				}
+
+				tool* t = b->get_tool();
+				if (t) {
+					if (cooldown_remove_tool) {
+						b->set_tool(nullptr);
+						if (global_logger) global_logger->set_tool(nullptr);
+					} else {
+						glm::dvec2 v = t->get_vel();
+						const double vmag = std::sqrt(v.x * v.x + v.y * v.y);
+						t->set_vel(glm::dvec2(0.0, vmag));
+					}
+				}
+
+				cooldown_started = true;
+				time->set_dt(cooldown_dt_s);
+				if (all_steps) freq = 1;
+				prev_T.assign(b->get_num_part(), 0.0);
+				if (global_logger) {
+					global_logger->log(*b, print_iter);
+					print_iter++;
+				}
+			}
+
+			if (cooldown_started) {
+				for (unsigned int i = 0; i < b->get_num_part(); i++) {
+					prev_T[i] = b->get_particles()[i].T;
+				}
+			}
 
 			// plot with given frequency
 			if (time->get_step() % freq == 0) {
@@ -228,7 +330,7 @@ int main(int argc, char * argv[]) {
 					seconds_left = time_left - seconds_so_far;
 				}
 
-				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_dt()*time->get_step(), percent_done, seconds_left);
+				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_time(), percent_done, seconds_left);
 				fflush(stdout);
 				print_iter++;
 			}
@@ -237,10 +339,89 @@ int main(int argc, char * argv[]) {
 			 * this is to update the system by evolving the variables
 			 * over time using the LeapFrog time stepping
 			 */
-			stepper.step(*b);
+			if (!cooldown_started) {
+				stepper.step(*b);
+			} else {
+				b->construct_verlet_lists();
+
+				#pragma omp parallel for
+				for (unsigned int i = 0; i < b->get_num_part(); i++) {
+					b->get_particles()[i].T_t = 0.0;
+				}
+
+				b->apply_thermal_conduction();
+
+				const double dt = time->get_dt();
+				#pragma omp parallel for
+				for (unsigned int i = 0; i < b->get_num_part(); i++) {
+					b->get_particles()[i].T += dt * b->get_particles()[i].T_t;
+				}
+
+				b->move_tool();
+				material_eos(*b);
+			}
+
+			if (cooldown_started) {
+				const double dt = time->get_dt();
+				double max_T = -DBL_MAX;
+				double min_T = DBL_MAX;
+				double max_abs_rate_C_per_min = 0.0;
+				double max_positive_deltaT_C = 0.0;
+				for (unsigned int i = 0; i < b->get_num_part(); i++) {
+					const double T = b->get_particles()[i].T;
+					if (T > max_T) max_T = T;
+					if (T < min_T) min_T = T;
+					const double dT = T - prev_T[i];
+					const double abs_rate_C_per_min = (dt > 0.0) ? (std::abs(dT) / dt * 60.0) : 0.0;
+					if (abs_rate_C_per_min > max_abs_rate_C_per_min) max_abs_rate_C_per_min = abs_rate_C_per_min;
+					if (dT > max_positive_deltaT_C) max_positive_deltaT_C = dT;
+				}
+
+				if (max_abs_rate_C_per_min > worst_max_abs_rate_C_per_min) worst_max_abs_rate_C_per_min = max_abs_rate_C_per_min;
+				if (max_positive_deltaT_C > worst_positive_deltaT_C) worst_positive_deltaT_C = max_positive_deltaT_C;
+
+				double ramp = 1.0;
+				thermal* trml = b->get_thermal();
+				if (trml) ramp = trml->last_convection_ramp();
+
+				if (cooldown_csv.is_open()) {
+					cooldown_csv << time->get_time() << ","
+								 << (max_T - 273.15) << ","
+								 << (min_T - 273.15) << ","
+								 << max_abs_rate_C_per_min << ","
+								 << ramp
+								 << "\n";
+				}
+
+				if (max_T <= ambient_T_stop_K && (max_T - min_T) <= 0.5) {
+					if (global_logger) {
+						vtk_writer_write(b->get_particles(), print_iter, "results", "residual-stress-ready", "residual-stress-ready");
+						tool* t = b->get_tool();
+						if (t) {
+							vtk_writer_write(t, print_iter, "results", "residual-stress-ready", "residual-stress-ready");
+						}
+					}
+					break;
+				}
+			}
 
 			time->increment_step();
 			time->increment_time();
+		}
+
+		if (cooldown && cooldown_summary.is_open()) {
+			unsigned int fixed_count_final = 0;
+			for (unsigned int i = 0; i < b->get_num_part(); i++) {
+				if (b->get_particles()[i].fixed) fixed_count_final++;
+			}
+			double max_T = -DBL_MAX;
+			for (unsigned int i = 0; i < b->get_num_part(); i++) {
+				if (b->get_particles()[i].T > max_T) max_T = b->get_particles()[i].T;
+			}
+			cooldown_summary << "fixed_particles_final," << fixed_count_final << "\n";
+			cooldown_summary << "max_final_T_C," << (max_T - 273.15) << "\n";
+			cooldown_summary << "worst_max_abs_dTdt_C_per_min," << worst_max_abs_rate_C_per_min << "\n";
+			cooldown_summary << "worst_positive_deltaT_C," << worst_positive_deltaT_C << "\n";
 		}
 	} catch (const std::exception& e) {
 		std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: " << e.what() << std::endl;

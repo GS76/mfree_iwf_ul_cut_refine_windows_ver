@@ -86,6 +86,8 @@ public:
 	void set_thermal(thermal *thermal);
 	void set_tool(tool *tool);
 	void set_adaptivity(adaptivity *adaptivity);
+	thermal* get_thermal();
+	tool* get_tool();
 
 	void apply_plasticity();
 	void apply_thermal_conduction();

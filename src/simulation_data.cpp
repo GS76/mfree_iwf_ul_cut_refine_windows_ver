@@ -145,13 +145,13 @@ double thermal_constants::k(double T) const {
 
 //---------------------------------------------------------------------------
 
-physical_constants::physical_constants(double nu, double E, double rho0) : m_nu(nu), m_E(E), m_rho0(rho0) {}
+physical_constants::physical_constants(double nu, double E, double rho0) : m_nu(nu), m_E(E), m_rho0(rho0), m_alpha(0.0) {}
 
 physical_constants::physical_constants(double nu, double E, double rho0, johnson_cook_constants jc)
-: m_nu(nu), m_E(E), m_rho0(rho0), m_jc(jc) {}
+: m_nu(nu), m_E(E), m_rho0(rho0), m_alpha(0.0), m_jc(jc) {}
 
 physical_constants::physical_constants(double nu, double E, double rho0, johnson_cook_constants jc, thermal_constants tc)
-: m_nu(nu), m_E(E), m_rho0(rho0), m_jc(jc), m_tc(tc) {}
+: m_nu(nu), m_E(E), m_rho0(rho0), m_alpha(0.0), m_jc(jc), m_tc(tc) {}
 
 physical_constants::physical_constants() {}
 
@@ -182,6 +182,10 @@ double physical_constants::lambda_lame(double T) const {
 
 double physical_constants::rho0(double T) const {
 	return m_rho0.get(T);
+}
+
+double physical_constants::alpha(double T) const {
+	return m_alpha.get(T);
 }
 
 double physical_constants::c0(double T) const {

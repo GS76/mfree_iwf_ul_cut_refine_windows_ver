@@ -80,6 +80,15 @@ void logger::set_folder(const char* folder) {
 	m_fp_forces = fopen(buf, "w+");
 }
 
+void logger::set_stage(const char* stage) {
+	if (!stage) {
+		m_stage[0] = '\0';
+		return;
+	}
+	strncpy(m_stage, stage, sizeof(m_stage) - 1);
+	m_stage[sizeof(m_stage) - 1] = '\0';
+}
+
 void logger::log(const body &b, unsigned int step) {
 
 	//log forces (if desired)
@@ -109,9 +118,10 @@ void logger::log(const body &b, unsigned int step) {
 	}
 
 	if (m_emit_vtk) {
-		vtk_writer_write(b.get_particles(), step, m_folder);
+		const char* stage_label = (m_stage[0] != '\0') ? m_stage : nullptr;
+		vtk_writer_write(b.get_particles(), step, m_folder, stage_label, nullptr);
 		if (m_t) {
-			vtk_writer_write(m_t, step, m_folder);
+			vtk_writer_write(m_t, step, m_folder, stage_label, nullptr);
 		}
 	}
 }

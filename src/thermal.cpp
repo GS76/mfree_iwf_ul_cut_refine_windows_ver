@@ -53,6 +53,27 @@
 #include "body.h"
 #include <omp.h>
 
+void thermal::set_convection(double h_W_m2K, double T_ambient_K) {
+	m_h_W_m2K = h_W_m2K;
+	m_T_ambient_K = T_ambient_K;
+}
+
+void thermal::set_convection_enabled(bool enabled) {
+	m_convection_enabled = enabled;
+}
+
+void thermal::set_max_cooling_rate(double max_rate_K_per_s) {
+	m_max_rate_K_per_s = max_rate_K_per_s;
+}
+
+double thermal::last_max_abs_rate_K_per_s() const {
+	return m_last_max_abs_rate_K_per_s;
+}
+
+double thermal::last_convection_ramp() const {
+	return m_last_convection_ramp;
+}
+
 void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
@@ -141,6 +162,82 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 	}
 }
 
+void thermal::apply_convection(body &b) const {
+	if (!m_convection_enabled) return;
+	if (m_h_W_m2K <= 0.0) return;
+
+	std::vector<particle> &particles = b.get_particles();
+	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
+
+	double max_abs_rate = 0.0;
+	#pragma omp parallel for reduction(max:max_abs_rate)
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double Ti = particles[i].T;
+		const double rho0 = phys_const.rho0(Ti);
+		const double cp = phys_const.tc().cp(Ti);
+		const double denom = rho0 * cp;
+		if (denom <= 1e-12) continue;
+
+		const double dV = particles[i].m / rho0;
+		if (dV <= 1e-18) continue;
+
+		const double A_over_V = 4.0 / std::sqrt(dV);
+		const double beta = m_h_W_m2K * A_over_V / denom;
+		const double rate = std::abs(beta * (Ti - m_T_ambient_K));
+		if (rate > max_abs_rate) max_abs_rate = rate;
+	}
+
+	double ramp = 1.0;
+	if (m_max_rate_K_per_s > 0.0 && max_abs_rate > m_max_rate_K_per_s) {
+		ramp = m_max_rate_K_per_s / max_abs_rate;
+	}
+
+	m_last_convection_ramp = ramp;
+
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double Ti = particles[i].T;
+		const double rho0 = phys_const.rho0(Ti);
+		const double cp = phys_const.tc().cp(Ti);
+		const double denom = rho0 * cp;
+		if (denom <= 1e-12) continue;
+
+		const double dV = particles[i].m / rho0;
+		if (dV <= 1e-18) continue;
+
+		const double A_over_V = 4.0 / std::sqrt(dV);
+		const double beta = m_h_W_m2K * A_over_V / denom;
+		particles[i].T_t += -ramp * beta * (Ti - m_T_ambient_K);
+	}
+}
+
+void thermal::enforce_rate_limit(body &b) const {
+	if (m_max_rate_K_per_s <= 0.0) return;
+
+	std::vector<particle> &particles = b.get_particles();
+	unsigned int num_part = b.get_num_part();
+
+	double max_abs_rate = 0.0;
+	#pragma omp parallel for reduction(max:max_abs_rate)
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double rate = std::abs(particles[i].T_t);
+		if (rate > max_abs_rate) max_abs_rate = rate;
+	}
+
+	m_last_max_abs_rate_K_per_s = max_abs_rate;
+
+	if (max_abs_rate <= m_max_rate_K_per_s) return;
+
+	const double scale = m_max_rate_K_per_s / max_abs_rate;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
+		particles[i].T_t *= scale;
+	}
+
+	m_last_max_abs_rate_K_per_s = m_max_rate_K_per_s;
+}
+
 
 void thermal::set_method(thermal_solver solver) {
 	m_thermal_solver = solver;
@@ -156,6 +253,9 @@ void thermal::conduction(body &body) const {
 		heat_conduction_brookshaw(body);
 		break;
 	}
+
+	apply_convection(body);
+	enforce_rate_limit(body);
 }
 
 thermal::thermal(physical_constants pc) {

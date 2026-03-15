@@ -92,13 +92,26 @@ public:
 
 	void set_method(thermal_solver solver);
 	void conduction(body &body) const;
+	void set_convection(double h_W_m2K, double T_ambient_K);
+	void set_convection_enabled(bool enabled);
+	void set_max_cooling_rate(double max_rate_K_per_s);
+	double last_max_abs_rate_K_per_s() const;
+	double last_convection_ramp() const;
 	thermal(physical_constants pc);
 
 private:
 	thermal_solver m_thermal_solver = thermal_pse;
+	double m_h_W_m2K = 0.0;
+	double m_T_ambient_K = 295.15;
+	double m_max_rate_K_per_s = 0.0;
+	bool m_convection_enabled = false;
+	mutable double m_last_max_abs_rate_K_per_s = 0.0;
+	mutable double m_last_convection_ramp = 1.0;
 
 	void heat_conduction_pse(body &b) const;
 	void heat_conduction_brookshaw(body &b) const;
+	void apply_convection(body &b) const;
+	void enforce_rate_limit(body &b) const;
 };
 
 #endif /* THERMAL_H_ */
