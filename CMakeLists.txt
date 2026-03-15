@@ -128,7 +128,7 @@ target_include_directories(mfree_iwf PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 )
 
-target_link_libraries(mfree_iwf PRIVATE mfree_benchmark_support)
+target_link_libraries(mfree_iwf PRIVATE mfree_benchmark_support OpenMP::OpenMP_CXX)
 if(MSVC)
 	set_property(TARGET mfree_iwf PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()

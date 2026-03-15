@@ -4443,8 +4443,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-5yorwk"
-      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-5yorwk"
+      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-ftx4dl"
+      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-ftx4dl"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -4454,10 +4454,10 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-5yorwk'
+        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-ftx4dl'
         
-        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_ca65a
-        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -v -o CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"
+        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_6c89d
+        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -v -o CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"
         Using built-in specs.
         COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE
         Target: x86_64-w64-mingw32
@@ -4465,8 +4465,8 @@ events:
         Thread model: win32
         Supported LTO compression algorithms: zlib
         gcc version 14.1.0 (GCC for Simply Fortran) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/'
-         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/cc1plus.exe -quiet -v -iprefix C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/ -U_REENTRANT C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_ca65a.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o C:\\Users\\garys\\AppData\\Local\\Temp\\ccOdiQXE.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/'
+         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/cc1plus.exe -quiet -v -iprefix C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/ -U_REENTRANT C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6c89d.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o C:\\Users\\garys\\AppData\\Local\\Temp\\ccWKT9qI.s
         GNU C++17 (GCC for Simply Fortran) version 14.1.0 (x86_64-w64-mingw32)
         	compiled by GNU C version 14.1.0, GMP version 6.3.0, MPFR version 3.1.2, MPC version 1.0.2, isl version isl-0.16.1-GMP
         
@@ -4489,13 +4489,13 @@ events:
          C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/include
         End of search list.
         Compiler executable checksum: 7bb3933d2856a043100ce690ad0ab6d2
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/'
-         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/as.exe -v -o CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\garys\\AppData\\Local\\Temp\\ccOdiQXE.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/'
+         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/as.exe -v -o CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\garys\\AppData\\Local\\Temp\\ccWKT9qI.s
         GNU assembler version 2.27 (x86_64-w64-mingw32) using BFD version (Binutils for Simply Fortran) 2.27
         COMPILER_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/
         LIBRARY_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.'
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE  -v -Wl,-v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_ca65a.exe -Wl,--out-implib,libcmTC_ca65a.dll.a -Wl,--major-image-version,0,--minor-image-version,0   && cd ."
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.'
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE  -v -Wl,-v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_6c89d.exe -Wl,--out-implib,libcmTC_6c89d.dll.a -Wl,--major-image-version,0,--minor-image-version,0   && cd ."
         Using built-in specs.
         COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE
         COLLECT_LTO_WRAPPER=C:/Program\\ Files\\ (x86)/Simply\\ Fortran\\ 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/lto-wrapper.exe
@@ -4506,12 +4506,12 @@ events:
         gcc version 14.1.0 (GCC for Simply Fortran) 
         COMPILER_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/
         LIBRARY_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ca65a.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_ca65a.'
-         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_ca65a.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_ca65a.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6c89d.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6c89d.'
+         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_6c89d.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_6c89d.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
         collect2 version 14.1.0
-        C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/ld.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_ca65a.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_ca65a.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
+        C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/ld.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_6c89d.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_6c89d.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
         GNU ld (Binutils for Simply Fortran) 2.27
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ca65a.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_ca65a.'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6c89d.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6c89d.'
         
       exitCode: 0
   -
@@ -4550,10 +4550,10 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-5yorwk']
+        ignore line: [Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-ftx4dl']
         ignore line: []
-        ignore line: [Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_ca65a]
-        ignore line: [[1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -v -o CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"]
+        ignore line: [Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_6c89d]
+        ignore line: [[1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -v -o CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE]
         ignore line: [Target: x86_64-w64-mingw32]
@@ -4561,8 +4561,8 @@ events:
         ignore line: [Thread model: win32]
         ignore line: [Supported LTO compression algorithms: zlib]
         ignore line: [gcc version 14.1.0 (GCC for Simply Fortran) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/']
-        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/cc1plus.exe -quiet -v -iprefix C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/ -U_REENTRANT C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_ca65a.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o C:\\Users\\garys\\AppData\\Local\\Temp\\ccOdiQXE.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/']
+        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/cc1plus.exe -quiet -v -iprefix C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/ -U_REENTRANT C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6c89d.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o C:\\Users\\garys\\AppData\\Local\\Temp\\ccWKT9qI.s]
         ignore line: [GNU C++17 (GCC for Simply Fortran) version 14.1.0 (x86_64-w64-mingw32)]
         ignore line: [	compiled by GNU C version 14.1.0  GMP version 6.3.0  MPFR version 3.1.2  MPC version 1.0.2  isl version isl-0.16.1-GMP]
         ignore line: []
@@ -4585,8 +4585,8 @@ events:
         ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: 7bb3933d2856a043100ce690ad0ab6d2]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/']
-        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/as.exe -v -o CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\garys\\AppData\\Local\\Temp\\ccOdiQXE.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/']
+        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/as.exe -v -o CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj C:\\Users\\garys\\AppData\\Local\\Temp\\ccWKT9qI.s]
         ignore line: [GNU assembler version 2.27 (x86_64-w64-mingw32) using BFD version (Binutils for Simply Fortran) 2.27]
         ignore line: [COMPILER_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/]
@@ -4595,8 +4595,8 @@ events:
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.']
-        ignore line: [[2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE  -v -Wl -v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_ca65a.exe -Wl --out-implib libcmTC_ca65a.dll.a -Wl --major-image-version 0 --minor-image-version 0   && cd ."]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [[2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE  -v -Wl -v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_6c89d.exe -Wl --out-implib libcmTC_6c89d.dll.a -Wl --major-image-version 0 --minor-image-version 0   && cd ."]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE]
         ignore line: [COLLECT_LTO_WRAPPER=C:/Program\\ Files\\ (x86)/Simply\\ Fortran\\ 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/lto-wrapper.exe]
@@ -4612,12 +4612,12 @@ events:
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ca65a.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_ca65a.']
-        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_ca65a.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_ca65a.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6c89d.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6c89d.']
+        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_6c89d.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_6c89d.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
         ignore line: [collect2 version 14.1.0]
-        ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/ld.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_ca65a.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_ca65a.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_ca65a.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
+        ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/ld.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_6c89d.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib -v CMakeFiles/cmTC_6c89d.dir/CMakeCXXCompilerABI.cpp.obj --out-implib libcmTC_6c89d.dll.a --major-image-version 0 --minor-image-version 0 -lstdc++ -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
         ignore line: [GNU ld (Binutils for Simply Fortran) 2.27]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ca65a.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_ca65a.']
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6c89d.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6c89d.']
         ignore line: []
         ignore line: []
         linker tool for 'CXX': C:/Program Files (x86)/Simply Fortran 3/mingw-w64/x86_64-w64-mingw32/bin/ld.exe
@@ -5130,8 +5130,8 @@ events:
       - "CMakeLists.txt:30 (find_package)"
     description: "Detecting CXX OpenMP compiler info"
     directories:
-      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj"
-      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj"
+      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj"
+      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -5140,11 +5140,11 @@ events:
       variable: "OpenMP_COMPILE_RESULT_CXX_fopenmp"
       cached: true
       stdout: |
-        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj'
+        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj'
         
-        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_c445b
-        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj/OpenMPTryFlag.cpp
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp -v CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj -o cmTC_c445b.exe -Wl,--out-implib,libcmTC_c445b.dll.a -Wl,--major-image-version,0,--minor-image-version,0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."
+        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_e8c78
+        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj/OpenMPTryFlag.cpp
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp -v CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj -o cmTC_e8c78.exe -Wl,--out-implib,libcmTC_e8c78.dll.a -Wl,--major-image-version,0,--minor-image-version,0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."
         Using built-in specs.
         COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE
         COLLECT_LTO_WRAPPER=C:/Program\\ Files\\ (x86)/Simply\\ Fortran\\ 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/lto-wrapper.exe
@@ -5156,9 +5156,9 @@ events:
         COMPILER_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/bin/
         LIBRARY_PATH=C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/;C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/
         Reading specs from C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/libgomp.spec
-        COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_c445b.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_c445b.'
-         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_c445b.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj --out-implib libcmTC_c445b.dll.a --major-image-version 0 --minor-image-version 0 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lstdc++ -lgomp -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
-        COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_c445b.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_c445b.'
+        COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_e8c78.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_e8c78.'
+         C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_e8c78.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj --out-implib libcmTC_e8c78.dll.a --major-image-version 0 --minor-image-version 0 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lstdc++ -lgomp -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o
+        COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_e8c78.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_e8c78.'
         
       exitCode: 0
   -
@@ -5170,11 +5170,11 @@ events:
     message: |
       Parsed CXX OpenMP implicit link information from above output:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
-        ignore line: [Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj']
+        ignore line: [Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj']
         ignore line: []
-        ignore line: [Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_c445b]
-        ignore line: [[1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-v94llj/OpenMPTryFlag.cpp]
-        ignore line: [[2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp -v CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj -o cmTC_c445b.exe -Wl --out-implib libcmTC_c445b.dll.a -Wl --major-image-version 0 --minor-image-version 0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."]
+        ignore line: [Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_e8c78]
+        ignore line: [[1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-k2e6aj/OpenMPTryFlag.cpp]
+        ignore line: [[2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp -v CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj -o cmTC_e8c78.exe -Wl --out-implib libcmTC_e8c78.dll.a -Wl --major-image-version 0 --minor-image-version 0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE]
         ignore line: [COLLECT_LTO_WRAPPER=C:/Program\\ Files\\ (x86)/Simply\\ Fortran\\ 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/lto-wrapper.exe]
@@ -5191,9 +5191,9 @@ events:
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/]
         ignore line: [C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/]
         ignore line: [Reading specs from C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/libgomp.spec]
-        ignore line: [COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_c445b.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_c445b.']
-        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_c445b.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib CMakeFiles/cmTC_c445b.dir/OpenMPTryFlag.cpp.obj --out-implib libcmTC_c445b.dll.a --major-image-version 0 --minor-image-version 0 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lstdc++ -lgomp -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
-        ignore line: [COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_c445b.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_c445b.']
+        ignore line: [COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_e8c78.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_e8c78.']
+        ignore line: [ C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../libexec/gcc/x86_64-w64-mingw32/14.1.0/collect2.exe --sysroot=D:/Workspace/gcc/target -m i386pep -Bdynamic -o cmTC_e8c78.exe C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib/crt2.o C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtbegin.o -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0 -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib/../lib -LC:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/../../../../x86_64-w64-mingw32/lib CMakeFiles/cmTC_e8c78.dir/OpenMPTryFlag.cpp.obj --out-implib libcmTC_e8c78.dll.a --major-image-version 0 --minor-image-version 0 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -lstdc++ -lgomp -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 -ladvapi32 -lshell32 -luser32 -lkernel32 -lmingw32 -lgcc_s -lgcc -lmingwex -lmsvcrt -lkernel32 C:/Program Files (x86)/Simply Fortran 3/mingw-w64/bin/../lib/gcc/x86_64-w64-mingw32/14.1.0/crtend.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-fopenmp' '-v' '-o' 'cmTC_e8c78.exe' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_e8c78.']
         ignore line: []
         ignore line: []
         implicit libs: []
@@ -5210,8 +5210,8 @@ events:
       - "CMakeLists.txt:30 (find_package)"
     description: "Detecting CXX OpenMP version"
     directories:
-      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-e6aaeg"
-      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-e6aaeg"
+      source: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-hgb1eg"
+      binary: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-hgb1eg"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -5220,11 +5220,11 @@ events:
       variable: "OpenMP_SPECTEST_CXX_"
       cached: true
       stdout: |
-        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-e6aaeg'
+        Change Dir: 'D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-hgb1eg'
         
-        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_0030a
-        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_0030a.dir/OpenMPCheckVersion.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-e6aaeg/OpenMPCheckVersion.cpp
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp  CMakeFiles/cmTC_0030a.dir/OpenMPCheckVersion.cpp.obj -o cmTC_0030a.exe -Wl,--out-implib,libcmTC_0030a.dll.a -Wl,--major-image-version,0,--minor-image-version,0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."
+        Run Build Command(s): D:/mfree_iwf_ul_cut_refine_windows_ver/.tools/ninja/ninja.exe -v cmTC_1cc04
+        [1/2] C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE   -fopenmp -std=c++17 -o CMakeFiles/cmTC_1cc04.dir/OpenMPCheckVersion.cpp.obj -c D:/mfree_iwf_ul_cut_refine_windows_ver/build/CMakeFiles/CMakeScratch/TryCompile-hgb1eg/OpenMPCheckVersion.cpp
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\PROGRA~2\\SIMPLY~1\\MINGW-~1\\bin\\C__~1.EXE -fopenmp  CMakeFiles/cmTC_1cc04.dir/OpenMPCheckVersion.cpp.obj -o cmTC_1cc04.exe -Wl,--out-implib,libcmTC_1cc04.dll.a -Wl,--major-image-version,0,--minor-image-version,0  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 && cd ."
         
       exitCode: 0
 ...
