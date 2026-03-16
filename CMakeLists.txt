@@ -158,7 +158,7 @@ if(MFREE_ENABLE_TESTS)
 	target_include_directories(test_property_interpolation PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/src
 	)
-	target_link_libraries(test_property_interpolation PRIVATE mfree_core)
+	target_link_libraries(test_property_interpolation PRIVATE mfree_benchmark_support)
 	mfree_apply_target_defaults(test_property_interpolation)
 	mfree_apply_openmp_flags_if_needed(test_property_interpolation)
 	add_test(NAME test_property_interpolation COMMAND test_property_interpolation)

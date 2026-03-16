@@ -180,7 +180,7 @@
 	double dy = (hi_y-lo_y)/(ny-1);
 	double dx = dy;
 	unsigned int nx = (hi_x-lo_x)/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
 
 	// time settings
@@ -324,7 +324,7 @@
 	double dy = ly/(ny-1);
 	double dx = dy;
 	unsigned int nx = lx/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
 
 	// multi-resolution setup
@@ -533,7 +533,7 @@
 	double dy = ly/(ny-1);
 	double dx = dy;
 	unsigned int nx = lx/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
 
 	// multi-resolution setup

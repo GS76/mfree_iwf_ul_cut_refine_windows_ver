@@ -2,8 +2,24 @@
 #include <vector>
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
+#include <string>
 #include "../property.h"
 #include "../simulation_data.h"
+#include "../benchmarks/material_library.h"
+
+static void require(bool cond, const std::string& msg) {
+    if (cond) return;
+    std::cerr << msg << std::endl;
+    std::abort();
+}
+
+static bool approx_equal(double a, double b, double abs_tol, double rel_tol) {
+    const double diff = std::abs(a - b);
+    if (diff <= abs_tol) return true;
+    const double scale = std::max(std::abs(a), std::abs(b));
+    return diff <= rel_tol * scale;
+}
 
 void test_linear_interpolation() {
     std::cout << "Testing Linear Interpolation..." << std::endl;
@@ -28,6 +44,46 @@ void test_linear_interpolation() {
     assert(std::abs(prop.get(400.0) - 30.0) < 1e-6);
     
     std::cout << "Linear Interpolation Passed!" << std::endl;
+}
+
+void test_temperature_variation_in_table_mode() {
+    std::cout << "Testing Temperature Variation in Table Mode..." << std::endl;
+
+    {
+        TableProperty prop;
+        std::vector<double> temps = {250.0, 500.0, 750.0, 1000.0};
+        std::vector<double> values = {100.0, 80.0, 60.0, 40.0};
+        prop.set_table(temps, values);
+
+        const double v0 = prop.get(250.0);
+        const double v1 = prop.get(375.0);
+        const double v2 = prop.get(625.0);
+        const double v3 = prop.get(875.0);
+
+        require(v0 != v1, "Table interpolation returned constant value between 250K and 375K");
+        require(v1 != v2, "Table interpolation returned constant value between 375K and 625K");
+        require(v2 != v3, "Table interpolation returned constant value between 625K and 875K");
+        require(v0 > v1 && v1 > v2 && v2 > v3, "Table interpolation did not decrease with increasing temperature for decreasing table values");
+    }
+
+    {
+        TableProperty prop;
+        std::vector<double> temps = {300.0, 600.0, 900.0};
+        std::vector<double> values = {10.0, 25.0, 55.0};
+        prop.set_table(temps, values);
+
+        const double v0 = prop.get(300.0);
+        const double v1 = prop.get(450.0);
+        const double v2 = prop.get(750.0);
+        const double v3 = prop.get(900.0);
+
+        require(v0 != v1, "Table interpolation returned constant value between 300K and 450K");
+        require(v1 != v2, "Table interpolation returned constant value between 450K and 750K");
+        require(v2 != v3, "Table interpolation returned constant value between 750K and 900K");
+        require(v0 < v1 && v1 < v2 && v2 < v3, "Table interpolation did not increase with increasing temperature for increasing table values");
+    }
+
+    std::cout << "Temperature Variation in Table Mode Passed!" << std::endl;
 }
 
 void test_physical_constants_temperature_dependency() {
@@ -110,10 +166,99 @@ void test_linear_equations_configured() {
     std::cout << "Linear Equation Configuration Passed!" << std::endl;
 }
 
+void test_preset_properties_spot_check() {
+    std::cout << "Testing Preset Property Wiring (Spot-Check)..." << std::endl;
+
+    struct PresetEntry {
+        const char* name;
+        physical_constants (*fn)();
+        bool expect_temp_dependent;
+    };
+
+    std::vector<PresetEntry> presets = {
+        {"matlib_steel4430", &matlib_steel4430, false},
+        {"matlib_ARMCO_iron", &matlib_ARMCO_iron, false},
+        {"matlib_OFHC_copper", &matlib_OFHC_copper, false},
+        {"matlib_AISI1045", &matlib_AISI1045, false},
+        {"matlib_rubber", &matlib_rubber, false},
+        {"matlib_rubber_real", &matlib_rubber_real, false},
+        {"matlib_thermal_synthetic", &matlib_thermal_synthetic, false},
+        {"matlib_tial6v4_lesuer", &matlib_tial6v4_lesuer, false},
+        {"matlib_tial6v4_johnson_SI", &matlib_tial6v4_johnson_SI, false},
+        {"matlib_tial6v4_johnson_cm_musec_g", &matlib_tial6v4_johnson_cm_musec_g, false},
+        {"matlib_tial6v4_Sima_tanh2010_SI", &matlib_tial6v4_Sima_tanh2010_SI, true},
+        {"matlib_tial6v4_Sima_tanh2010_cm_musec_g", &matlib_tial6v4_Sima_tanh2010_cm_musec_g, false},
+        {"matlib_dummy", &matlib_dummy, false},
+        {"matlib_a2024t351", &matlib_a2024t351, false},
+    };
+
+    auto require_finite = [&](double v, const std::string& label) {
+        require(std::isfinite(v), "Non-finite value detected for " + label);
+    };
+
+    auto check_var_if_expected = [&](double v1, double v2, const std::string& label, bool expect) {
+        require_finite(v1, label + " at T1");
+        require_finite(v2, label + " at T2");
+        if (!expect) return;
+        const bool same = approx_equal(v1, v2, 0.0, 0.0);
+        require(!same, "Preset property expected to vary with temperature but appears constant: " + label);
+    };
+
+    for (const auto& preset : presets) {
+        physical_constants pc = preset.fn();
+        const auto jc = pc.jc();
+
+        const double Tref = jc.valid() ? jc.Tref() : 293.0;
+        const double T1 = Tref;
+        const double T2 = Tref + 200.0;
+
+        const std::string prefix = std::string(preset.name) + " ";
+
+        const double rho1 = pc.rho0(T1);
+        const double rho2 = pc.rho0(T2);
+        check_var_if_expected(rho1, rho2, prefix + "rho0(T)", preset.expect_temp_dependent);
+        require(rho1 > 0.0 && rho2 > 0.0, prefix + "rho0(T) must be positive");
+
+        const double a1 = pc.alpha(T1);
+        const double a2 = pc.alpha(T2);
+        check_var_if_expected(a1, a2, prefix + "alpha(T)", preset.expect_temp_dependent);
+
+        const double k1 = pc.tc().k(T1);
+        const double k2 = pc.tc().k(T2);
+        check_var_if_expected(k1, k2, prefix + "k(T)", preset.expect_temp_dependent);
+        if (preset.expect_temp_dependent) {
+            require(k1 >= 0.0 && k2 >= 0.0, prefix + "k(T) must be non-negative");
+        }
+
+        const double cp1 = pc.tc().cp(T1);
+        const double cp2 = pc.tc().cp(T2);
+        check_var_if_expected(cp1, cp2, prefix + "cp(T)", preset.expect_temp_dependent);
+        if (preset.expect_temp_dependent) {
+            require(cp1 > 0.0 && cp2 > 0.0, prefix + "cp(T) must be positive");
+        }
+
+        const double E1 = pc.E(T1);
+        const double E2 = pc.E(T2);
+        check_var_if_expected(E1, E2, prefix + "E(T)", preset.expect_temp_dependent);
+        if (preset.expect_temp_dependent) {
+            require(E1 > 0.0 && E2 > 0.0, prefix + "E(T) must be positive");
+        }
+
+        const double nu1 = pc.nu(T1);
+        const double nu2 = pc.nu(T2);
+        check_var_if_expected(nu1, nu2, prefix + "nu(T)", preset.expect_temp_dependent);
+        require(nu1 >= 0.0 && nu1 < 0.5 && nu2 >= 0.0 && nu2 < 0.5, prefix + "nu(T) must be in [0, 0.5)");
+    }
+
+    std::cout << "Preset Property Wiring (Spot-Check) Passed!" << std::endl;
+}
+
 int main() {
     test_linear_interpolation();
+    test_temperature_variation_in_table_mode();
     test_linear_fit_and_clamping();
     test_physical_constants_temperature_dependency();
     test_linear_equations_configured();
+    test_preset_properties_spot_check();
     return 0;
 }

@@ -421,14 +421,14 @@ build validate_omp.exe: CXX_EXECUTABLE_LINKER__validate_omp_Release CMakeFiles/v
 #############################################
 # Order-only phony target for test_property_interpolation
 
-build cmake_object_order_depends_target_test_property_interpolation: phony || cmake_object_order_depends_target_mfree_core
+build cmake_object_order_depends_target_test_property_interpolation: phony || cmake_object_order_depends_target_mfree_benchmark_support cmake_object_order_depends_target_mfree_core
 
 build CMakeFiles/test_property_interpolation.dir/src/tests/test_property_interpolation.cpp.obj: CXX_COMPILER__test_property_interpolation_unscanned_Release D$:/mfree_iwf_ul_cut_refine_windows_ver/src/tests/test_property_interpolation.cpp || cmake_object_order_depends_target_test_property_interpolation
   CONFIG = Release
   DEFINES = -DNDEBUG -D_USE_MATH_DEFINES
   DEP_FILE = CMakeFiles\test_property_interpolation.dir\src\tests\test_property_interpolation.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=c++17 -O3 -fopenmp
-  INCLUDES = -ID:/mfree_iwf_ul_cut_refine_windows_ver/src -ID:/mfree_iwf_ul_cut_refine_windows_ver/build/_deps/glm-src/glm/..
+  INCLUDES = -ID:/mfree_iwf_ul_cut_refine_windows_ver/src -ID:/mfree_iwf_ul_cut_refine_windows_ver/src/benchmarks -ID:/mfree_iwf_ul_cut_refine_windows_ver/build/_deps/glm-src/glm/..
   OBJECT_DIR = CMakeFiles\test_property_interpolation.dir
   OBJECT_FILE_DIR = CMakeFiles\test_property_interpolation.dir\src\tests
   TARGET_SUPPORT_DIR = CMakeFiles\test_property_interpolation.dir
@@ -441,11 +441,11 @@ build CMakeFiles/test_property_interpolation.dir/src/tests/test_property_interpo
 #############################################
 # Link the executable test_property_interpolation.exe
 
-build test_property_interpolation.exe: CXX_EXECUTABLE_LINKER__test_property_interpolation_Release CMakeFiles/test_property_interpolation.dir/src/tests/test_property_interpolation.cpp.obj | libmfree_core.a || libmfree_core.a
+build test_property_interpolation.exe: CXX_EXECUTABLE_LINKER__test_property_interpolation_Release CMakeFiles/test_property_interpolation.dir/src/tests/test_property_interpolation.cpp.obj | libmfree_benchmark_support.a libmfree_core.a || libmfree_benchmark_support.a libmfree_core.a
   CONFIG = Release
   FLAGS = -O3 -DNDEBUG
   LINK_FLAGS = -fopenmp
-  LINK_LIBRARIES = libmfree_core.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  LINK_LIBRARIES = libmfree_benchmark_support.a  libmfree_core.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\test_property_interpolation.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
