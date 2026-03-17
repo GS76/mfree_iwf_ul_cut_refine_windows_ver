@@ -1,0 +1,10 @@
+ambient_T_C,22
+ambient_stop_T_C,22.5
+max_rate_C_per_min,5
+cooldown_hconv_W_m2K,25
+cooldown_remove_tool,0
+fixed_particles_initial,231
+fixed_particles_final,231
+max_final_T_C,237.791
+worst_max_abs_dTdt_C_per_min,5633.24
+worst_positive_deltaT_C,563.324
