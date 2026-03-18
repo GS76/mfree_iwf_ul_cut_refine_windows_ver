@@ -270,7 +270,7 @@
 	double fillet_radius = 5e-6;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 1e-4;	// 0.1 mm
+	double target_feed = 2e-4;	// 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
@@ -479,7 +479,7 @@
 	double fillet_radius = 5e-6;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 1e-4;	// 0.1 mm
+	double target_feed = 2e-4;	// 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
@@ -710,7 +710,7 @@
 	double fillet_radius = 5e-6;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 1e-4;	// 0.1 mm
+	double target_feed = 2e-4;	// 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
