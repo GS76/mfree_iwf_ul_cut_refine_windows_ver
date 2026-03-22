@@ -174,11 +174,13 @@
 
 	// workpiece dimensions SI
 	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00060;
+	double hi_x = 0.00200; double hi_y = 0.00080;
 
-	unsigned int ny = nbox;
-	double dy = (hi_y-lo_y)/(ny-1);
-	double dx = dy;
+	const double base_height_y = 0.00030;
+	const double dy_base = base_height_y / (nbox - 1);
+	double dx = dy_base;
+	double dy = dy_base;
+	unsigned int ny = (hi_y - lo_y) / dy + 1;
 	unsigned int nx = (hi_x-lo_x)/dx + 1;
 	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
@@ -260,14 +262,16 @@
 	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
 
 	// tool settings
-	float_t rake = 0.00001;
-	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
-	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t rake = -5.;
+	float_t clear = 5.;
+	float_t length_tool = 0.0020;
+	float_t height_tool = 0.0015;
+	const double tool_right_clearance = 0.;
+	const double tool_x_shift = 1.25e-4;
+	glm::dvec2 tl(lo_x - length_tool - tool_right_clearance + nudge + tool_x_shift, 0.000986074);
 
 	double mu_friction = 0.35;
-	double fillet_radius = 5e-6;
+	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
 	double target_feed = 2e-4;	// 0.2 mm
@@ -316,13 +320,15 @@
 
 	// workpiece dimensions SI
 	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00060;
+	double hi_x = 0.00200; double hi_y = 0.00080;
 	double lx = hi_x - lo_x;
 	double ly = hi_y - lo_y;
 
-	unsigned int ny = nbox;
-	double dy = ly/(ny-1);
-	double dx = dy;
+	const double base_height_y = 0.00030;
+	const double dy_base = base_height_y / (nbox - 1);
+	double dx = dy_base;
+	double dy = dy_base;
+	unsigned int ny = (hi_y - lo_y) / dy + 1;
 	unsigned int nx = lx/dx + 1;
 	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
@@ -469,14 +475,16 @@
 	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
 
 	// tool settings
-	float_t rake = 0.00001;
-	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
-	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t rake = -5.;
+	float_t clear = 5.;
+	float_t length_tool = 0.0020;
+	float_t height_tool = 0.0015;
+	const double tool_right_clearance = 0.;
+	const double tool_x_shift = 1.25e-4;
+	glm::dvec2 tl(lo_x - length_tool - tool_right_clearance + nudge + tool_x_shift, 0.000986074);
 
 	double mu_friction = 0.35;
-	double fillet_radius = 5e-6;
+	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
 	double target_feed = 2e-4;	// 0.2 mm
@@ -525,13 +533,15 @@
 
 	// workpiece dimensions SI
 	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00060;
+	double hi_x = 0.00200; double hi_y = 0.00080;
 	double lx = hi_x - lo_x;
 	double ly = hi_y - lo_y;
 
-	unsigned int ny = nbox;
-	double dy = ly/(ny-1);
-	double dx = dy;
+	const double base_height_y = 0.00030;
+	const double dy_base = base_height_y / (nbox - 1);
+	double dx = dy_base;
+	double dy = dy_base;
+	unsigned int ny = (hi_y - lo_y) / dy + 1;
 	unsigned int nx = lx/dx + 1;
 	double vc = 100./60.;		// m/min -> m/s
 	double nudge = -dx;
@@ -700,14 +710,16 @@
 	adapt->set_refine_pattern(adaptivity::pattern::cubic_basic);
 
 	// tool settings
-	float_t rake = 0.00001;
-	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
-	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t rake = -5.;
+	float_t clear = 5.;
+	float_t length_tool = 0.0020;
+	float_t height_tool = 0.0015;
+	const double tool_right_clearance = 0.;
+	const double tool_x_shift = 1.25e-4;
+	glm::dvec2 tl(lo_x - length_tool - tool_right_clearance + nudge + tool_x_shift, 0.000986074);
 
 	double mu_friction = 0.35;
-	double fillet_radius = 5e-6;
+	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
 	double target_feed = 2e-4;	// 0.2 mm

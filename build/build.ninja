@@ -415,6 +415,46 @@ build validate_omp.exe: CXX_EXECUTABLE_LINKER__validate_omp_Release CMakeFiles/v
   TARGET_SUPPORT_DIR = CMakeFiles\validate_omp.dir
 
 # =============================================================================
+# Object build statements for EXECUTABLE target view_setup
+
+
+#############################################
+# Order-only phony target for view_setup
+
+build cmake_object_order_depends_target_view_setup: phony || cmake_object_order_depends_target_mfree_benchmark_support cmake_object_order_depends_target_mfree_core
+
+build CMakeFiles/view_setup.dir/src/tools/view_setup.cpp.obj: CXX_COMPILER__view_setup_unscanned_Release D$:/mfree_iwf_ul_cut_refine_windows_ver/src/tools/view_setup.cpp || cmake_object_order_depends_target_view_setup
+  CONFIG = Release
+  DEFINES = -DNDEBUG -D_USE_MATH_DEFINES
+  DEP_FILE = CMakeFiles\view_setup.dir\src\tools\view_setup.cpp.obj.d
+  FLAGS = -O3 -DNDEBUG -std=c++17 -O3 -fopenmp
+  INCLUDES = -ID:/mfree_iwf_ul_cut_refine_windows_ver/src -ID:/mfree_iwf_ul_cut_refine_windows_ver/src/benchmarks -ID:/mfree_iwf_ul_cut_refine_windows_ver/build/_deps/glm-src/glm/..
+  OBJECT_DIR = CMakeFiles\view_setup.dir
+  OBJECT_FILE_DIR = CMakeFiles\view_setup.dir\src\tools
+  TARGET_SUPPORT_DIR = CMakeFiles\view_setup.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target view_setup
+
+
+#############################################
+# Link the executable view_setup.exe
+
+build view_setup.exe: CXX_EXECUTABLE_LINKER__view_setup_Release CMakeFiles/view_setup.dir/src/tools/view_setup.cpp.obj | libmfree_benchmark_support.a libmfree_core.a || libmfree_benchmark_support.a libmfree_core.a
+  CONFIG = Release
+  FLAGS = -O3 -DNDEBUG
+  LINK_FLAGS = -fopenmp
+  LINK_LIBRARIES = libmfree_benchmark_support.a  libmfree_core.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\view_setup.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = view_setup.exe
+  TARGET_IMPLIB = libview_setup.dll.a
+  TARGET_PDB = view_setup.exe.dbg
+  TARGET_SUPPORT_DIR = CMakeFiles\view_setup.dir
+
+# =============================================================================
 # Object build statements for EXECUTABLE target test_property_interpolation
 
 
@@ -783,6 +823,8 @@ build test_property_interpolation: phony test_property_interpolation.exe
 
 build validate_omp: phony validate_omp.exe
 
+build view_setup: phony view_setup.exe
+
 # =============================================================================
 # Folder targets.
 
@@ -791,7 +833,7 @@ build validate_omp: phony validate_omp.exe
 #############################################
 # Folder: D:/mfree_iwf_ul_cut_refine_windows_ver/build
 
-build all: phony libmfree_core.a libmfree_benchmark_support.a mfree_iwf.exe validate_omp.exe test_property_interpolation.exe _deps/glm-build/all
+build all: phony libmfree_core.a libmfree_benchmark_support.a mfree_iwf.exe validate_omp.exe view_setup.exe test_property_interpolation.exe _deps/glm-build/all
 
 # =============================================================================
 

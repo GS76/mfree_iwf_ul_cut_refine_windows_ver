@@ -147,6 +147,15 @@ if(MFREE_ENABLE_BENCHMARKS)
 	target_link_libraries(validate_omp PRIVATE OpenMP::OpenMP_CXX)
 	mfree_apply_target_defaults(validate_omp)
 	mfree_apply_openmp_flags_if_needed(validate_omp)
+
+	add_executable(view_setup src/tools/view_setup.cpp)
+	target_include_directories(view_setup PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/src
+		${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
+	)
+	target_link_libraries(view_setup PRIVATE mfree_benchmark_support OpenMP::OpenMP_CXX)
+	mfree_apply_target_defaults(view_setup)
+	mfree_apply_openmp_flags_if_needed(view_setup)
 endif()
 
 if(MFREE_ENABLE_TESTS)
@@ -164,7 +173,7 @@ if(MFREE_ENABLE_TESTS)
 	add_test(NAME test_property_interpolation COMMAND test_property_interpolation)
 
 	add_test(NAME smoke_model_1 COMMAND mfree_iwf --smoke -m 1)
-	set_tests_properties(smoke_model_1 PROPERTIES TIMEOUT 30)
+	set_tests_properties(smoke_model_1 PROPERTIES TIMEOUT 120)
 endif()
 
 include(GNUInstallDirs)

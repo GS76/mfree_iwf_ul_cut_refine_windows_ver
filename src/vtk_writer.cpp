@@ -218,48 +218,60 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, c
 
 	assert(segments.size() == 4 || segments.size() == 5);
 
-	struct triangle {
-		glm::dvec2 p1, p2, p3;
-		triangle(glm::dvec2 p1, glm::dvec2 p2, glm::dvec2 p3) : p1(p1), p2(p2), p3(p3) {}
-	};
-
-	std::vector<triangle> triangles;
-
-	//mesh tool "body"
+	std::vector<glm::dvec2> outline;
 	if (segments.size() == 4) {
-        triangles.push_back(triangle(segments[0].left, segments[0].right, segments[1].right));
-        triangles.push_back(triangle(segments[2].left, segments[2].right, segments[3].right));
+		outline.push_back(segments[0].left);
+		outline.push_back(segments[0].right);
+		outline.push_back(segments[1].right);
+		outline.push_back(segments[2].right);
 	} else if (segments.size() == 5) {
-        triangles.push_back(triangle(segments[0].left, segments[0].right, segments[2].right));
-        triangles.push_back(triangle(segments[1].left, segments[1].right, segments[2].right));
-        triangles.push_back(triangle(segments[3].left, segments[3].right, segments[4].right));
-	}
+		outline.push_back(segments[0].left);
+		outline.push_back(segments[0].right);
+		outline.push_back(segments[1].right);
 
-	//mesh fillet
-	if (tool->get_fillet() != 0) {
-		const int num_discr = 20;
-		auto fillet = tool->get_fillet();
-		double t1 = fmin(fillet->t1, fillet->t2);
-		double t2 = fmax(fillet->t1, fillet->t2);
+		if (tool->get_fillet() != 0) {
+			const int num_discr = 20;
+			auto fillet = tool->get_fillet();
+			const double r = fillet->r;
+			const glm::dvec2 c = glm::dvec2(fillet->p.x, fillet->p.y);
 
-		double lo = t1 - 0.1*t1;
+			const glm::dvec2 br = segments[1].l.intersect(segments[3].l);
+			const bool br_valid = std::isfinite(br.x) && std::isfinite(br.y);
 
-		double d_angle = (t2-t1)/(num_discr-1);
+			double start = fillet->t1;
+			double end = fillet->t2;
+			if (end < start) end += 2.0 * M_PI;
 
-		double r = fillet->r;
+			if (br_valid) {
+				double start_alt = fillet->t2;
+				double end_alt = fillet->t1;
+				if (end_alt < start_alt) end_alt += 2.0 * M_PI;
 
-		for (int i = 0; i < num_discr-1; i++) {
-			double angle_1 = lo + (i+0)*d_angle;
-			double angle_2 = lo + (i+1)*d_angle;
+				const double mid = start + 0.5 * (end - start);
+				const double mid_alt = start_alt + 0.5 * (end_alt - start_alt);
 
-			glm::dvec2 p1 = glm::dvec2(fillet->p.x, fillet->p.y);
-			glm::dvec2 p2 = glm::dvec2(p1.x + r*sin(angle_1), p1.y + r*cos(angle_1));
-			glm::dvec2 p3 = glm::dvec2(p1.x + r*sin(angle_2), p1.y + r*cos(angle_2));
-			triangles.push_back(triangle(p1, p2, p3));
+				const glm::dvec2 pm = glm::dvec2(c.x - r * cos(mid), c.y - r * sin(mid));
+				const glm::dvec2 pm_alt = glm::dvec2(c.x - r * cos(mid_alt), c.y - r * sin(mid_alt));
+
+				const double d = glm::length(pm - br);
+				const double d_alt = glm::length(pm_alt - br);
+				if (d_alt < d) {
+					start = start_alt;
+					end = end_alt;
+				}
+			}
+
+			const double d_angle = (end - start) / (num_discr - 1);
+			for (int i = 1; i < num_discr - 1; i++) {
+				const double a = start + i * d_angle;
+				outline.push_back(glm::dvec2(c.x - r * cos(a), c.y - r * sin(a)));
+			}
 		}
-	}
 
-	int num_tri = triangles.size();
+		outline.push_back(segments[2].right);
+		outline.push_back(segments[3].right);
+	}
+	if (outline.size() < 3) return;
 
 	char buf[256];
 	if (frame_label && frame_label[0] != '\0') {
@@ -281,26 +293,19 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, c
 	}
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
-	fprintf(fp, "POINTS %d float\n", 3*num_tri);
-
-	for (auto it : triangles) {
-		fprintf(fp, "%f %f %f\n", it.p1.x, it.p1.y, 0.);
-		fprintf(fp, "%f %f %f\n", it.p2.x, it.p2.y, 0.);
-		fprintf(fp, "%f %f %f\n", it.p3.x, it.p3.y, 0.);
+	fprintf(fp, "DATASET POLYDATA\n");
+	fprintf(fp, "POINTS %d float\n", (int) outline.size());
+	for (const auto& p : outline) {
+		fprintf(fp, "%f %f %f\n", p.x, p.y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "CELLS %d %d\n", num_tri, 3*num_tri + num_tri);
-	for (int i = 0; i < num_tri; i++) {
-		fprintf(fp, "3 %d %d %d\n", 3*i+0, 3*i+1, 3*i+2);
+	fprintf(fp, "POLYGONS 1 %d\n", (int) outline.size() + 1);
+	fprintf(fp, "%d", (int) outline.size());
+	for (int i = 0; i < (int) outline.size(); i++) {
+		fprintf(fp, " %d", i);
 	}
 	fprintf(fp, "\n");
-
-	fprintf(fp, "CELL_TYPES %d\n", num_tri);
-	for (int i = 0; i < num_tri; i++) {
-		fprintf(fp, "5\n");
-	}
 
 	fclose(fp);
 
