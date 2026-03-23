@@ -8,9 +8,7 @@
 #include <numeric>
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
+#if !defined(_WIN32)
 #include <unistd.h>
 #if defined(__linux__)
 #include <sched.h>
@@ -18,9 +16,7 @@
 #endif
 
 int get_core_id() {
-#ifdef _WIN32
-    return GetCurrentProcessorNumber();
-#elif defined(__linux__)
+#if defined(__linux__)
     return sched_getcpu();
 #else
     return -1;
@@ -28,11 +24,11 @@ int get_core_id() {
 }
 
 int get_system_procs() {
-#ifdef _WIN32
-    return GetActiveProcessorCount(0xffff);
-#else
+#if !defined(_WIN32)
     long n = sysconf(_SC_NPROCESSORS_ONLN);
     return (n > 0) ? (int)n : omp_get_num_procs();
+#else
+    return omp_get_num_procs();
 #endif
 }
 

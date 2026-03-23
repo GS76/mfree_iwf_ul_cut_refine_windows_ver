@@ -9,6 +9,8 @@
 #include "test_cuttings.h"
 #include "simulation_time.h"
 #include "logger.h"
+#include "config/build_from_config.h"
+#include "config/simulation_config.h"
 
 logger *global_logger = nullptr;
 
@@ -47,39 +49,52 @@ static void write_workpiece_outline_vtk(const std::string& path, const body& b) 
 int main(int argc, char** argv) {
 	int model = 1;
 	std::string out_dir = "results/setup";
+	std::string config_path;
 
 	for (int i = 1; i < argc; i++) {
 		std::string arg = argv[i];
 		if (arg == "-m" && i + 1 < argc) {
 			model = std::atoi(argv[++i]);
+		} else if (arg == "--config" && i + 1 < argc) {
+			config_path = argv[++i];
 		} else if (arg == "--out" && i + 1 < argc) {
 			out_dir = argv[++i];
 		}
+	}
+
+	if (!config_path.empty()) {
+		mfree::config::simulation_config cfg = mfree::config::load_simulation_config_file(config_path);
+		if (out_dir == "results/setup") out_dir = cfg.io.output_dir + "/setup";
 	}
 
 	std::filesystem::create_directories(out_dir);
 
 	int nx = 31;
 	body* b = nullptr;
-	switch (model) {
-	case 1:
-		b = cutting_ref_single_resol(nx);
-		break;
-	case 2:
-		nx = 61;
-		b = cutting_ref_multi_resol_dynamic(nx);
-		break;
-	case 3:
-		nx = 61;
-		b = cutting_ref_multi_resol_apriori(nx);
-		break;
-	case 4:
-		nx = 61;
-		b = cutting_ref_single_resol(nx);
-		break;
-	default:
-		std::cerr << "Unsupported model: " << model << std::endl;
-		return 2;
+	if (!config_path.empty()) {
+		mfree::config::simulation_config cfg = mfree::config::load_simulation_config_file(config_path);
+		b = mfree::config::build_body_from_config(cfg);
+	} else {
+		switch (model) {
+		case 1:
+			b = cutting_ref_single_resol(nx);
+			break;
+		case 2:
+			nx = 61;
+			b = cutting_ref_multi_resol_dynamic(nx);
+			break;
+		case 3:
+			nx = 61;
+			b = cutting_ref_multi_resol_apriori(nx);
+			break;
+		case 4:
+			nx = 61;
+			b = cutting_ref_single_resol(nx);
+			break;
+		default:
+			std::cerr << "Unsupported model: " << model << std::endl;
+			return 2;
+		}
 	}
 
 	const auto& particles = b->get_particles();

@@ -73,6 +73,8 @@
 #include "tool.h"
 #include "logger.h"
 #include "body.h"
+#include "config/build_from_config.h"
+#include "config/simulation_config.h"
 
 logger *global_logger;
 
@@ -107,27 +109,6 @@ int main(int argc, char * argv[]) {
 	signal(SIGFPE, fpe_signal_handler);
 #endif
 
-	// clear the "results" directory for a fresh run
-	const fs::path folder = fs::current_path() / "results";
-	std::error_code fs_ec;
-	if (!fs::exists(folder, fs_ec)) {
-		fs::create_directory(folder, fs_ec);
-	} else if (!fs::is_directory(folder, fs_ec)) {
-		fs::remove(folder, fs_ec);
-		fs::create_directory(folder, fs_ec);
-	}
-	if (!fs_ec) {
-		for (fs::directory_iterator it(folder, fs_ec), end; !fs_ec && it != end; it.increment(fs_ec)) {
-			const fs::directory_entry& entry = *it;
-			if (entry.is_regular_file(fs_ec)) {
-				std::string ext = entry.path().extension().string();
-				if (ext == ".txt" || ext == ".vtk") {
-					fs::remove(entry.path(), fs_ec);
-				}
-			}
-		}
-	}
-
 	// inputs
 	int model = 1;
 	bool smoke = false;
@@ -135,12 +116,18 @@ int main(int argc, char * argv[]) {
 	bool cooldown_remove_tool = false;
 	double cooldown_hconv_W_m2K = 25.0;
 	bool all_steps = false;
+	std::string config_path;
+	std::string dump_config_path;
 
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "-m" && i + 1 < argc) {
 			model = std::atoi(argv[++i]);
 			printf("running model %d\n", model);
+		} else if (arg == "--config" && i + 1 < argc) {
+			config_path = argv[++i];
+		} else if (arg == "--dump-config" && i + 1 < argc) {
+			dump_config_path = argv[++i];
 		} else if (arg == "--smoke") {
 			smoke = true;
 		} else if (arg == "--cooldown") {
@@ -156,9 +143,50 @@ int main(int argc, char * argv[]) {
 		}
 	}
 
+	if (!dump_config_path.empty()) {
+		const auto j = mfree::config::dump_default_simulation_config_json();
+		std::ofstream out(dump_config_path, std::ios::out | std::ios::binary);
+		if (!out) {
+			throw std::runtime_error("Failed to open --dump-config path for writing: " + dump_config_path);
+		}
+		out << mfree::config::dump_json(j, 2);
+		return 0;
+	}
+
+	bool use_config = !config_path.empty();
+	mfree::config::simulation_config cfg;
+	if (use_config) {
+		cfg = mfree::config::load_simulation_config_file(config_path);
+	}
+
+	const std::string output_dir = use_config ? cfg.io.output_dir : "results";
+	const bool clear_output_dir = use_config ? cfg.io.clear_output_dir : true;
+
+	const fs::path folder = fs::current_path() / output_dir;
+	std::error_code fs_ec;
+	if (!fs::exists(folder, fs_ec)) {
+		fs::create_directories(folder, fs_ec);
+	} else if (!fs::is_directory(folder, fs_ec)) {
+		fs::remove(folder, fs_ec);
+		fs::create_directories(folder, fs_ec);
+	}
+	if (!fs_ec && clear_output_dir) {
+		for (fs::directory_iterator it(folder, fs_ec), end; !fs_ec && it != end; it.increment(fs_ec)) {
+			const fs::directory_entry& entry = *it;
+			if (entry.is_regular_file(fs_ec)) {
+				std::string ext = entry.path().extension().string();
+				if (ext == ".txt" || ext == ".vtk") {
+					fs::remove(entry.path(), fs_ec);
+				}
+			}
+		}
+	}
+
 	int nx = 31;
-	assert(model >= 1);
-	assert(model <= 4);
+	if (!use_config) {
+		assert(model >= 1);
+		assert(model <= 4);
+	}
 
 	/*
 	 ==========================
@@ -169,22 +197,26 @@ int main(int argc, char * argv[]) {
 	 ==========================
 	 */
 	body *b = 0;
-	switch (model) {
-	case 1:
-		b = cutting_ref_single_resol(nx);
-		break;
-	case 2:
-		nx = 61;
-		b = cutting_ref_multi_resol_apriori(nx);
-		break;
-	case 3:
-		nx = 61;
-		b = cutting_ref_multi_resol_dynamic(nx);
-		break;
-	case 4:
-		nx = 61;
-		b = cutting_ref_single_resol(nx);
-		break;
+	if (use_config) {
+		b = mfree::config::build_body_from_config(cfg);
+	} else {
+		switch (model) {
+		case 1:
+			b = cutting_ref_single_resol(nx);
+			break;
+		case 2:
+			nx = 61;
+			b = cutting_ref_multi_resol_apriori(nx);
+			break;
+		case 3:
+			nx = 61;
+			b = cutting_ref_multi_resol_dynamic(nx);
+			break;
+		case 4:
+			nx = 61;
+			b = cutting_ref_single_resol(nx);
+			break;
+		}
 	}
 
 	/*
@@ -194,7 +226,7 @@ int main(int argc, char * argv[]) {
 	 ===================================
 	 */
 	simulation_time *time = &simulation_time::getInstance();
-	int num_print = 150;
+	int num_print = use_config ? cfg.io.num_print : 150;
 	if (smoke) {
 		if (!cooldown) {
 			global_logger = 0;
@@ -228,7 +260,7 @@ int main(int argc, char * argv[]) {
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	freq = std::max(1, (int) freq);
-	if (all_steps) freq = 1;
+	if (all_steps || (use_config && cfg.io.all_steps)) freq = 1;
 	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%llu print_every=%u\n",
 		   (*b).get_num_part(), time->get_dt(), time->get_t_final(), num_step, freq);
 

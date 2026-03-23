@@ -1,8 +1,14 @@
 # Configuration Guide
 
-This guide documents the user-configurable parameters for the `mfree_iwf_ul_cut_refine` simulation. Parameters are located in command-line arguments, header files, and specific source files.
+This guide documents the user-configurable parameters for the `mfree_iwf_ul_cut_refine` simulation. The recommended workflow is to use a runtime JSON configuration file so input changes do not require recompilation.
 
 ## 1. Command Line Interface
+
+### 1.1 Config-driven runs (recommended)
+
+*   **Run from config**: `.\build\mfree_iwf.exe --config configs\model1.json`
+*   **Dump a complete default config**: `.\build\mfree_iwf.exe --dump-config configs\default.json`
+*   **Schema reference**: see [CONFIG_SCHEMA.md](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/CONFIG_SCHEMA.md)
 
 The simulation executable accepts a single argument to select the benchmark model.
 
@@ -14,7 +20,7 @@ The simulation executable accepts a single argument to select the benchmark mode
     *   `3`: A-priori multi-resolution (Static refinement).
     *   `4`: Same as 1.
 *   **Default**: `1`
-*   **Example**: `./mfree_iwf.exe -m 2`
+*   **Example**: `.\build\mfree_iwf.exe -m 2`
 
 ## 2. Simulation Configuration
 
@@ -27,8 +33,8 @@ These settings control the simulation duration, time step, and output frequency.
 | `dt` | `src/benchmarks/test_cuttings.cpp` | Time step size. | Calculated dynamically based on CFL condition (min of mechanical and thermal CFL). |
 
 **How to Change**:
-*   To change the number of output files, modify `num_print` in `refine_cut_main.cpp` and recompile.
-*   To change the simulation duration, modify `lc` (length of cut) or `t_final` in the respective `cutting_ref_*` function in `test_cuttings.cpp`.
+*   Prefer `--config` and edit the JSON file.
+*   Use `--dump-config` to generate a complete baseline JSON that can be committed and edited.
 
 ## 3. Material Parameters
 
@@ -57,8 +63,7 @@ Parameters for the flow stress equation: $\sigma = (A + B\varepsilon^n)(1 + C \l
 | Ref Temp | `Tref` | `298 K` | Reference (room) temperature. |
 
 **How to Change**:
-*   Modify the values in `src/benchmarks/material_library.cpp`.
-*   To switch materials, call a different `matlib_*` function in `src/benchmarks/test_cuttings.cpp` (e.g., `matlib_AISI1045()`).
+*   Prefer `--config` and set `material.physical_constants` and `plasticity.model`.
 
 ## 4. Numerical Parameters
 
@@ -83,15 +88,15 @@ Defined in `src/benchmarks/test_cuttings.cpp` (functions `cutting_ref_*`).
 | Parameter | Variable | Default (Model 1) | Description |
 | :--- | :--- | :--- | :--- |
 | **Workpiece** | | | |
-| Dimensions | `lo_x`, `hi_x`, `lo_y`, `hi_y` | 0-2mm (x), 0.3-0.6mm (y) | Bounding box of the workpiece. |
+| Dimensions | `lo_x`, `hi_x`, `lo_y`, `hi_y` | 0-2mm (x), 0.3-0.8mm (y) | Bounding box of the workpiece. |
 | Resolution | `nx`, `ny` | Derived from `nbox` | Number of particles. |
 | **Tool** | | | |
 | Cutting Speed | `vc` | `8.33 m/s` (500 m/min) | Velocity of the tool. |
-| Feed Rate | `target_feed` | `0.1 mm` | Depth of cut. |
-| Rake Angle | `rake` | `~0 deg` | Tool rake angle. |
-| Clearance | `clear` | `11 deg` | Tool clearance angle. |
+| Feed Rate | `target_feed` | `0.2 mm` | Depth of cut. |
+| Rake Angle | `rake` | `-5 deg` | Tool rake angle. |
+| Clearance | `clear` | `5 deg` | Tool clearance angle. |
 | Friction | `mu_friction` | `0.35` | Coulomb friction coefficient. |
-| Radius | `fillet_radius` | `5 µm` | Tool edge radius. |
+| Radius | `fillet_radius` | `50 µm` | Tool edge radius. |
 
 **How to Change**:
-*   These values are hardcoded in the benchmark setup functions. You must edit the C++ code in `src/benchmarks/test_cuttings.cpp` and recompile to change geometry or tool parameters.
+*   Prefer `--config` and edit the JSON file (tool/workpiece dimensions, angles, fillet, feed, and offsets).

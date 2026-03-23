@@ -69,6 +69,8 @@ endfunction()
 set(MFREE_CORE_LIB_SOURCES
 	src/adaptivity.cpp
 	src/body.cpp
+	src/config/json.cpp
+	src/config/simulation_config.cpp
 	src/cont_mech.cpp
 	src/contact.cpp
 	src/correctors.cpp
@@ -91,6 +93,7 @@ set(MFREE_CORE_LIB_SOURCES
 
 set(MFREE_MAIN_SOURCE
 	src/refine_cut_main.cpp
+	src/toolchain_stubs.cpp
 )
 
 set(MFREE_BENCH_SOURCES
@@ -98,6 +101,7 @@ set(MFREE_BENCH_SOURCES
 	src/benchmarks/test_benches.cpp
 	src/benchmarks/test_cuttings.cpp
 	src/benchmarks/test_density.cpp
+	src/config/build_from_config.cpp
 )
 
 add_library(mfree_core STATIC
@@ -139,16 +143,16 @@ mfree_apply_openmp_flags_if_needed(mfree_iwf)
 add_executable(mfree_iwf_ul_cut_refine_windows_ver ALIAS mfree_iwf)
 
 if(MFREE_ENABLE_BENCHMARKS)
-	add_executable(validate_omp src/benchmarks/test_omp_scaling.cpp)
+	add_executable(validate_omp src/benchmarks/test_omp_scaling.cpp src/toolchain_stubs.cpp)
 	target_include_directories(validate_omp PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/src
 		${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 	)
-	target_link_libraries(validate_omp PRIVATE OpenMP::OpenMP_CXX)
+	target_link_libraries(validate_omp PRIVATE mfree_core OpenMP::OpenMP_CXX)
 	mfree_apply_target_defaults(validate_omp)
 	mfree_apply_openmp_flags_if_needed(validate_omp)
 
-	add_executable(view_setup src/tools/view_setup.cpp)
+	add_executable(view_setup src/tools/view_setup.cpp src/toolchain_stubs.cpp)
 	target_include_directories(view_setup PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/src
 		${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
@@ -163,6 +167,7 @@ if(MFREE_ENABLE_TESTS)
 
 	add_executable(test_property_interpolation
 		src/tests/test_property_interpolation.cpp
+		src/toolchain_stubs.cpp
 	)
 	target_include_directories(test_property_interpolation PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -174,6 +179,9 @@ if(MFREE_ENABLE_TESTS)
 
 	add_test(NAME smoke_model_1 COMMAND mfree_iwf --smoke -m 1)
 	set_tests_properties(smoke_model_1 PROPERTIES TIMEOUT 120)
+
+	add_test(NAME smoke_config_model1 COMMAND mfree_iwf --smoke --config ${CMAKE_CURRENT_SOURCE_DIR}/configs/model1.json)
+	set_tests_properties(smoke_config_model1 PROPERTIES TIMEOUT 120)
 endif()
 
 include(GNUInstallDirs)

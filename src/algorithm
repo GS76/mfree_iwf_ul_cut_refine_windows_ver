@@ -1,0 +1,95 @@
+#ifndef MFREE_STUB_ALGORITHM_H_
+#define MFREE_STUB_ALGORITHM_H_
+
+#include <bits/stl_algobase.h>
+#include <iterator>
+
+namespace std {
+
+template<class InputIt, class OutputIt, class UnaryOp>
+OutputIt transform(InputIt first, InputIt last, OutputIt d_first, UnaryOp op) {
+	for (; first != last; ++first, ++d_first) *d_first = op(*first);
+	return d_first;
+}
+
+template<class InputIt, class UnaryFunc>
+UnaryFunc for_each(InputIt first, InputIt last, UnaryFunc f) {
+	for (; first != last; ++first) f(*first);
+	return f;
+}
+
+template<class InputIt, class Pred>
+InputIt find_if(InputIt first, InputIt last, Pred pred) {
+	for (; first != last; ++first) if (pred(*first)) return first;
+	return last;
+}
+
+template<class InputIt, class Pred>
+InputIt find_if_not(InputIt first, InputIt last, Pred pred) {
+	for (; first != last; ++first) if (!pred(*first)) return first;
+	return last;
+}
+
+template<class ForwardIt, class Compare>
+ForwardIt max_element(ForwardIt first, ForwardIt last, Compare comp) {
+	if (first == last) return last;
+	ForwardIt largest = first;
+	for (++first; first != last; ++first) if (comp(*largest, *first)) largest = first;
+	return largest;
+}
+
+template<class ForwardIt>
+ForwardIt max_element(ForwardIt first, ForwardIt last) {
+	return max_element(first, last, [](const auto& a, const auto& b) { return a < b; });
+}
+
+template<class ForwardIt, class Compare>
+ForwardIt min_element(ForwardIt first, ForwardIt last, Compare comp) {
+	if (first == last) return last;
+	ForwardIt smallest = first;
+	for (++first; first != last; ++first) if (comp(*first, *smallest)) smallest = first;
+	return smallest;
+}
+
+template<class ForwardIt>
+ForwardIt min_element(ForwardIt first, ForwardIt last) {
+	return min_element(first, last, [](const auto& a, const auto& b) { return a < b; });
+}
+
+template<class RandomIt, class Compare>
+void sort(RandomIt first, RandomIt last, Compare comp) {
+	if (first == last) return;
+	for (RandomIt i = first; i != last; ++i) {
+		for (RandomIt j = i; j != first; ) {
+			RandomIt k = j;
+			--k;
+			if (!comp(*j, *k)) break;
+			std::iter_swap(j, k);
+			j = k;
+		}
+	}
+}
+
+template<class RandomIt>
+void sort(RandomIt first, RandomIt last) {
+	sort(first, last, [](const auto& a, const auto& b) { return a < b; });
+}
+
+template<class ForwardIt>
+ForwardIt unique(ForwardIt first, ForwardIt last) {
+	if (first == last) return last;
+	ForwardIt result = first;
+	++first;
+	for (; first != last; ++first) {
+		if (!(*result == *first)) {
+			++result;
+			if (result != first) *result = *first;
+		}
+	}
+	++result;
+	return result;
+}
+
+}
+
+#endif
