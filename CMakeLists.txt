@@ -182,6 +182,18 @@ if(MFREE_ENABLE_TESTS)
 
 	add_test(NAME smoke_config_model1 COMMAND mfree_iwf --smoke --config ${CMAKE_CURRENT_SOURCE_DIR}/configs/model1.json)
 	set_tests_properties(smoke_config_model1 PROPERTIES TIMEOUT 120)
+
+	add_executable(test_json_unicode
+		src/tests/test_json_unicode.cpp
+		src/toolchain_stubs.cpp
+	)
+	target_include_directories(test_json_unicode PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/src
+	)
+	target_link_libraries(test_json_unicode PRIVATE mfree_core)
+	mfree_apply_target_defaults(test_json_unicode)
+	add_test(NAME test_json_unicode COMMAND test_json_unicode)
+	set_tests_properties(test_json_unicode PROPERTIES TIMEOUT 30)
 endif()
 
 include(GNUInstallDirs)

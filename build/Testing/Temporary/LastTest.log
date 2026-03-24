@@ -1,22 +1,18 @@
-Start testing: Mar 23 23:32 South Africa Standard Time
+Start testing: Mar 24 00:13 South Africa Standard Time
 ----------------------------------------------------------
-3/3 Testing: smoke_config_model1
-3/3 Test: smoke_config_model1
-Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/mfree_iwf.exe" "--smoke" "--config" "D:/mfree_iwf_ul_cut_refine_windows_ver/configs/model1.json"
+4/4 Testing: test_json_unicode
+4/4 Test: test_json_unicode
+Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/test_json_unicode.exe"
 Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
-"smoke_config_model1" start time: Mar 23 23:32 South Africa Standard Time
+"test_json_unicode" start time: Mar 24 00:13 South Africa Standard Time
 Output:
 ----------------------------------------------------------
-starting simulation: particles=10251 dt=7.651565e-10 t_final=7.651565e-07 steps=1000 print_every=1000
-000000: #increments 000000, cur time 0.000000e+00, pctg done 0.000000, seconds left: 0.000000
-000001: #increments 001000, cur time 7.651565e-07, pctg done 100.000000, seconds left: 0.000000
-Runtime: 62.730774
 <end of output>
-Test time =  63.22 sec
+Test time =   0.06 sec
 ----------------------------------------------------------
 Test Passed.
-"smoke_config_model1" end time: Mar 23 23:33 South Africa Standard Time
-"smoke_config_model1" time elapsed: 00:01:03
+"test_json_unicode" end time: Mar 24 00:13 South Africa Standard Time
+"test_json_unicode" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Mar 23 23:33 South Africa Standard Time
+End testing: Mar 24 00:13 South Africa Standard Time

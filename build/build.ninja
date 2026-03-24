@@ -564,6 +564,55 @@ build test_property_interpolation.exe: CXX_EXECUTABLE_LINKER__test_property_inte
   TARGET_PDB = test_property_interpolation.exe.dbg
   TARGET_SUPPORT_DIR = CMakeFiles\test_property_interpolation.dir
 
+# =============================================================================
+# Object build statements for EXECUTABLE target test_json_unicode
+
+
+#############################################
+# Order-only phony target for test_json_unicode
+
+build cmake_object_order_depends_target_test_json_unicode: phony || cmake_object_order_depends_target_mfree_core
+
+build CMakeFiles/test_json_unicode.dir/src/tests/test_json_unicode.cpp.obj: CXX_COMPILER__test_json_unicode_unscanned_Release D$:/mfree_iwf_ul_cut_refine_windows_ver/src/tests/test_json_unicode.cpp || cmake_object_order_depends_target_test_json_unicode
+  CONFIG = Release
+  DEFINES = -DNDEBUG -D_USE_MATH_DEFINES
+  DEP_FILE = CMakeFiles\test_json_unicode.dir\src\tests\test_json_unicode.cpp.obj.d
+  FLAGS = -O3 -DNDEBUG -std=c++17 -O3 -fopenmp
+  INCLUDES = -ID:/mfree_iwf_ul_cut_refine_windows_ver/src -ID:/mfree_iwf_ul_cut_refine_windows_ver/build/_deps/glm-src/glm/..
+  OBJECT_DIR = CMakeFiles\test_json_unicode.dir
+  OBJECT_FILE_DIR = CMakeFiles\test_json_unicode.dir\src\tests
+  TARGET_SUPPORT_DIR = CMakeFiles\test_json_unicode.dir
+
+build CMakeFiles/test_json_unicode.dir/src/toolchain_stubs.cpp.obj: CXX_COMPILER__test_json_unicode_unscanned_Release D$:/mfree_iwf_ul_cut_refine_windows_ver/src/toolchain_stubs.cpp || cmake_object_order_depends_target_test_json_unicode
+  CONFIG = Release
+  DEFINES = -DNDEBUG -D_USE_MATH_DEFINES
+  DEP_FILE = CMakeFiles\test_json_unicode.dir\src\toolchain_stubs.cpp.obj.d
+  FLAGS = -O3 -DNDEBUG -std=c++17 -O3 -fopenmp
+  INCLUDES = -ID:/mfree_iwf_ul_cut_refine_windows_ver/src -ID:/mfree_iwf_ul_cut_refine_windows_ver/build/_deps/glm-src/glm/..
+  OBJECT_DIR = CMakeFiles\test_json_unicode.dir
+  OBJECT_FILE_DIR = CMakeFiles\test_json_unicode.dir\src
+  TARGET_SUPPORT_DIR = CMakeFiles\test_json_unicode.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target test_json_unicode
+
+
+#############################################
+# Link the executable test_json_unicode.exe
+
+build test_json_unicode.exe: CXX_EXECUTABLE_LINKER__test_json_unicode_Release CMakeFiles/test_json_unicode.dir/src/tests/test_json_unicode.cpp.obj CMakeFiles/test_json_unicode.dir/src/toolchain_stubs.cpp.obj | libmfree_core.a || libmfree_core.a
+  CONFIG = Release
+  FLAGS = -O3 -DNDEBUG
+  LINK_LIBRARIES = libmfree_core.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\test_json_unicode.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = test_json_unicode.exe
+  TARGET_IMPLIB = libtest_json_unicode.dll.a
+  TARGET_PDB = test_json_unicode.exe.dbg
+  TARGET_SUPPORT_DIR = CMakeFiles\test_json_unicode.dir
+
 
 #############################################
 # Utility command for package
@@ -889,6 +938,8 @@ build mfree_core: phony libmfree_core.a
 
 build mfree_iwf: phony mfree_iwf.exe
 
+build test_json_unicode: phony test_json_unicode.exe
+
 build test_property_interpolation: phony test_property_interpolation.exe
 
 build validate_omp: phony validate_omp.exe
@@ -903,7 +954,7 @@ build view_setup: phony view_setup.exe
 #############################################
 # Folder: D:/mfree_iwf_ul_cut_refine_windows_ver/build
 
-build all: phony libmfree_core.a libmfree_benchmark_support.a mfree_iwf.exe validate_omp.exe view_setup.exe test_property_interpolation.exe _deps/glm-build/all
+build all: phony libmfree_core.a libmfree_benchmark_support.a mfree_iwf.exe validate_omp.exe view_setup.exe test_property_interpolation.exe test_json_unicode.exe _deps/glm-build/all
 
 # =============================================================================
 

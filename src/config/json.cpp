@@ -1,6 +1,7 @@
 #include "config/json.h"
 
 #include <cctype>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <sstream>
@@ -175,7 +176,64 @@ struct parser {
 				case 'r': out.push_back('\r'); break;
 				case 't': out.push_back('\t'); break;
 				case 'u':
-					fail("Unicode escapes are not supported");
+				{
+					auto hex_val = [&](char h) -> int {
+						if (h >= '0' && h <= '9') return h - '0';
+						if (h >= 'a' && h <= 'f') return 10 + (h - 'a');
+						if (h >= 'A' && h <= 'F') return 10 + (h - 'A');
+						return -1;
+					};
+
+					auto parse_hex4 = [&]() -> uint16_t {
+						uint16_t v = 0;
+						for (int k = 0; k < 4; k++) {
+							if (peek() == '\0') fail("Unexpected end of input in unicode escape");
+							char h = get();
+							int hv = hex_val(h);
+							if (hv < 0) fail("Invalid hex digit in unicode escape");
+							v = static_cast<uint16_t>((v << 4) | static_cast<uint16_t>(hv));
+						}
+						return v;
+					};
+
+					auto append_utf8 = [&](uint32_t cp) {
+						if (cp <= 0x7Fu) {
+							out.push_back((char) cp);
+						} else if (cp <= 0x7FFu) {
+							out.push_back((char) (0xC0u | (cp >> 6)));
+							out.push_back((char) (0x80u | (cp & 0x3Fu)));
+						} else if (cp <= 0xFFFFu) {
+							out.push_back((char) (0xE0u | (cp >> 12)));
+							out.push_back((char) (0x80u | ((cp >> 6) & 0x3Fu)));
+							out.push_back((char) (0x80u | (cp & 0x3Fu)));
+						} else if (cp <= 0x10FFFFu) {
+							out.push_back((char) (0xF0u | (cp >> 18)));
+							out.push_back((char) (0x80u | ((cp >> 12) & 0x3Fu)));
+							out.push_back((char) (0x80u | ((cp >> 6) & 0x3Fu)));
+							out.push_back((char) (0x80u | (cp & 0x3Fu)));
+						} else {
+							fail("Unicode code point out of range");
+						}
+					};
+
+					uint16_t u1 = parse_hex4();
+					if (u1 >= 0xD800u && u1 <= 0xDBFFu) {
+						if (get() != '\\' || get() != 'u') {
+							fail("Missing low surrogate after high surrogate");
+						}
+						uint16_t u2 = parse_hex4();
+						if (!(u2 >= 0xDC00u && u2 <= 0xDFFFu)) {
+							fail("Invalid low surrogate");
+						}
+						uint32_t cp = 0x10000u + (((uint32_t) u1 - 0xD800u) << 10) + ((uint32_t) u2 - 0xDC00u);
+						append_utf8(cp);
+					} else if (u1 >= 0xDC00u && u1 <= 0xDFFFu) {
+						fail("Unexpected low surrogate without preceding high surrogate");
+					} else {
+						append_utf8((uint32_t) u1);
+					}
+					break;
+				}
 				default:
 					fail("Invalid string escape");
 				}

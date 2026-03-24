@@ -1,4 +1,5 @@
 test_property_interpolation 9 0.00111181
 smoke_model_1 9 3.00847
 smoke_config_model1 1 63.2219
+test_json_unicode 3 0.0215579
 ---
