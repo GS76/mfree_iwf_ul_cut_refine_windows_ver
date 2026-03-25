@@ -187,7 +187,8 @@ struct parser {
 					auto parse_hex4 = [&]() -> uint16_t {
 						uint16_t v = 0;
 						for (int k = 0; k < 4; k++) {
-							if (peek() == '\0') fail("Unexpected end of input in unicode escape");
+							// Explicit bounds check: unicode escapes require exactly 4 hex digits; avoid reading past the std::string end.
+							if (i >= s.size()) fail("Unexpected end of input in unicode escape");
 							char h = get();
 							int hv = hex_val(h);
 							if (hv < 0) fail("Invalid hex digit in unicode escape");
