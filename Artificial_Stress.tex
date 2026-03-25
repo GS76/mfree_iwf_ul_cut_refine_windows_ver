@@ -1,0 +1,312 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage{hyperref}
+
+\title{Technical Documentation: Artificial Stress, Damping, and Pressure Terms in the Meshfree Cutting Solver}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This solver is a 2D, particle-based, Updated Lagrangian meshfree method (SPH-like) for large-deformation cutting. The three documented components are:
+
+\begin{itemize}
+  \item \textbf{Pressure} $p$: computed per particle from a linear elastic equation of state (EOS) and coupled into the stress divergence as an isotropic term.
+  \item \textbf{Artificial stresses} $\bm{R}$: a Monaghan-style tensile-instability correction, added inside the stress divergence operator to introduce repulsion under tension.
+  \item \textbf{Damping / dissipation}: primarily (i) Monaghan artificial viscosity (compression-activated numerical damping) added directly to acceleration, and (ii) penalty contact + Coulomb friction forces from the tool, added as external forces. A further stabilizer, XSPH, smooths advection velocities.
+\end{itemize}
+
+The time integration is explicit and second-order (leapfrog predictor/corrector) where all right-hand-side (RHS) terms are assembled at the half step.
+
+\section{Methodology}
+
+\subsection{Spatial discretization}
+
+The domain is discretized by particles indexed by $i=1,\dots,N$ with state variables
+\begin{equation}
+(x_i,y_i,\rho_i,h_i,\bm{v}_i,\bm{S}_i,T_i), \qquad \bm{v}_i=(v_{x,i},v_{y,i}).
+\label{eq:state}
+\end{equation}
+Here $\rho_i$ is density, $h_i$ is smoothing length, $\bm{S}_i$ is deviatoric stress (components $S_{xx},S_{xy},S_{yy},S_{zz}$), and $T_i$ is temperature.
+
+\subsubsection{Neighbor sets (Verlet lists)}
+
+Each particle $i$ maintains a neighbor list $\mathcal{N}(i)$ built by spatial hashing into a uniform grid each step. Neighbors are included when
+\begin{equation}
+\|\bm{x}_i-\bm{x}_j\|^2 \le (2h_i)^2.
+\label{eq:neighbor}
+\end{equation}
+
+\subsubsection{Kernel and gradients}
+
+A 2D cubic spline kernel $W_{ij}=W(\bm{x}_i-\bm{x}_j,h_i)$ and its gradient $\nabla W_{ij}$ are used (support radius $2h$). Define
+\begin{equation}
+\bm{x}_{ij}=\bm{x}_i-\bm{x}_j,\quad r_{ij}=\|\bm{x}_{ij}\|,\quad q=\frac{r_{ij}}{h_i}.
+\label{eq:qdef}
+\end{equation}
+Then $W_{ij}$ and $\nabla W_{ij}=(\partial_x W_{ij},\partial_y W_{ij})$ are evaluated by the cubic spline formulas.
+
+\subsubsection{CSPM gradient correction (optional)}
+
+An optional corrective SPH procedure (CSPM) replaces $\nabla W_{ij}$ with a corrected gradient to improve consistency. Define particle ``volume'' $V_j=m_j/\rho_j$ and moment matrix
+\begin{equation}
+\bm{B}_i=\sum_{j\in\mathcal{N}(i)} (\bm{x}_j-\bm{x}_i)\otimes \nabla W_{ij}\,V_j.
+\label{eq:Bi}
+\end{equation}
+Then
+\begin{equation}
+\nabla W_{ij}^{\,corr} = \nabla W_{ij}\,\bm{B}_i^{-1}.
+\label{eq:cspm}
+\end{equation}
+
+\subsection{Temporal discretization (leapfrog predictor/corrector)}
+
+Let $u$ denote any particle state component (e.g., $x$, $\rho$, $v_x$, $S_{xx}$). With timestep $\Delta t$, the scheme is:
+
+\paragraph{Predict to half step}
+\begin{equation}
+u_i^{n+\frac12}=u_i^{n}+\frac{\Delta t}{2}\,\dot{u}_i^{n}.
+\label{eq:predict}
+\end{equation}
+
+\paragraph{Compute RHS at half step}
+All $\dot{u}^{n+\frac12}$ terms are assembled using the half-step state.
+
+\paragraph{Correct to full step}
+\begin{equation}
+u_i^{n+1}=u_i^{n}+\Delta t\,\dot{u}_i^{n+\frac12}.
+\label{eq:correct}
+\end{equation}
+
+\subsection{Per-step coupling procedure}
+
+At each time step, the solver performs the following operator-split procedure:
+
+\begin{enumerate}
+  \item Build $\mathcal{N}(i)$ and precompute $W_{ij},\nabla W_{ij}$ (SPH or CSPM).
+  \item Predictor step \eqref{eq:predict}.
+  \item Reset RHS accumulators $\dot{u}_i\leftarrow 0$.
+  \item Apply contact + friction forces from tool (external forces).
+  \item Assemble continuum RHS:
+  \begin{enumerate}
+    \item EOS pressure $p$.
+    \item Artificial stress $\bm{R}$.
+    \item Stress divergence (includes $p$ and $\bm{R}$).
+    \item Velocity gradient.
+    \item Artificial viscosity (adds to acceleration).
+    \item XSPH (adds to kinematic advection).
+    \item Jaumann deviatoric stress rate.
+    \item Continuity $\dot{\rho}$.
+    \item Momentum $\dot{\bm{v}}$.
+    \item Advection $\dot{\bm{x}}$.
+  \end{enumerate}
+  \item Corrector step \eqref{eq:correct}.
+  \item Plasticity update and boundary-condition enforcement.
+\end{enumerate}
+
+\section{Derivations}
+
+\subsection{Pressure term}
+
+\subsubsection{EOS formulation}
+
+Pressure is computed per particle by a linear elastic EOS with bulk modulus $K(T)$ and reference density $\rho_0(T)$:
+\begin{equation}
+c_0(T)=\sqrt{\frac{K(T)}{\rho_0(T)}}.
+\label{eq:c0}
+\end{equation}
+\begin{equation}
+p = c_0(T)^2\left(\rho-\rho_0(T)\right).
+\label{eq:eos}
+\end{equation}
+
+\paragraph{Definitions}
+\begin{itemize}
+  \item $p$: pressure (scalar).
+  \item $K(T)$: bulk modulus as a function of temperature.
+  \item $\rho_0(T)$: reference density as a function of temperature.
+  \item $c_0(T)$: reference wave speed used in the EOS.
+\end{itemize}
+
+\subsubsection{Coupling into stress used for divergence}
+
+The solver stores deviatoric stress $\bm{S}$ and forms in-plane ``total'' stress components as
+\begin{equation}
+\sigma_{xx}=S_{xx}-p,\quad \sigma_{yy}=S_{yy}-p,\quad \sigma_{xy}=S_{xy}.
+\label{eq:sigma_from_Sp}
+\end{equation}
+
+\subsection{Artificial stress (Monaghan tensile-instability correction)}
+
+\subsubsection{Local rotation to a principal-like frame}
+
+Define stress components $s_{xx},s_{xy},s_{yy}$ as in \eqref{eq:sigma_from_Sp}. A rotation angle is computed:
+\begin{equation}
+\theta = \frac12 \operatorname{atan2}\!\left(2s_{xy},\,s_{xx}-s_{yy}+\varepsilon\right).
+\label{eq:theta}
+\end{equation}
+Let $c=\cos\theta$ and $s=\sin\theta$. The rotated normal stresses are
+\begin{equation}
+\tilde{s}_{xx}=c^2 s_{xx}+2cs\,s_{xy}+s^2 s_{yy},
+\label{eq:rot_sxx}
+\end{equation}
+\begin{equation}
+\tilde{s}_{yy}=s^2 s_{xx}-2cs\,s_{xy}+c^2 s_{yy}.
+\label{eq:rot_syy}
+\end{equation}
+
+\subsubsection{Tensile-only repulsive correction}
+
+Let $\epsilon_{AS}>0$ be the artificial stress coefficient and $\rho$ the density. The correction acts only in tension:
+\begin{equation}
+\tilde{R}_{xx}=
+\begin{cases}
+-\epsilon_{AS}\,\tilde{s}_{xx}\,\rho^{-2}, & \tilde{s}_{xx}>0,\\
+0, & \tilde{s}_{xx}\le 0,
+\end{cases}
+\label{eq:Rxx_tilde}
+\end{equation}
+\begin{equation}
+\tilde{R}_{yy}=
+\begin{cases}
+-\epsilon_{AS}\,\tilde{s}_{yy}\,\rho^{-2}, & \tilde{s}_{yy}>0,\\
+0, & \tilde{s}_{yy}\le 0.
+\end{cases}
+\label{eq:Ryy_tilde}
+\end{equation}
+The tensor is rotated back to yield $(R_{xx},R_{xy},R_{yy})$ in the global frame.
+
+\subsubsection{Injection into stress divergence}
+
+A kernel-ratio weight is computed:
+\begin{equation}
+f_{ab}=\left(\frac{W_{ij}}{W_{\Delta p}}\right)^{n},
+\qquad n\in\mathbb{N},\quad W_{\Delta p}>0.
+\label{eq:fab}
+\end{equation}
+Then the pairwise artificial stress is
+\begin{equation}
+\bm{R}_{ij}=f_{ab}\left(\bm{R}_i+\bm{R}_j\right).
+\label{eq:Rij}
+\end{equation}
+
+A representative component form of the discrete divergence consistent with the implementation is:
+\begin{align}
+(\nabla\cdot \bm{\sigma})_{x,i}\approx\;&
+\sum_{j\in\mathcal{N}(i)} m_j\left(
+\frac{\sigma_{xx,i}}{\rho_i^2}+\frac{\sigma_{xx,j}}{\rho_j^2}+R_{xx,ij}
+\right)\frac{\partial W_{ij}}{\partial x}
+\nonumber\\
+&+
+\sum_{j\in\mathcal{N}(i)} m_j\left(
+\frac{\sigma_{xy,i}}{\rho_i^2}+\frac{\sigma_{xy,j}}{\rho_j^2}+R_{xy,ij}
+\right)\frac{\partial W_{ij}}{\partial y}.
+\label{eq:stress_div_x}
+\end{align}
+
+\subsection{Damping / dissipation mechanisms}
+
+\subsubsection{Artificial viscosity (Monaghan-type)}
+
+Define relative kinematics
+\begin{equation}
+\bm{v}_{ij}=\bm{v}_i-\bm{v}_j,\quad \bm{x}_{ij}=\bm{x}_i-\bm{x}_j.
+\label{eq:rel_kin}
+\end{equation}
+Viscosity activates only under approach:
+\begin{equation}
+\bm{v}_{ij}\cdot\bm{x}_{ij}<0.
+\label{eq:approach}
+\end{equation}
+
+Define averaged quantities
+\begin{equation}
+h_{ij}=\frac12(h_i+h_j),\quad \rho_{ij}=\frac12(\rho_i+\rho_j),\quad c_{ij}=\frac12(c_i+c_j),
+\label{eq:avg}
+\end{equation}
+with wave speed (as used in the code)
+\begin{equation}
+c_i=\sqrt{\frac{K(T_i)}{\rho_i}}.
+\label{eq:ci}
+\end{equation}
+
+Then
+\begin{equation}
+\mu_{ij}=\frac{h_{ij}\,(\bm{v}_{ij}\cdot\bm{x}_{ij})}{\|\bm{x}_{ij}\|^2+\eta_{AV}^2 h_{ij}^2},
+\label{eq:muij}
+\end{equation}
+\begin{equation}
+\Pi_{ij}=\frac{-\alpha_{AV}c_{ij}\mu_{ij}+\beta_{AV}\mu_{ij}^2}{\rho_{ij}}.
+\label{eq:piij}
+\end{equation}
+
+The acceleration contribution is
+\begin{equation}
+\dot{\bm{v}}_i \mathrel{+}= -\sum_{j\in\mathcal{N}(i)} m_j\,\Pi_{ij}\,\nabla W_{ij}.
+\label{eq:av_accel}
+\end{equation}
+
+\subsubsection{Tool contact penalty (normal) and friction (tangential)}
+
+Let $g_N$ be penetration depth and $\bm{n}$ the surface normal returned by the tool contact query. With particle mass $m_s$ and timestep $\Delta t$:
+\begin{equation}
+\bm{f}_N = -\alpha_C\,m_s\,\frac{g_N}{\Delta t^2}\,\bm{n}.
+\label{eq:contact_penalty}
+\end{equation}
+
+Friction uses a clamped update with coefficient $\mu$:
+\begin{equation}
+\|\bm{f}_T\| \le \mu \|\bm{f}_N\|.
+\label{eq:coulomb}
+\end{equation}
+
+The resulting forces enter the momentum equation as external forces:
+\begin{equation}
+\dot{\bm{v}}_i \mathrel{+}= \frac{\bm{f}_{c,i}+\bm{f}_{t,i}}{m_i}.
+\label{eq:contact_mom}
+\end{equation}
+
+\subsubsection{XSPH kinematic smoothing (stabilization)}
+
+XSPH modifies the position RHS with parameter $\epsilon_{XSPH}$ and $\rho_{ij}=\frac12(\rho_i+\rho_j)$:
+\begin{equation}
+\dot{\bm{x}}_i \mathrel{+}= -\epsilon_{XSPH}\sum_{j\in\mathcal{N}(i)} \frac{m_i}{\rho_{ij}}(\bm{v}_i-\bm{v}_j)\,W_{ij}.
+\label{eq:xsph}
+\end{equation}
+
+\section{Results}
+
+At each timestep, after assembling RHS terms at the half-step state, the solver produces:
+
+\begin{itemize}
+  \item Pressure field $p_i$ via \eqref{eq:eos}.
+  \item Artificial stress correction $(R_{xx,i},R_{xy,i},R_{yy,i})$ via \eqref{eq:theta}--\eqref{eq:Ryy_tilde} and coupling \eqref{eq:fab}--\eqref{eq:Rij}.
+  \item Internal acceleration contributions from stress divergence (e.g., \eqref{eq:stress_div_x}) and artificial viscosity \eqref{eq:av_accel}.
+  \item External contact/friction forces and their contribution to $\dot{\bm{v}}_i$ via \eqref{eq:contact_mom}.
+  \item Updated state $u^{n+1}$ via \eqref{eq:correct}.
+\end{itemize}
+
+\subsection{Boundary conditions}
+
+Fixed particles are enforced by resetting to reference position $(X_i,Y_i)$ and zeroing velocities and kinematic RHS terms:
+\begin{equation}
+\bm{x}_i \leftarrow \bm{X}_i,\quad \bm{v}_i\leftarrow \bm{0},\quad \dot{\bm{x}}_i\leftarrow \bm{0},\quad \dot{\bm{v}}_i\leftarrow \bm{0}.
+\label{eq:fixed_bc}
+\end{equation}
+
+\section{Conclusions}
+
+\begin{itemize}
+  \item Pressure is computed by a temperature-dependent linear EOS \eqref{eq:eos} and enters the momentum balance through $\bm{\sigma}=\bm{S}-p\bm{I}$ \eqref{eq:sigma_from_Sp} inside a symmetric SPH stress divergence.
+  \item Artificial stress is a tensile-instability stabilization: it detects tensile principal-like stresses via rotation \eqref{eq:theta}--\eqref{eq:rot_syy}, applies a repulsive correction only in tension \eqref{eq:Rxx_tilde}--\eqref{eq:Ryy_tilde}, and injects it into the stress divergence with a kernel-ratio weighting \eqref{eq:fab}--\eqref{eq:Rij}.
+  \item Damping/dissipation is dominated by Monaghan artificial viscosity active only for approaching particles \eqref{eq:approach}--\eqref{eq:av_accel}, and penalty contact plus friction forces from the tool \eqref{eq:contact_penalty}--\eqref{eq:contact_mom}. XSPH provides additional stabilization by smoothing advection velocities \eqref{eq:xsph}.
+  \item Coupling is explicit and operator-split, evaluated at the half step, and advanced by leapfrog \eqref{eq:predict}--\eqref{eq:correct}.
+\end{itemize}
+
+\end{document}
