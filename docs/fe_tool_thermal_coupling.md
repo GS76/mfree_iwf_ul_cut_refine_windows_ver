@@ -15,7 +15,15 @@ Core implementation:
 The cutting benchmarks can optionally attach an FE tool by setting an environment variable:
 
 - `MFREE_FE_TOOL_MSH`: path to a Gmsh v2 ASCII `.msh` file containing the tool mesh
+- `MFREE_USE_FE_TOOL_FOR_CONTACT`: if set to nonzero, the rigid contact geometry is constructed from the FE tool boundary edges (piecewise-linear polygon), instead of the analytic 4-segment tool definition
 - `MFREE_COOLANT_Y_THRESHOLD` (optional): world-space y threshold; boundary edges with midpoint `y >= threshold` use the flooded-water convection model, below use still air
+
+Optional deformable plane-strain response (quasi-static):
+
+- `MFREE_DEFORMABLE_FE_TOOL`: if set to nonzero together with `MFREE_USE_FE_TOOL_FOR_CONTACT`, iterates contact against the deformed FE-tool boundary and solves a plane-strain thermoelastic equilibrium for the tool under mapped nodal forces (thermal expansion uses `MFREE_FE_TOOL_ALPHA` and the current FE temperature field)
+- `MFREE_DEFORMABLE_TOOL_TOL`: relative tolerance for mapped nodal force and mapped nodal power residuals
+- `MFREE_DEFORMABLE_TOOL_MAX_ITERS`: maximum contact iterations
+- `MFREE_DEFORMABLE_TOOL_RELAX`: displacement under-relaxation (0..1)
 
 Run:
 
@@ -30,6 +38,11 @@ Supported mesh format:
 - Gmsh v2 ASCII `.msh`
 - 2D triangles (element type 2) for the thermal conduction domain
 - Boundary line elements (element type 1) are used as boundary edges; the first tag is treated as the “physical tag”
+
+Material overrides via environment variables:
+
+- `MFREE_FE_TOOL_RHO`, `MFREE_FE_TOOL_CP`, `MFREE_FE_TOOL_K`
+- `MFREE_FE_TOOL_E`, `MFREE_FE_TOOL_NU`, `MFREE_FE_TOOL_ALPHA`
 
 ## Thermal Models
 

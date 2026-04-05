@@ -50,6 +50,8 @@
 
 #include "tool.h"
 
+#include <algorithm>
+
 static glm::dvec2 solve_quad(double a, double b, double c) {
 	double x1 = (-b + sqrt(b*b-4*a*c))/(2*a);
 	double x2 = (-b - sqrt(b*b-4*a*c))/(2*a);
@@ -843,6 +845,33 @@ tool::tool(glm::dvec2 tl, double length, double height,
 	glm::dvec2 br = l1.intersect(l2);
 
 	construct_segments(std::vector<glm::dvec2>({tl, tr, br, bl}));
+}
+
+tool::tool(const std::vector<glm::dvec2> &poly_ccw, double mu_fric) : m_mu(mu_fric) {
+	assert(poly_ccw.size() >= 3);
+	m_velocity = glm::dvec2(0.);
+	m_edge_coord = glm::dvec2(0.);
+	m_chamfer_debug = false;
+	m_fillet = 0;
+	m_segments.clear();
+
+	std::vector<glm::dvec2> pts = poly_ccw;
+	glm::dvec2 ctr(0.);
+	for (const glm::dvec2 &p : pts) ctr += p;
+	ctr /= static_cast<double>(pts.size());
+
+	construct_segments(pts);
+	if (inside(ctr) < 0.) {
+		m_segments.clear();
+		std::reverse(pts.begin(), pts.end());
+		construct_segments(pts);
+	}
+
+	glm::dvec2 br = pts[0];
+	for (const glm::dvec2 &p : pts) {
+		if (p.y < br.y || (p.y == br.y && p.x > br.x)) br = p;
+	}
+	m_edge_coord = br;
 }
 
 tool::tool() {}

@@ -1,0 +1,49 @@
+{
+  "dimension": "2D",
+  "kinematics": "plane_strain",
+  "geometry": {
+    "tool_mesh_msh2": "snapshots/tool_plane_strain/meshes/tool_h_0.002mm.msh",
+    "mesh_physical_tags": {
+      "tool_domain": 1,
+      "tool_boundary": 100,
+      "cutting_edge": 101,
+      "top_face": 110,
+      "rake_face": 111,
+      "clearance_face": 113,
+      "back_face": 114
+    }
+  },
+  "materials": {
+    "tool_thermal": { "rho": 14500.0, "cp": 200.0, "k": 80.0 },
+    "tool_mechanical": { "E": 600000000000.0, "nu": 0.22, "alpha": 4.5e-6, "T_ref": 300.0 }
+  },
+  "boundary_conditions": {
+    "tool_mechanics_fixed_physical_tags": [114]
+  },
+  "contact": {
+    "friction_mu": 0.35,
+    "thermal_contact": {
+      "h_separated_W_m2K": 1000.0,
+      "h_full_contact_W_m2K": 100000.0,
+      "p_ref_Pa": 1000000000.0,
+      "friction_heat_fraction_workpiece": 0.8,
+      "friction_heat_fraction_tool": 0.2,
+      "max_dT_per_step_K": 1.0
+    }
+  },
+  "nonlinear_solver": {
+    "method": "fixed_point_contact",
+    "max_iters": 2000,
+    "under_relaxation": 0.05,
+    "tolerance": {
+      "type": "per_contact_node",
+      "max_rel_nodal_contact_force": 0.01,
+      "max_rel_nodal_contact_heat_flow": 0.01
+    }
+  },
+  "reproduction": {
+    "precheck_command": "powershell -ExecutionPolicy Bypass -File snapshots/tool_plane_strain/run_precheck.ps1",
+    "mesh_generation_command": "powershell -ExecutionPolicy Bypass -File snapshots/tool_plane_strain/generate_mesh.ps1",
+    "mesh_independence_command": "python snapshots/tool_plane_strain/validate_mesh_independence.py"
+  }
+}

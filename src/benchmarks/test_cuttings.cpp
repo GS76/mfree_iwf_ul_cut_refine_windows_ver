@@ -50,23 +50,162 @@
 
 #include "test_cuttings.h"
 
-static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
+#include <limits>
+#include <cmath>
+#include <unordered_map>
+
+static bool try_read_env_double(const char *key, double &out) {
+	const char *s = getenv(key);
+	if (!s || s[0] == '\0') return false;
+	char *end = nullptr;
+	double v = strtod(s, &end);
+	if (end == s || !std::isfinite(v)) return false;
+	out = v;
+	return true;
+}
+
+static void apply_mech_fix_tags_from_env(fe_tool &ft) {
+	const char *tags = getenv("MFREE_FE_TOOL_FIX_TAGS");
+	if (!tags || tags[0] == '\0') {
+		std::unordered_set<unsigned int> bnodes;
+		for (const auto &e : ft.boundary_edges()) {
+			bnodes.insert(e.n0);
+			bnodes.insert(e.n1);
+		}
+		if (bnodes.empty()) return;
+
+		double x_max = -std::numeric_limits<double>::infinity();
+		double x_min = std::numeric_limits<double>::infinity();
+		for (unsigned int i : bnodes) x_max = std::max(x_max, ft.nodes_tool_frame()[i].x);
+		for (unsigned int i : bnodes) x_min = std::min(x_min, ft.nodes_tool_frame()[i].x);
+
+		std::vector<unsigned int> fixed;
+		double width = x_max - x_min;
+		double tol = 0.01 * width;
+		try_read_env_double("MFREE_FE_TOOL_FIX_X_TOL", tol);
+		if (!std::isfinite(tol) || tol <= 0.) tol = 0.01 * width;
+
+		for (int attempt = 0; attempt < 4; attempt++) {
+			fixed.clear();
+			for (unsigned int i : bnodes) {
+				if (ft.nodes_tool_frame()[i].x >= x_max - tol) fixed.push_back(i);
+			}
+			if (fixed.size() >= 2) break;
+			tol *= 5.0;
+		}
+		ft.set_mechanics_fixed_nodes(fixed);
+		return;
+	}
+	std::string s(tags);
+	std::size_t i = 0;
+	while (i < s.size()) {
+		while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ',')) i++;
+		if (i >= s.size()) break;
+		std::size_t j = i;
+		while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t') j++;
+		int tag = std::atoi(s.substr(i, j - i).c_str());
+		if (tag != 0) ft.set_mechanics_fixed_on_physical(tag);
+		i = j;
+	}
+}
+
+static std::vector<glm::dvec2> extract_boundary_loop_world(const fe_tool &ft) {
+	const auto &nodes = ft.nodes_tool_frame();
+	const auto &edges = ft.boundary_edges();
+
+	std::unordered_map<unsigned int, std::vector<unsigned int>> adj;
+	adj.reserve(edges.size());
+
+	for (const auto &e : edges) {
+		adj[e.n0].push_back(e.n1);
+		adj[e.n1].push_back(e.n0);
+	}
+
+	unsigned int start = 0;
+	bool has_start = false;
+	glm::dvec2 start_p(0.);
+
+	for (const auto &kv : adj) {
+		unsigned int idx = kv.first;
+		if (idx >= nodes.size()) continue;
+		glm::dvec2 p = ft.to_world_frame(nodes[idx]);
+		if (!has_start || p.x < start_p.x || (p.x == start_p.x && p.y < start_p.y)) {
+			has_start = true;
+			start = idx;
+			start_p = p;
+		}
+	}
+
+	if (!has_start) return {};
+
+	std::vector<unsigned int> loop;
+	loop.reserve(adj.size());
+
+	unsigned int prev = std::numeric_limits<unsigned int>::max();
+	unsigned int cur = start;
+	for (unsigned int it = 0; it < static_cast<unsigned int>(adj.size()) + 2; it++) {
+		loop.push_back(cur);
+		const auto &nb = adj[cur];
+		if (nb.empty()) break;
+		unsigned int next = nb[0];
+		if (nb.size() >= 2 && next == prev) next = nb[1];
+		if (next == start) break;
+		prev = cur;
+		cur = next;
+	}
+
+	std::vector<glm::dvec2> pts;
+	pts.reserve(loop.size());
+	for (unsigned int idx : loop) {
+		if (idx >= nodes.size()) continue;
+		pts.push_back(ft.to_world_frame(nodes[idx]));
+	}
+	return pts;
+}
+
+static tool *attach_fe_tool_from_env(body *b, tool *t, double T0) {
 	const char *msh = getenv("MFREE_FE_TOOL_MSH");
-	if (!msh) return;
+	if (!msh) return t;
 
 	fe_tool *ft = new fe_tool();
 	if (!ft->load_gmsh_msh2(std::string(msh))) {
 		delete ft;
-		return;
+		return t;
 	}
 
 	fe_tool::thermal_material mat;
 	mat.rho = 14500.0;
 	mat.cp = 200.0;
 	mat.k = 80.0;
+	try_read_env_double("MFREE_FE_TOOL_RHO", mat.rho);
+	try_read_env_double("MFREE_FE_TOOL_CP", mat.cp);
+	try_read_env_double("MFREE_FE_TOOL_K", mat.k);
 	ft->set_material(mat);
+
+	fe_tool::mechanical_material mech;
+	mech.E = 600e9;
+	mech.nu = 0.22;
+	mech.alpha = 4.5e-6;
+	try_read_env_double("MFREE_FE_TOOL_E", mech.E);
+	try_read_env_double("MFREE_FE_TOOL_NU", mech.nu);
+	try_read_env_double("MFREE_FE_TOOL_ALPHA", mech.alpha);
+	ft->set_mechanical_material(mech);
+	ft->set_reference_temperature(T0);
+	apply_mech_fix_tags_from_env(*ft);
+
 	ft->set_initial_temperature(T0);
-	ft->set_pose(glm::dvec2(0.), t->get_vel());
+	glm::dvec2 pos(0.);
+	const char *align_env = getenv("MFREE_FE_TOOL_ALIGN_CENTER");
+	bool align = true;
+	if (align_env) align = (atoi(align_env) != 0);
+	if (align && t) {
+		glm::dvec2 mesh_center(0.);
+		const auto &nodes = ft->nodes_tool_frame();
+		for (const auto &p : nodes) mesh_center += p;
+		if (!nodes.empty()) mesh_center /= static_cast<double>(nodes.size());
+		pos = t->center() - mesh_center;
+	}
+	ft->set_pose(pos, t ? t->get_vel() : glm::dvec2(0.));
 
 	fe_tool::convection_bc air;
 	air.h = 20.0;
@@ -82,6 +221,20 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 	ft->set_convection_flooded_by_y(air, water, y_thresh);
 
 	b->set_fe_tool(ft);
+
+	const char *use_contact_env = getenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
+	if (use_contact_env && atoi(use_contact_env) != 0) {
+		std::vector<glm::dvec2> pts = extract_boundary_loop_world(*ft);
+		if (pts.size() >= 3) {
+			tool *t_mesh = new tool(pts, t ? t->mu() : 0.35);
+			if (t) {
+				t_mesh->set_vel(t->get_vel());
+				t_mesh->set_edge_coord(t->get_edge_coord());
+			}
+			return t_mesh;
+		}
+	}
+	return t;
 }
 
  body *cutting_ref_mr(unsigned int ny) {
@@ -176,9 +329,10 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 	glm::dvec2 bl(-0.05      + nudge, 0.0555074);
 
 	tool *t = new tool(tl, tr, br, bl, 20e-6*100, mu_fric);
-	b->set_tool(t);
 	t->set_vel(glm::dvec2(speed,0.));
-	attach_fe_tool_from_env(b, t, T0);
+	b->set_tool(t);
+	t = attach_fe_tool_from_env(b, t, T0);
+	b->set_tool(t);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -303,7 +457,15 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
-	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
+	double rake_deg = rake;
+	double clear_deg = clear;
+	const char *swap_env = getenv("MFREE_SWAP_TOOL_RAKE_CLEARANCE");
+	if (swap_env && atoi(swap_env) != 0) {
+		double tmp = rake_deg;
+		rake_deg = clear_deg;
+		clear_deg = tmp;
+	}
+	tool *t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
 
 	double target_feed = 1e-4;	// 0.1 mm
 	double current_feed = hi_y - t->low();
@@ -312,13 +474,29 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 	double sign = (current_feed > target_feed) ? 1 : -1.;
 	t->set_vel(glm::dvec2(0.,vc));
 	t->update_tool(correction_time*sign);
+
+	double y_offset = 0.;
+	try_read_env_double("MFREE_TOOL_Y_OFFSET", y_offset);
+	if (std::isfinite(y_offset) && y_offset != 0.) {
+		t->set_vel(glm::dvec2(0., 1.));
+		t->update_tool(y_offset);
+	}
+
+	double x_offset = 0.;
+	try_read_env_double("MFREE_TOOL_X_OFFSET", x_offset);
+	if (std::isfinite(x_offset) && x_offset != 0.) {
+		t->set_vel(glm::dvec2(1., 0.));
+		t->update_tool(x_offset);
+	}
+
 	t->set_vel(glm::dvec2(vc, 0.)); // set actual velocity
 
 	// save settings to body
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
-	attach_fe_tool_from_env(b, t, T0);
+	t = attach_fe_tool_from_env(b, t, T0);
+	b->set_tool(t);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -513,7 +691,15 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
-	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
+	double rake_deg = rake;
+	double clear_deg = clear;
+	const char *swap_env = getenv("MFREE_SWAP_TOOL_RAKE_CLEARANCE");
+	if (swap_env && atoi(swap_env) != 0) {
+		double tmp = rake_deg;
+		rake_deg = clear_deg;
+		clear_deg = tmp;
+	}
+	tool *t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
 
 	double target_feed = 1e-4;	// 0.1 mm
 	double current_feed = hi_y - t->low();
@@ -528,7 +714,8 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
-	attach_fe_tool_from_env(b, t, T0);
+	t = attach_fe_tool_from_env(b, t, T0);
+	b->set_tool(t);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -745,7 +932,15 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
-	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
+	double rake_deg = rake;
+	double clear_deg = clear;
+	const char *swap_env = getenv("MFREE_SWAP_TOOL_RAKE_CLEARANCE");
+	if (swap_env && atoi(swap_env) != 0) {
+		double tmp = rake_deg;
+		rake_deg = clear_deg;
+		clear_deg = tmp;
+	}
+	tool *t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
 
 	double target_feed = 1e-4;	// 0.1 mm
 	double current_feed = hi_y - t->low();
@@ -761,7 +956,8 @@ static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
-	attach_fe_tool_from_env(b, t, T0);
+	t = attach_fe_tool_from_env(b, t, T0);
+	b->set_tool(t);
 	b->set_adaptivity(adapt);
 
 	global_logger = new logger("cutting");

@@ -1,0 +1,250 @@
+{
+  "mesh_levels": [
+    {
+      "fine_size_mm": 0.004,
+      "mesh": {
+        "nodes": 1566,
+        "triangles": 2996,
+        "min_angle_deg": 38.94314446003207,
+        "min_quality_radius_ratio": 0.761985663017239
+      },
+      "tool_contact": {
+        "bbox": {
+          "xmin": 7.2473e-05,
+          "xmax": 0.0005883592111570025,
+          "ymin": 0.000555074,
+          "ymax": 0.001069553621717933
+        },
+        "polygon": {
+          "nodes": 40,
+          "centroid_inside": 7.854286453888209e-05
+        },
+        "overlap": {
+          "count": 75,
+          "max_depth": 3.752699999999999e-05
+        }
+      },
+      "fe_tool": {
+        "nodes": 1566,
+        "triangles": 2996,
+        "min_triangle_angle_deg": 38.943144,
+        "temperature": {
+          "min": 300.0,
+          "max": 300.0
+        },
+        "thermal_material": {
+          "rho": 14500.0,
+          "cp": 200.0,
+          "k": 80.0
+        },
+        "mechanical_material": {
+          "E": 600000000000.0,
+          "nu": 0.22,
+          "alpha": 4.5e-06
+        },
+        "max_displacement": 9.48341203540279e-05,
+        "contact_convergence": {
+          "iters": 120,
+          "rel_force": 0.001194850485705778,
+          "rel_power": 0.001100371103374986,
+          "max_rel_force_node": 0.009840434721207854,
+          "max_rel_power_node": 0.003819441953439388,
+          "nodes_force_over_tol": 0,
+          "nodes_power_over_tol": 0
+        },
+        "contact_energy": {
+          "P_fric": 235597.8997278792,
+          "P_cond": 5.6843418860808e-19,
+          "scale": 1.0,
+          "frac_workpiece": 0.8,
+          "frac_tool": 0.2
+        },
+        "mapped_balance": {
+          "sum_force_workpiece": {
+            "fx": -2846273.943736142,
+            "fy": -78178169.44260249
+          },
+          "sum_force_fe": {
+            "fx": 2846273.943736142,
+            "fy": 78178169.44260247
+          },
+          "sum_power_workpiece": 188478.3197823035,
+          "sum_power_fe": 47119.57994557588
+        }
+      },
+      "energy_check": {
+        "P_in": 235597.89972787938,
+        "P_fric": 235597.8997278792,
+        "P_cond": 5.6843418860808e-19,
+        "frac_sum": 1.0,
+        "rel_err_total": 7.411907446632404e-16,
+        "rel_err_tool": 7.720736923575419e-16,
+        "rel_err_wp": 6.176589538860336e-16
+      }
+    },
+    {
+      "fine_size_mm": 0.003,
+      "mesh": {
+        "nodes": 2262,
+        "triangles": 4365,
+        "min_angle_deg": 38.01511172779726,
+        "min_quality_radius_ratio": 0.6880842144257058
+      },
+      "tool_contact": {
+        "bbox": {
+          "xmin": 7.2473e-05,
+          "xmax": 0.0005885017303237672,
+          "ymin": 0.000555074,
+          "ymax": 0.001069526353170512
+        },
+        "polygon": {
+          "nodes": 43,
+          "centroid_inside": 7.307427987392354e-05
+        },
+        "overlap": {
+          "count": 75,
+          "max_depth": 3.752699999999999e-05
+        }
+      },
+      "fe_tool": {
+        "nodes": 2262,
+        "triangles": 4365,
+        "min_triangle_angle_deg": 38.015112,
+        "temperature": {
+          "min": 300.0,
+          "max": 300.0
+        },
+        "thermal_material": {
+          "rho": 14500.0,
+          "cp": 200.0,
+          "k": 80.0
+        },
+        "mechanical_material": {
+          "E": 600000000000.0,
+          "nu": 0.22,
+          "alpha": 4.5e-06
+        },
+        "max_displacement": 9.478472761189602e-05,
+        "contact_convergence": {
+          "iters": 84,
+          "rel_force": 0.0002146966508047998,
+          "rel_power": 0.000416732460577213,
+          "max_rel_force_node": 0.009742696803727984,
+          "max_rel_power_node": 0.005530724459293643,
+          "nodes_force_over_tol": 0,
+          "nodes_power_over_tol": 0
+        },
+        "contact_energy": {
+          "P_fric": 235486.4698062099,
+          "P_cond": 0.0,
+          "scale": 1.0,
+          "frac_workpiece": 0.8,
+          "frac_tool": 0.2
+        },
+        "mapped_balance": {
+          "sum_force_workpiece": {
+            "fx": -2858643.642614562,
+            "fy": -77932994.57472
+          },
+          "sum_force_fe": {
+            "fx": 2858643.642614557,
+            "fy": 77932994.57472
+          },
+          "sum_power_workpiece": 188389.1758449676,
+          "sum_power_fe": 47097.29396124191
+        }
+      },
+      "energy_check": {
+        "P_in": 235486.4698062095,
+        "P_fric": 235486.4698062099,
+        "P_cond": 0.0,
+        "frac_sum": 1.0,
+        "rel_err_total": 1.7302634275743306e-15,
+        "rel_err_tool": 1.6993658663676458e-15,
+        "rel_err_wp": 1.8538536724010682e-15
+      }
+    },
+    {
+      "fine_size_mm": 0.002,
+      "mesh": {
+        "nodes": 4020,
+        "triangles": 7837,
+        "min_angle_deg": 35.398238348987526,
+        "min_quality_radius_ratio": 0.7256857760471448
+      },
+      "tool_contact": {
+        "bbox": {
+          "xmin": 7.2473e-05,
+          "xmax": 0.0005885413942367657,
+          "ymin": 0.000555074,
+          "ymax": 0.001069577844354195
+        },
+        "polygon": {
+          "nodes": 47,
+          "centroid_inside": 6.730990809177928e-05
+        },
+        "overlap": {
+          "count": 75,
+          "max_depth": 3.752699999999999e-05
+        }
+      },
+      "fe_tool": {
+        "nodes": 4020,
+        "triangles": 7837,
+        "min_triangle_angle_deg": 35.398238,
+        "temperature": {
+          "min": 300.0,
+          "max": 300.0
+        },
+        "thermal_material": {
+          "rho": 14500.0,
+          "cp": 200.0,
+          "k": 80.0
+        },
+        "mechanical_material": {
+          "E": 600000000000.0,
+          "nu": 0.22,
+          "alpha": 4.5e-06
+        },
+        "max_displacement": 9.493391383705612e-05,
+        "contact_convergence": {
+          "iters": 100,
+          "rel_force": 9.273726235427396e-05,
+          "rel_power": 0.000153744429517553,
+          "max_rel_force_node": 0.009886922781043295,
+          "max_rel_power_node": 0.008812876342405332,
+          "nodes_force_over_tol": 0,
+          "nodes_power_over_tol": 0
+        },
+        "contact_energy": {
+          "P_fric": 235540.8467962528,
+          "P_cond": 0.0,
+          "scale": 1.0,
+          "frac_workpiece": 0.8,
+          "frac_tool": 0.2
+        },
+        "mapped_balance": {
+          "sum_force_workpiece": {
+            "fx": -2852585.93414693,
+            "fy": -78052633.714625
+          },
+          "sum_force_fe": {
+            "fx": 2852585.934146935,
+            "fy": 78052633.714625
+          },
+          "sum_power_workpiece": 188432.6774370025,
+          "sum_power_fe": 47108.16935925064
+        }
+      },
+      "energy_check": {
+        "P_in": 235540.84679625314,
+        "P_fric": 235540.8467962528,
+        "P_cond": 0.0,
+        "frac_sum": 1.0,
+        "rel_err_total": 1.4827405532039574e-15,
+        "rel_err_tool": 1.698973550546201e-15,
+        "rel_err_wp": 1.39006926862871e-15
+      }
+    }
+  ]
+}

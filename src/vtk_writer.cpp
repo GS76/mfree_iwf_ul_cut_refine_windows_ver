@@ -50,6 +50,8 @@
 
 #include "vtk_writer.h"
 
+#include "fe_tool.h"
+
 void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
 	char buf[256];
 	sprintf(buf, "%s/out_%06d.vtk", folder, step);
@@ -137,14 +139,33 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
+	fprintf(fp, "SCALARS fixed int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%d\n", particles[i].fixed ? 1 : 0);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS num_neighbors int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%u\n", particles[i].num_nbh);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS refine_step int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%u\n", particles[i].refine_step);
+	}
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }
 
 void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 	auto segments = tool->get_segments();
 	if (segments.size() == 0) return;
-
-	assert(segments.size() == 4 || segments.size() == 5);
 
 	struct triangle {
 		glm::dvec2 p1, p2, p3;
@@ -154,13 +175,11 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 	std::vector<triangle> triangles;
 
 	//mesh tool "body"
-	if (segments.size() == 4) {
-        triangles.push_back(triangle(segments[0].left, segments[0].right, segments[1].right));
-        triangles.push_back(triangle(segments[2].left, segments[2].right, segments[3].right));
-	} else if (segments.size() == 5) {
-        triangles.push_back(triangle(segments[0].left, segments[0].right, segments[2].right));
-        triangles.push_back(triangle(segments[1].left, segments[1].right, segments[2].right));
-        triangles.push_back(triangle(segments[3].left, segments[3].right, segments[4].right));
+	if (segments.size() >= 3) {
+		std::vector<glm::dvec2> verts;
+		verts.reserve(segments.size());
+		for (const auto &s : segments) verts.push_back(s.left);
+		for (std::size_t i = 1; i + 1 < verts.size(); i++) triangles.push_back(triangle(verts[0], verts[i], verts[i + 1]));
 	}
 
 	//mesh fillet
@@ -220,4 +239,68 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 
 	fclose(fp);
 
+}
+
+void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder) {
+	vtk_writer_write(tool, step, folder, "fe_tool");
+}
+
+void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder, const char *filename_prefix) {
+	if (!tool) return;
+	const auto &nodes_tool = tool->nodes_tool_frame();
+	const auto &tris = tool->triangles();
+	if (nodes_tool.empty() || tris.empty()) return;
+
+	char buf[256];
+	if (!filename_prefix || filename_prefix[0] == '\0') filename_prefix = "fe_tool";
+	sprintf(buf, "%s/%s_%06d.vtk", folder, filename_prefix, step);
+	FILE *fp = fopen(buf, "w+");
+	if (!fp) return;
+
+	fprintf(fp, "# vtk DataFile Version 2.0\n");
+	fprintf(fp, "mfree iwf\n");
+	fprintf(fp, "ASCII\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
+
+	fprintf(fp, "POINTS %d float\n", static_cast<int>(nodes_tool.size()));
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		glm::dvec2 pw = tool->node_world(static_cast<unsigned int>(i));
+		fprintf(fp, "%f %f %f\n", pw.x, pw.y, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "CELLS %d %d\n", static_cast<int>(tris.size()), static_cast<int>(4 * tris.size()));
+	for (std::size_t i = 0; i < tris.size(); i++) {
+		fprintf(fp, "3 %u %u %u\n", tris[i][0], tris[i][1], tris[i][2]);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "CELL_TYPES %d\n", static_cast<int>(tris.size()));
+	for (std::size_t i = 0; i < tris.size(); i++) fprintf(fp, "5\n");
+	fprintf(fp, "\n");
+
+	fprintf(fp, "POINT_DATA %d\n", static_cast<int>(nodes_tool.size()));
+	fprintf(fp, "SCALARS temperature double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		fprintf(fp, "%e\n", tool->temperature_at_node(static_cast<unsigned int>(i)));
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS power double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		fprintf(fp, "%e\n", tool->nodal_power(static_cast<unsigned int>(i)));
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "VECTORS nodal_force double\n");
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		glm::dvec2 f = tool->nodal_force(static_cast<unsigned int>(i));
+		fprintf(fp, "%e %e %e\n", f.x, f.y, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fclose(fp);
 }

@@ -262,6 +262,8 @@ public:
 	tool(glm::dvec2 tl, double length, double height,
 			double rake_angle, double clearance_angle, double mu_fric);
 
+	tool(const std::vector<glm::dvec2> &poly_ccw, double mu_fric);
+
 	tool();
 };
 

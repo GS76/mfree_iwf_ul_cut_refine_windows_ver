@@ -1,0 +1,40 @@
+{
+  "unit": "m",
+  "tool_bbox": {
+    "min": {
+      "x": 0.0,
+      "y": -0.002074870178202187
+    },
+    "max": {
+      "x": 0.001,
+      "y": -0.001
+    }
+  },
+  "mesh": {
+    "nodes": 8739,
+    "triangles": 17212,
+    "min_angle_deg": 37.625915635848294,
+    "min_quality_radius_ratio": 0.6764027684742917
+  },
+  "refinement": {
+    "center": {
+      "x": 0.0008601278399054339,
+      "y": -0.002025060443297599
+    },
+    "diameter_mm": 0.2,
+    "fine_size_mm": 0.002,
+    "transition_length_mm": 0.6,
+    "max_size_mm": 0.05
+  },
+  "physical_groups": {
+    "TOOL_DOMAIN": 1,
+    "TOOL_BOUNDARY": 100,
+    "TOOL_VERTICES": 200,
+    "REFINE_CENTER": 201,
+    "TOP_FACE": 110,
+    "RAKE_FACE": 111,
+    "CUTTING_EDGE": 101,
+    "CLEARANCE_FACE": 113,
+    "BACK_FACE": 114
+  }
+}

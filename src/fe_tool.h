@@ -58,6 +58,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 class fe_tool {
 public:
@@ -65,6 +66,12 @@ public:
 		double rho = 0.;
 		double cp = 0.;
 		double k = 0.;
+	};
+
+	struct mechanical_material {
+		double E = 0.;     // Pa - Young's modulus
+		double nu = 0.;    // - - Poisson's ratio
+		double alpha = 0.; // 1/K - thermal expansion coefficient
 	};
 
 	struct boundary_edge {
@@ -86,6 +93,15 @@ public:
 	void set_material(thermal_material mat);
 	thermal_material get_material() const;
 
+	void set_mechanical_material(mechanical_material mat);
+	mechanical_material get_mechanical_material() const;
+	void set_reference_temperature(double T_ref);
+	double reference_temperature() const;
+	void set_mechanics_fixed_on_physical(int physical_tag);
+	void clear_mechanics_fixed();
+	void set_mechanics_fixed_nodes(const std::vector<unsigned int> &nodes);
+	void clear_mechanics_fixed_nodes();
+
 	void set_initial_temperature(double T0);
 
 	void set_pose(glm::dvec2 pos, glm::dvec2 vel);
@@ -106,6 +122,18 @@ public:
 	void clear_sources();
 	void add_nodal_power(unsigned int node, double power);
 	void add_boundary_point_power(glm::dvec2 x_world, double power);
+	double nodal_power(unsigned int node) const;
+
+	void clear_forces();
+	void add_nodal_force(unsigned int node, glm::dvec2 force);
+	void add_boundary_point_force(glm::dvec2 x_world, glm::dvec2 force);
+	glm::dvec2 nodal_force(unsigned int node) const;
+
+	glm::dvec2 node_world(unsigned int i) const;
+	const std::vector<unsigned int> &boundary_loop_nodes() const;
+	std::vector<glm::dvec2> boundary_loop_world() const;
+	const std::vector<glm::dvec2> &displacements() const;
+	void set_displacements(const std::vector<glm::dvec2> &u);
 
 	void set_convection_on_physical(int physical_tag, convection_bc bc);
 	void set_dirichlet_on_physical(int physical_tag, double T);
@@ -116,6 +144,30 @@ public:
 	double min_temperature() const;
 
 	void advance_explicit(double dt);
+	void solve_mechanics_quasistatic(unsigned int max_iters, double rel_tol);
+	double max_displacement_norm() const;
+
+	struct contact_convergence {
+		unsigned int iters = 0;
+		double rel_force = 0.;
+		double rel_power = 0.;
+		double max_rel_force_node = 0.;
+		double max_rel_power_node = 0.;
+		unsigned int nodes_force_over_tol = 0;
+		unsigned int nodes_power_over_tol = 0;
+	};
+	void set_contact_convergence(contact_convergence c);
+	contact_convergence get_contact_convergence() const;
+
+	struct contact_energy_balance {
+		double P_fric = 0.;
+		double P_cond = 0.;
+		double scale = 1.;
+		double frac_workpiece = 0.;
+		double frac_tool = 0.;
+	};
+	void set_contact_energy_balance(contact_energy_balance b);
+	contact_energy_balance get_contact_energy_balance() const;
 
 	fe_tool();
 
@@ -135,10 +187,14 @@ private:
 	void build_conduction_operator();
 	void build_boundary_edges_from_lines();
 	void build_boundary_edge_to_adjacent_triangle();
+	void build_boundary_loop();
+	void build_mechanics_operator();
 
 	std::pair<unsigned int, double> nearest_boundary_edge_barycentric(glm::dvec2 x_tool) const;
 
 	thermal_material m_mat;
+	mechanical_material m_mech;
+	double m_T_ref = 0.;
 
 	glm::dvec2 m_pos = glm::dvec2(0.);
 	glm::dvec2 m_vel = glm::dvec2(0.);
@@ -160,6 +216,14 @@ private:
 	std::vector<double> m_capacity;
 	std::vector<std::vector<std::pair<unsigned int, double>>> m_K_rows;
 	std::vector<double> m_power_sources;
+	std::vector<glm::dvec2> m_force_sources;
+	std::vector<glm::dvec2> m_u;
+	std::vector<std::vector<std::pair<unsigned int, double>>> m_Km_rows;
+	std::unordered_set<int> m_mech_fix_tags;
+	std::unordered_set<unsigned int> m_mech_fix_nodes;
+	std::vector<unsigned int> m_boundary_loop;
+	contact_convergence m_contact_conv;
+	contact_energy_balance m_contact_energy;
 
 	std::unordered_map<edge_key, unsigned int, edge_key_hash> m_bnd_edge_to_tri;
 

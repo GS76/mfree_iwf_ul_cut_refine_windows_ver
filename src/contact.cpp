@@ -347,6 +347,13 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 	}
 #endif
 
+	if (thermal_master) {
+		for (const contact_event &ev : events) {
+			glm::dvec2 F_tool = -(ev.cntc + ev.fric);
+			if (std::isfinite(F_tool.x) && std::isfinite(F_tool.y)) thermal_master->add_boundary_point_force(ev.xcntct, F_tool);
+		}
+	}
+
 	if (thermal_master && cp_wp > 0. && std::isfinite(cp_wp)) {
 		const thermal_contact_coupling_params &tcp = get_thermal_contact_coupling_params();
 
@@ -361,6 +368,8 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 
 		std::vector<thermal_event> thermals;
 		thermals.reserve(events.size());
+		double sum_P_cond_raw = 0.;
+		double sum_P_fric_raw = 0.;
 
 		for (const contact_event &ev : events) {
 			particle &p = particles[ev.pidx];
@@ -406,11 +415,23 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 			tev.P_cond = P_cond;
 			tev.P_fric = P_fric;
 			thermals.push_back(tev);
+			sum_P_cond_raw += P_cond;
+			sum_P_fric_raw += P_fric;
 		}
 
 		double scale = 1.0;
 		if (std::isfinite(max_pred_dT) && max_pred_dT > tcp.max_dT_per_step_K && max_pred_dT > 0.) scale = tcp.max_dT_per_step_K / max_pred_dT;
 		if (!std::isfinite(scale) || scale <= 0.) scale = 1.0;
+
+		{
+			fe_tool::contact_energy_balance eb;
+			eb.P_cond = scale * sum_P_cond_raw;
+			eb.P_fric = scale * sum_P_fric_raw;
+			eb.scale = scale;
+			eb.frac_workpiece = tcp.friction_heat_fraction_workpiece;
+			eb.frac_tool = tcp.friction_heat_fraction_tool;
+			thermal_master->set_contact_energy_balance(eb);
+		}
 
 		for (const thermal_event &tev : thermals) {
 			particle &p = particles[tev.pidx];

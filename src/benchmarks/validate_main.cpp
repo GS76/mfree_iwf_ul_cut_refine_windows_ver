@@ -55,6 +55,7 @@
 #include "../benchmarks/material_library.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <vector>
 
@@ -271,6 +272,13 @@ static bool test_convection_lumped() {
 }
 
 int main() {
+#if defined(_WIN32)
+	_putenv_s("MFREE_DEFORMABLE_FE_TOOL", "");
+	_putenv_s("MFREE_USE_FE_TOOL_FOR_CONTACT", "");
+#else
+	unsetenv("MFREE_DEFORMABLE_FE_TOOL");
+	unsetenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
+#endif
 	bool ok = true;
 	bool ok1 = test_tool_1d_conduction();
 	bool ok2 = test_frictional_heating_partition();

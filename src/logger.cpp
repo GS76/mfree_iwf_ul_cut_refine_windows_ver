@@ -50,6 +50,8 @@
 
 #include "logger.h"
 
+#include <cstdlib>
+
 void logger::close() {
 	fclose(m_fp_forces);
 }
@@ -110,8 +112,14 @@ void logger::log(const body &b, unsigned int step) {
 
 	if (m_emit_vtk) {
 		vtk_writer_write(b.get_particles(), step, m_folder);
-		if (m_t) {
+		const char *use_mesh_env = std::getenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
+		bool use_mesh_for_contact = (use_mesh_env && std::atoi(use_mesh_env) != 0);
+		if (m_t && !(use_mesh_for_contact && b.get_fe_tool())) {
 			vtk_writer_write(m_t, step, m_folder);
+		}
+		if (b.get_fe_tool()) {
+			if (use_mesh_for_contact) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
+			vtk_writer_write(b.get_fe_tool(), step, m_folder);
 		}
 	}
 }

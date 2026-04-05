@@ -52,6 +52,84 @@
 
 #include "fe_tool.h"
 #include "simulation_time.h"
+#include <cerrno>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+
+namespace {
+static bool parse_env_bool_strict(const char *name) {
+	if (!name || name[0] == '\0') return false;
+	const char *s = std::getenv(name);
+	if (!s) return false;
+
+	errno = 0;
+	char *end = nullptr;
+	long v = std::strtol(s, &end, 10);
+	bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
+	if (!ok) {
+		std::fprintf(stderr, "warning: invalid %s=\"%s\"; expected integer 0/1\n", name, s);
+		return false;
+	}
+	return v != 0;
+}
+
+static bool parse_env_uint_strict_min(const char *name, unsigned int min_value, unsigned int &out) {
+	if (!name || name[0] == '\0') return false;
+	const char *s = std::getenv(name);
+	if (!s) return false;
+
+	errno = 0;
+	char *end = nullptr;
+	long v = std::strtol(s, &end, 10);
+	bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
+	if (!ok || v < 0) {
+		std::fprintf(stderr, "warning: invalid %s=\"%s\"; expected integer >= %u\n", name, s, min_value);
+		return false;
+	}
+	if (static_cast<unsigned long>(v) < static_cast<unsigned long>(min_value)) {
+		std::fprintf(stderr, "warning: invalid %s=\"%s\"; expected integer >= %u\n", name, s, min_value);
+		return false;
+	}
+	out = static_cast<unsigned int>(v);
+	return true;
+}
+
+static bool parse_env_double_strict_range(const char *name, double min_value, double max_value, double &out) {
+	if (!name || name[0] == '\0') return false;
+	const char *s = std::getenv(name);
+	if (!s) return false;
+
+	errno = 0;
+	char *end = nullptr;
+	double v = std::strtod(s, &end);
+	bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
+	if (!ok || !std::isfinite(v) || v < min_value || v > max_value) {
+		std::fprintf(stderr, "warning: invalid %s=\"%s\"; expected finite number in [%.6g, %.6g]\n", name, s, min_value, max_value);
+		return false;
+	}
+	out = v;
+	return true;
+}
+
+static bool parse_env_double_strict_min(const char *name, double min_value, double &out) {
+	if (!name || name[0] == '\0') return false;
+	const char *s = std::getenv(name);
+	if (!s) return false;
+
+	errno = 0;
+	char *end = nullptr;
+	double v = std::strtod(s, &end);
+	bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
+	if (!ok || !std::isfinite(v) || v < min_value) {
+		std::fprintf(stderr, "warning: invalid %s=\"%s\"; expected finite number >= %.6g\n", name, s, min_value);
+		return false;
+	}
+	out = v;
+	return true;
+}
+} // namespace
 
 void body::apply_plasticity() {
 	if (m_plast == 0) return;
@@ -65,8 +143,147 @@ void body::apply_thermal_conduction() {
 
 void body::apply_contact() {
 	if (m_tool == 0) return;
-	if (m_fe_tool != nullptr) m_fe_tool->clear_sources();
-	contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+	bool use_mesh_for_contact = parse_env_bool_strict("MFREE_USE_FE_TOOL_FOR_CONTACT");
+
+	if (m_fe_tool == nullptr) {
+		contact_apply_tool_to_body_2d(m_tool, *this, nullptr);
+		return;
+	}
+
+	if (!use_mesh_for_contact) {
+		m_fe_tool->clear_sources();
+		m_fe_tool->clear_forces();
+		contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+		return;
+	}
+
+	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
+
+	if (!deformable) {
+		m_fe_tool->clear_sources();
+		m_fe_tool->clear_forces();
+		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
+		if (poly.size() >= 3) {
+			tool tpoly(poly, m_tool->mu());
+			tpoly.set_vel(m_tool->get_vel());
+			tpoly.set_edge_coord(m_tool->get_edge_coord());
+			contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
+		} else {
+			contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+		}
+		return;
+	}
+
+	unsigned int max_contact_iters = 20;
+	unsigned int mech_cg_iters = 4000;
+	double contact_tol = 0.01;
+	double mech_rel_tol = 1e-6;
+	double relax = 0.2;
+
+	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_MAX_ITERS", 1u, max_contact_iters);
+	parse_env_double_strict_min("MFREE_DEFORMABLE_TOOL_TOL", 0.0, contact_tol);
+	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_MECH_CG_ITERS", 100u, mech_cg_iters);
+	parse_env_double_strict_min("MFREE_DEFORMABLE_TOOL_MECH_REL_TOL", 0.0, mech_rel_tol);
+	parse_env_double_strict_range("MFREE_DEFORMABLE_TOOL_RELAX", 0.0, 1.0, relax);
+
+	std::vector<particle> &particles = get_particles();
+	std::vector<double> base_T_t(particles.size(), 0.);
+	for (unsigned int i = 0; i < particles.size(); i++) base_T_t[i] = particles[i].T_t;
+
+	const auto &nodes = m_fe_tool->nodes_tool_frame();
+	std::vector<glm::dvec2> prev_forces(nodes.size(), glm::dvec2(0.));
+	std::vector<double> prev_powers(nodes.size(), 0.);
+
+	for (unsigned int it = 0; it < max_contact_iters; it++) {
+		for (unsigned int i = 0; i < particles.size(); i++) {
+			particles[i].fcx = 0.;
+			particles[i].fcy = 0.;
+			particles[i].ftx = 0.;
+			particles[i].fty = 0.;
+			particles[i].T_t = base_T_t[i];
+		}
+		m_fe_tool->clear_sources();
+		m_fe_tool->clear_forces();
+
+		std::vector<glm::dvec2> u_old = m_fe_tool->displacements();
+
+		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
+		if (poly.size() < 3) {
+			contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+			break;
+		}
+
+		tool tpoly(poly, m_tool->mu());
+		tpoly.set_vel(m_tool->get_vel());
+		tpoly.set_edge_coord(m_tool->get_edge_coord());
+
+		contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
+		m_fe_tool->solve_mechanics_quasistatic(mech_cg_iters, mech_rel_tol);
+		if (relax < 1.0) {
+			std::vector<glm::dvec2> u_new = m_fe_tool->displacements();
+			if (u_new.size() == u_old.size()) {
+				for (unsigned int i = 0; i < u_new.size(); i++) u_new[i] = (1.0 - relax) * u_old[i] + relax * u_new[i];
+				m_fe_tool->set_displacements(u_new);
+			}
+		}
+
+		double df2 = 0.;
+		double f2 = 0.;
+		double dp2 = 0.;
+		double p2 = 0.;
+		double max_rF_node = 0.;
+		double max_rP_node = 0.;
+		unsigned int cnt_rF_over = 0;
+		unsigned int cnt_rP_over = 0;
+
+		for (unsigned int i = 0; i < nodes.size(); i++) {
+			glm::dvec2 f = m_fe_tool->nodal_force(i);
+			double p = m_fe_tool->nodal_power(i);
+
+			glm::dvec2 df = f - prev_forces[i];
+			double dp = p - prev_powers[i];
+
+			df2 += glm::dot(df, df);
+			f2 += glm::dot(f, f);
+			dp2 += dp * dp;
+			p2 += p * p;
+
+			double f_norm = glm::length(f);
+			double f_prev_norm = glm::length(prev_forces[i]);
+			double p_norm = std::abs(p);
+			double p_prev_norm = std::abs(prev_powers[i]);
+
+			double denom_f = std::max(1e-30, std::max(f_norm, f_prev_norm));
+			double denom_p = std::max(1e-30, std::max(p_norm, p_prev_norm));
+
+			double rF_node = glm::length(df) / denom_f;
+			double rP_node = std::abs(dp) / denom_p;
+
+			bool active = (f_norm > 1e-30) || (f_prev_norm > 1e-30) || (p_norm > 1e-30) || (p_prev_norm > 1e-30);
+			if (active) {
+				if (std::isfinite(rF_node)) max_rF_node = std::max(max_rF_node, rF_node);
+				if (std::isfinite(rP_node)) max_rP_node = std::max(max_rP_node, rP_node);
+				if (it > 0 && std::isfinite(rF_node) && rF_node > contact_tol) cnt_rF_over++;
+				if (it > 0 && std::isfinite(rP_node) && rP_node > contact_tol) cnt_rP_over++;
+			}
+
+			prev_forces[i] = f;
+			prev_powers[i] = p;
+		}
+
+		double rF = std::sqrt(df2) / std::max(1e-30, std::sqrt(f2));
+		double rP = std::sqrt(dp2) / std::max(1e-30, std::sqrt(p2));
+		fe_tool::contact_convergence cc;
+		cc.iters = it + 1;
+		cc.rel_force = rF;
+		cc.rel_power = rP;
+		cc.max_rel_force_node = max_rF_node;
+		cc.max_rel_power_node = max_rP_node;
+		cc.nodes_force_over_tol = cnt_rF_over;
+		cc.nodes_power_over_tol = cnt_rP_over;
+		m_fe_tool->set_contact_convergence(cc);
+		if (it > 0 && max_rF_node <= contact_tol && max_rP_node <= contact_tol) break;
+	}
 }
 
 void body::advance_fe_tool_thermal() {
@@ -104,6 +321,11 @@ glm::dvec2 body::speed_tool() {
 glm::dvec2 body::edge_tool() {
 	return m_tool->get_edge_coord();
 }
+
+const tool *body::get_tool() const { return m_tool; }
+tool *body::get_tool() { return m_tool; }
+const fe_tool *body::get_fe_tool() const { return m_fe_tool; }
+fe_tool *body::get_fe_tool() { return m_fe_tool; }
 
 void body::set_plasticity(plasticity *plasticity) {
 	m_plast = plasticity;

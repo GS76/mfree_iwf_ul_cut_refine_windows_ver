@@ -100,6 +100,10 @@ public:
 
 	glm::dvec2 speed_tool();
 	glm::dvec2 edge_tool();
+	const tool *get_tool() const;
+	tool *get_tool();
+	const fe_tool *get_fe_tool() const;
+	fe_tool *get_fe_tool();
 
 	void construct_verlet_lists();
 	void restore_order();
