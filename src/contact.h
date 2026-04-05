@@ -56,6 +56,8 @@
 #include "tool.h"
 #include "body.h"
 
+class fe_tool;
+
 /*
  This is the implementation of the penalty contact algorithm illustrated in Fig. 12 in Section 6.1.
 
@@ -72,5 +74,6 @@
 */
 
 void contact_apply_tool_to_body_2d(const tool *master, body &slave);
+void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *thermal_master);
 
 #endif /* CONTACT_H_ */

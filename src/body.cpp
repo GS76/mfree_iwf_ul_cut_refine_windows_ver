@@ -50,6 +50,9 @@
 
 #include "body.h"
 
+#include "fe_tool.h"
+#include "simulation_time.h"
+
 void body::apply_plasticity() {
 	if (m_plast == 0) return;
 	m_plast->plastic_state_by_radial_return(*this);
@@ -62,7 +65,15 @@ void body::apply_thermal_conduction() {
 
 void body::apply_contact() {
 	if (m_tool == 0) return;
-	contact_apply_tool_to_body_2d(m_tool, *this);
+	if (m_fe_tool != nullptr) m_fe_tool->clear_sources();
+	contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+}
+
+void body::advance_fe_tool_thermal() {
+	if (!m_fe_tool) return;
+	simulation_time *time = &simulation_time::getInstance();
+	double dt = time->get_dt();
+	m_fe_tool->advance_explicit(dt);
 }
 
 void body::apply_adaptivity() {
@@ -74,9 +85,16 @@ void body::set_tool(tool *tool) {
 	m_tool = tool;
 }
 
+void body::set_fe_tool(fe_tool *tool) {
+	m_fe_tool = tool;
+}
+
 void body::move_tool() {
 	if (m_tool == 0) return;
-	m_tool->update_tool();
+	simulation_time *time = &simulation_time::getInstance();
+	double dt = time->get_dt();
+	m_tool->update_tool(dt);
+	if (m_fe_tool) m_fe_tool->update_pose(dt);
 }
 
 glm::dvec2 body::speed_tool() {

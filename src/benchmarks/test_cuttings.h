@@ -54,6 +54,7 @@
 #include "../particle.h"
 #include "../body.h"
 #include "../tool.h"
+#include "../fe_tool.h"
 #include "../correctors.h"
 #include "../cont_mech.h"
 #include "../material.h"
@@ -67,11 +68,13 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fenv.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <chrono>
+#include <filesystem>
+#include <string>
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 extern logger *global_logger;
 

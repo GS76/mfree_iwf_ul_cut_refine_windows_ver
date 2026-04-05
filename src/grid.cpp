@@ -50,6 +50,10 @@
 
 #include "grid.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) const {
 
 	for (unsigned int i = 0; i < n; i++) {
@@ -179,7 +183,11 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 
 	std::vector<int> cells = get_cells(particles, n);
 
-	for (unsigned int b = 0; b < m_num_cell; b++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int bb = 0; bb < static_cast<int>(m_num_cell); bb++) {
+		unsigned int b = static_cast<unsigned int>(bb);
 		unsigned int gi = 0; unsigned int gj = 0;
 
 		unhash((int) b, gi, gj);

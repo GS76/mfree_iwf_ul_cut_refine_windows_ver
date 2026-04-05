@@ -53,6 +53,14 @@
 
 #include <math.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288
+#endif
+
+#ifndef M_1_PI
+#define M_1_PI 0.318309886183790671537767526745028724
+#endif
+
 /*
   Implementation of the cubic-spline kernel and its 1st derivatives in 2D
   given in Eq. (22) of the manuscript.

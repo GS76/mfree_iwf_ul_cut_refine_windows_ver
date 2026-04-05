@@ -139,6 +139,7 @@ void leap_frog::step(body &body) {
 
 	// Solve heat equation
 	body.apply_thermal_conduction();
+	body.advance_fe_tool_thermal();
 
 	// Leapfrog corrector step
 	correct(body);

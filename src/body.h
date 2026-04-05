@@ -65,6 +65,8 @@
 
 #include "adaptivity.h"
 
+class fe_tool;
+
 class body {
 
 private:
@@ -77,6 +79,7 @@ private:
 	thermal *m_thermal = 0;  			// thermal algorithm (if any)
 	adaptivity *m_adapt = 0;  			// adaptivity algorithm (if any)
 	tool *m_tool = 0;					// tool (potentially) in contact with this body (if any)
+	fe_tool *m_fe_tool = 0;
 	std::vector<particle> m_particles;  // workpiece particles
 	simulation_data m_simulation_data;  // all physical constants
 	void (*m_basis_fun)(std::vector<particle> &particles, unsigned int) = &precomp_sph; // basis function chosen SPH
@@ -85,11 +88,13 @@ public:
 	void set_plasticity(plasticity *plasticity);
 	void set_thermal(thermal *thermal);
 	void set_tool(tool *tool);
+	void set_fe_tool(fe_tool *tool);
 	void set_adaptivity(adaptivity *adaptivity);
 
 	void apply_plasticity();
 	void apply_thermal_conduction();
 	void apply_contact();
+	void advance_fe_tool_thermal();
 	void move_tool();
 	void apply_adaptivity();
 

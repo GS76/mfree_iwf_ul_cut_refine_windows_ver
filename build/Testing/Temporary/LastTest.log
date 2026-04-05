@@ -1,0 +1,26 @@
+Start testing: Apr 05 12:07 South Africa Standard Time
+----------------------------------------------------------
+1/1 Testing: mfree_iwf_validate
+1/1 Test: mfree_iwf_validate
+Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/Release/mfree_iwf_validate.exe"
+Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
+"mfree_iwf_validate" start time: Apr 05 12:07 South Africa Standard Time
+Output:
+----------------------------------------------------------
+tool_1d rel=5.417064e-35 T_num=5.41706e-47 T_ref=0
+inside=0.01
+friction ratio=1 P_fric=0.005 dE_p=4e-06
+convection rel=2.243284e-05 T_avg=399.981 T_ref=399.99
+tool_1d_conduction ok
+friction_partition ok
+convection_lumped ok
+validation_ok
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"mfree_iwf_validate" end time: Apr 05 12:07 South Africa Standard Time
+"mfree_iwf_validate" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 05 12:07 South Africa Standard Time

@@ -50,6 +50,40 @@
 
 #include "test_cuttings.h"
 
+static void attach_fe_tool_from_env(body *b, const tool *t, double T0) {
+	const char *msh = getenv("MFREE_FE_TOOL_MSH");
+	if (!msh) return;
+
+	fe_tool *ft = new fe_tool();
+	if (!ft->load_gmsh_msh2(std::string(msh))) {
+		delete ft;
+		return;
+	}
+
+	fe_tool::thermal_material mat;
+	mat.rho = 14500.0;
+	mat.cp = 200.0;
+	mat.k = 80.0;
+	ft->set_material(mat);
+	ft->set_initial_temperature(T0);
+	ft->set_pose(glm::dvec2(0.), t->get_vel());
+
+	fe_tool::convection_bc air;
+	air.h = 20.0;
+	air.T_inf = 298.15;
+
+	fe_tool::convection_bc water;
+	water.h = 5000.0;
+	water.T_inf = 293.15;
+
+	double y_thresh = t->get_edge_coord().y;
+	const char *y_env = getenv("MFREE_COOLANT_Y_THRESHOLD");
+	if (y_env) y_thresh = atof(y_env);
+	ft->set_convection_flooded_by_y(air, water, y_thresh);
+
+	b->set_fe_tool(ft);
+}
+
  body *cutting_ref_mr(unsigned int ny) {
 	physical_constants physical_constants = matlib_tial6v4_Sima_tanh2010_cm_musec_g();
 
@@ -144,6 +178,7 @@
 	tool *t = new tool(tl, tr, br, bl, 20e-6*100, mu_fric);
 	b->set_tool(t);
 	t->set_vel(glm::dvec2(speed,0.));
+	attach_fe_tool_from_env(b, t, T0);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -283,6 +318,7 @@
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
+	attach_fe_tool_from_env(b, t, T0);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -492,6 +528,7 @@
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
+	attach_fe_tool_from_env(b, t, T0);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -724,6 +761,7 @@
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
 	b->set_tool(t);
+	attach_fe_tool_from_env(b, t, T0);
 	b->set_adaptivity(adapt);
 
 	global_logger = new logger("cutting");

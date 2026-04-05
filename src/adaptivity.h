@@ -54,6 +54,7 @@
 #include <math.h>
 #include <assert.h>
 #include <algorithm>
+#include <vector>
 #include <glm/glm.hpp>
 #include <stdio.h>
 #include <type_traits>
@@ -62,6 +63,8 @@
 
 #define MAX_REFINE_STEP 1
 #define MIN_REFINE_DIFF 10
+
+inline constexpr unsigned int max_SON2D = 6;
 
 class body;
 

@@ -51,6 +51,8 @@
 #include "adaptivity.h"
 #include "body.h"
 
+#include <array>
+
 static bool inside_bounding_box(glm::dvec2 xlim, glm::dvec2 ylim, glm::dvec2 pos) {
 	double xmin = xlim.x; double xmax = xlim.y;
 	double ymin = ylim.x; double ymax = ylim.y;
@@ -80,6 +82,10 @@ void adaptivity::set_refine_pattern(pattern patt) {
 		m_num_child = (plus_one) ?  7 : 6;
 		break;
 	}
+
+	assert(m_num_child >= 2);
+	assert(m_num_child - 1 <= max_SON2D);
+	assert(m_num_child <= max_SON2D + 1);
 }
 
 void adaptivity::flag_reset(body &b) const{
@@ -463,6 +469,7 @@ void adaptivity::perform_split_triangular(body &b) const {
 
 	// how many "SON" do you have in 2D? ---> 3
 	const unsigned int num_SON2D = m_num_child-1;
+	assert(num_SON2D <= max_SON2D);
 	double coeff_md = (1./(num_SON2D+1));
 	double coeff_m0 = (1./(num_SON2D+1));
 
@@ -484,10 +491,10 @@ void adaptivity::perform_split_triangular(body &b) const {
 		//if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
 		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
 
-			double x_SON [num_SON2D];
-			double y_SON [num_SON2D];
-			double h_SON [num_SON2D];
-			double m_SON [num_SON2D];
+			std::array<double, max_SON2D> x_SON{};
+			std::array<double, max_SON2D> y_SON{};
+			std::array<double, max_SON2D> h_SON{};
+			std::array<double, max_SON2D> m_SON{};
 
 			// 0. call your DAD
 			double dx = sqrt(particles[i].m/particles[i].rho);
@@ -561,7 +568,8 @@ void adaptivity::perform_split_triangular(body &b) const {
 			particles[i].h = m_beta*h_DAD;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2];
+			double sum_mass = particles[i].m;
+			for (unsigned int ii = 0; ii < num_SON2D; ii++) sum_mass += m_SON[ii];
 			assert(fabs(m_DAD-sum_mass) < 1e-12);
 		}
 	}
@@ -577,6 +585,7 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 
 	// how many "SON" do you have in 2D? ---> 3
 	const unsigned int num_SON2D = m_num_child-1;
+	assert(num_SON2D <= max_SON2D);
 
 	std::vector<particle> sons;
 
@@ -593,10 +602,10 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 		assert(delta_st>=0);
 
 		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
-			double x_SON [num_SON2D];
-			double y_SON [num_SON2D];
-			double h_SON [num_SON2D];
-			double m_SON [num_SON2D];
+			std::array<double, max_SON2D> x_SON{};
+			std::array<double, max_SON2D> y_SON{};
+			std::array<double, max_SON2D> h_SON{};
+			std::array<double, max_SON2D> m_SON{};
 
 			// 0. call your DAD
 			double dx = sqrt(particles[i].m/particles[i].rho);
@@ -691,7 +700,8 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 			particles[i].split = false;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2];
+			double sum_mass = particles[i].m;
+			for (unsigned int ii = 0; ii < num_SON2D; ii++) sum_mass += m_SON[ii];
 			assert(fabs(m_DAD-sum_mass) < 1e-12);
 		}
 	}
@@ -707,6 +717,7 @@ void adaptivity::perform_split_cubic(body &b) const {
 
 	// how many "SON" do you have in 2D? ---> 4
 	const unsigned int num_SON2D = m_num_child-1;
+	assert(num_SON2D <= max_SON2D);
 
 	// 1. consider a vector of SON particles
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -725,10 +736,10 @@ void adaptivity::perform_split_cubic(body &b) const {
 		assert(delta_st>=0);
 
 		if(particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
-			double x_SON [num_SON2D];
-			double y_SON [num_SON2D];
-			double h_SON [num_SON2D];
-			double m_SON [num_SON2D];
+			std::array<double, max_SON2D> x_SON{};
+			std::array<double, max_SON2D> y_SON{};
+			std::array<double, max_SON2D> h_SON{};
+			std::array<double, max_SON2D> m_SON{};
 
 			// 0. call your DAD
 			double dx = sqrt(particles[i].m/particles[i].rho);
@@ -803,7 +814,8 @@ void adaptivity::perform_split_cubic(body &b) const {
 			particles[i].h = m_beta*h_DAD;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2] + m_SON[3];
+			double sum_mass = particles[i].m;
+			for (unsigned int ii = 0; ii < num_SON2D; ii++) sum_mass += m_SON[ii];
 			assert(fabs(m_DAD-sum_mass) < 1e-12);
 
 			// 5. update locally for next SONs
@@ -821,6 +833,7 @@ void adaptivity::perform_split_hexagonal(body &b)  const {
 
 	// how many "SON" do you have in 2D? ---> 6
 	const unsigned int num_SON2D = m_num_child-1;
+	assert(num_SON2D <= max_SON2D);
 
 	// given by J. Feldman & J. Bonet after minimizing the global density error [2006] with (alpha=60%,beta=60%)
 	double coeff_md = (1./(num_SON2D+1)); //0.102181;
@@ -843,10 +856,10 @@ void adaptivity::perform_split_hexagonal(body &b)  const {
 		//if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
 		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
 
-			double x_SON [num_SON2D];
-			double y_SON [num_SON2D];
-			double h_SON [num_SON2D];
-			double m_SON [num_SON2D];
+			std::vector<double> x_SON(num_SON2D);
+			std::vector<double> y_SON(num_SON2D);
+			std::vector<double> h_SON(num_SON2D);
+			std::vector<double> m_SON(num_SON2D);
 
 			// 0. call your DAD
 			double dx = sqrt(particles[i].m/particles[i].rho);
@@ -937,7 +950,8 @@ void adaptivity::perform_split_hexagonal(body &b)  const {
 			particles[i].h = m_beta*h_DAD;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2] + m_SON[3] + m_SON[4] + m_SON[5];
+			double sum_mass = particles[i].m;
+			for (unsigned int ii = 0; ii < num_SON2D; ii++) sum_mass += m_SON[ii];
 			assert(fabs(m_DAD - sum_mass) < 1e-10);
 		}
 	}
