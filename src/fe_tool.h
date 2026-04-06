@@ -51,7 +51,7 @@
 #ifndef FE_TOOL_H_
 #define FE_TOOL_H_
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include <array>
 #include <string>
@@ -189,6 +189,7 @@ private:
 	void build_boundary_edge_to_adjacent_triangle();
 	void build_boundary_loop();
 	void build_mechanics_operator();
+	void apply_dirichlet_bc(std::vector<char> &is_fixed);
 
 	std::pair<unsigned int, double> nearest_boundary_edge_barycentric(glm::dvec2 x_tool) const;
 

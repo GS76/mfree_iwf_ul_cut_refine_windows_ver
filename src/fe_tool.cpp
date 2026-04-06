@@ -55,10 +55,10 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <fstream>
 #include <limits>
 #include <sstream>
-#include <stdexcept>
 
 static bool starts_with(const std::string &s, const char *prefix) {
 	return s.rfind(prefix, 0) == 0;
@@ -264,7 +264,9 @@ double fe_tool::temperature_at_node(unsigned int i) const {
 
 double fe_tool::temperature_at_world_point_nearest_boundary(glm::dvec2 x_world) const {
 	glm::dvec2 x_tool = to_tool_frame(x_world);
-	auto [edge_idx, t] = nearest_boundary_edge_barycentric(x_tool);
+	const auto bt = nearest_boundary_edge_barycentric(x_tool);
+	const unsigned int edge_idx = bt.first;
+	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return 0.;
 
 	const boundary_edge &e = m_bnd[edge_idx];
@@ -284,7 +286,9 @@ void fe_tool::add_nodal_power(unsigned int node, double power) {
 
 void fe_tool::add_boundary_point_power(glm::dvec2 x_world, double power) {
 	glm::dvec2 x_tool = to_tool_frame(x_world);
-	auto [edge_idx, t] = nearest_boundary_edge_barycentric(x_tool);
+	const auto bt = nearest_boundary_edge_barycentric(x_tool);
+	const unsigned int edge_idx = bt.first;
+	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return;
 
 	const boundary_edge &e = m_bnd[edge_idx];
@@ -308,7 +312,9 @@ void fe_tool::add_nodal_force(unsigned int node, glm::dvec2 force) {
 
 void fe_tool::add_boundary_point_force(glm::dvec2 x_world, glm::dvec2 force) {
 	glm::dvec2 x_tool = to_tool_frame(x_world);
-	auto [edge_idx, t] = nearest_boundary_edge_barycentric(x_tool);
+	const auto bt = nearest_boundary_edge_barycentric(x_tool);
+	const unsigned int edge_idx = bt.first;
+	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return;
 
 	const boundary_edge &e = m_bnd[edge_idx];
@@ -426,21 +432,41 @@ double fe_tool::min_temperature() const {
 	return mn;
 }
 
+void fe_tool::apply_dirichlet_bc(std::vector<char> &is_fixed) {
+	is_fixed.assign(m_T.size(), 0);
+	if (m_dirichlet_by_tag.empty() || m_bnd.empty()) return;
+	std::unordered_set<int> warned;
+	warned.reserve(m_dirichlet_by_tag.size());
+	for (const boundary_edge &e : m_bnd) {
+		auto it = m_dirichlet_by_tag.find(e.physical_tag);
+		if (it == m_dirichlet_by_tag.end()) continue;
+		double T = it->second;
+		if (!std::isfinite(T)) {
+			if (warned.insert(e.physical_tag).second) {
+				std::fprintf(stderr, "warning: fe_tool dirichlet bc has non-finite temperature (tag=%d)\n", e.physical_tag);
+			}
+			continue;
+		}
+		if (T < -273.15 || std::abs(T) > 1.0e6) {
+			if (warned.insert(e.physical_tag).second) {
+				std::fprintf(stderr, "warning: fe_tool dirichlet bc has extreme temperature (tag=%d T=%g)\n", e.physical_tag, T);
+			}
+		}
+		m_T[e.n0] = T;
+		m_T[e.n1] = T;
+		is_fixed[e.n0] = 1;
+		is_fixed[e.n1] = 1;
+	}
+}
+
 void fe_tool::advance_explicit(double dt) {
 	if (m_T.empty()) return;
 	if (m_capacity.size() != m_T.size()) return;
 	if (m_K_rows.size() != m_T.size()) return;
 	if (m_mat.rho <= 0. || m_mat.cp <= 0. || m_mat.k < 0.) return;
 
-	if (!m_dirichlet_by_tag.empty() && !m_bnd.empty()) {
-		for (const boundary_edge &e : m_bnd) {
-			auto it = m_dirichlet_by_tag.find(e.physical_tag);
-			if (it == m_dirichlet_by_tag.end()) continue;
-			double T = it->second;
-			m_T[e.n0] = T;
-			m_T[e.n1] = T;
-		}
-	}
+	std::vector<char> is_fixed;
+	apply_dirichlet_bc(is_fixed);
 
 	std::vector<double> power(m_T.size(), 0.);
 
@@ -494,19 +520,10 @@ void fe_tool::advance_explicit(double dt) {
 	for (std::size_t i = 0; i < m_T.size(); i++) power[i] += m_power_sources[i];
 
 	for (std::size_t i = 0; i < m_T.size(); i++) {
+		if (is_fixed[i]) continue;
 		double cap = m_capacity[i];
 		if (cap <= 0.) continue;
 		m_T[i] += dt * power[i] / cap;
-	}
-
-	if (!m_dirichlet_by_tag.empty() && !m_bnd.empty()) {
-		for (const boundary_edge &e : m_bnd) {
-			auto it = m_dirichlet_by_tag.find(e.physical_tag);
-			if (it == m_dirichlet_by_tag.end()) continue;
-			double T = it->second;
-			m_T[e.n0] = T;
-			m_T[e.n1] = T;
-		}
 	}
 }
 

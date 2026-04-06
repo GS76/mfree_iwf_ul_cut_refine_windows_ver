@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    "**/AppData/Local/Temp/trae/agent-review/*": "diff",
+    "**/trae/agent-review/*": "diff"
+  }
+}
+
