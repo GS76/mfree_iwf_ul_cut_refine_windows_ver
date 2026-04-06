@@ -74,6 +74,15 @@ struct thermal_contact_coupling_params {
 	double max_dT_per_step_K = 1.0;
 };
 
+struct contact_penalty_params {
+	double alpha0 = 0.1;
+	double alpha_min = 1.0e-4;
+	double alpha_max = 10.0;
+	double pen_depth_ref_m = 1.0e-6;
+	bool adaptive = false;
+	bool use_lagrange_multiplier = false;
+};
+
 enum class env_double_status {
 	not_set,
 	ok,
@@ -203,6 +212,84 @@ static const thermal_contact_coupling_params &get_thermal_contact_coupling_param
 	static const thermal_contact_coupling_params cached = load_thermal_contact_coupling_params();
 	return cached;
 }
+
+static contact_penalty_params load_contact_penalty_params() {
+	contact_penalty_params p;
+
+	{
+		double v = 0.;
+		const char *raw = nullptr;
+
+		switch (read_env_double("MFREE_CONTACT_ALPHA", v, &raw)) {
+		case env_double_status::ok:
+			if (v > 0.) p.alpha0 = v;
+			else warn_invalid_env_double("MFREE_CONTACT_ALPHA", raw);
+			break;
+		case env_double_status::invalid:
+			warn_invalid_env_double("MFREE_CONTACT_ALPHA", raw);
+			break;
+		default:
+			break;
+		}
+
+		switch (read_env_double("MFREE_CONTACT_ALPHA_MIN", v, &raw)) {
+		case env_double_status::ok:
+			if (v > 0.) p.alpha_min = v;
+			else warn_invalid_env_double("MFREE_CONTACT_ALPHA_MIN", raw);
+			break;
+		case env_double_status::invalid:
+			warn_invalid_env_double("MFREE_CONTACT_ALPHA_MIN", raw);
+			break;
+		default:
+			break;
+		}
+
+		switch (read_env_double("MFREE_CONTACT_ALPHA_MAX", v, &raw)) {
+		case env_double_status::ok:
+			if (v > 0.) p.alpha_max = v;
+			else warn_invalid_env_double("MFREE_CONTACT_ALPHA_MAX", raw);
+			break;
+		case env_double_status::invalid:
+			warn_invalid_env_double("MFREE_CONTACT_ALPHA_MAX", raw);
+			break;
+		default:
+			break;
+		}
+
+		switch (read_env_double("MFREE_CONTACT_PEN_DEPTH_REF", v, &raw)) {
+		case env_double_status::ok:
+			if (v > 0.) p.pen_depth_ref_m = v;
+			else warn_invalid_env_double("MFREE_CONTACT_PEN_DEPTH_REF", raw);
+			break;
+		case env_double_status::invalid:
+			warn_invalid_env_double("MFREE_CONTACT_PEN_DEPTH_REF", raw);
+			break;
+		default:
+			break;
+		}
+	}
+
+	{
+		const char *s = std::getenv("MFREE_CONTACT_ADAPTIVE_PENALTY");
+		if (s && s[0] != '\0') p.adaptive = (std::atoi(s) != 0);
+	}
+	{
+		const char *s = std::getenv("MFREE_CONTACT_USE_LM");
+		if (s && s[0] != '\0') p.use_lagrange_multiplier = (std::atoi(s) != 0);
+	}
+
+	if (!(p.alpha_min > 0.)) p.alpha_min = 1.0e-4;
+	if (!(p.alpha_max > 0.)) p.alpha_max = 10.0;
+	if (p.alpha_max < p.alpha_min) std::swap(p.alpha_min, p.alpha_max);
+	if (!(p.pen_depth_ref_m > 0.)) p.pen_depth_ref_m = 1.0e-6;
+
+	return p;
+}
+
+static const contact_penalty_params &get_contact_penalty_params() {
+	static const contact_penalty_params cached = load_contact_penalty_params();
+	return cached;
+}
 }
 
 static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
@@ -247,8 +334,7 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 
 	std::vector<particle> &particles = slave.get_particles();
 	const double cp_wp = slave.get_sim_data().get_physical_constants().tc().cp();
-
-	const double alpha = 0.1;
+	const contact_penalty_params &cpp = get_contact_penalty_params();
 
 	struct contact_event {
 		unsigned int pidx = 0;
@@ -300,6 +386,7 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 
 			particles[i].ftx = 0.;
 			particles[i].fty = 0.;
+			particles[i].contact_lambda_n = 0.;
 
 			continue;
 		}
@@ -311,7 +398,32 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 
 		glm::dvec2 vs(particles[i].vx, particles[i].vy);
 
-		glm::dvec2 cntc = compute_contact_force_nianfei(master, pen_depth, surf_norm, alpha, ms, dt);
+		double alpha = cpp.alpha0;
+		if (cpp.adaptive) {
+			double g = std::abs(pen_depth);
+			double s = g / cpp.pen_depth_ref_m;
+			if (std::isfinite(s) && s > 1.0) alpha *= s;
+			alpha = std::max(cpp.alpha_min, std::min(cpp.alpha_max, alpha));
+		}
+
+		glm::dvec2 cntc(0.);
+		if (cpp.use_lagrange_multiplier) {
+			double dt2 = dt * dt;
+			double rho = (dt2 > 0. && std::isfinite(dt2)) ? (alpha * ms / dt2) : 0.;
+			if (std::isfinite(rho) && rho > 0.) {
+				double lambda = particles[i].contact_lambda_n;
+				if (!std::isfinite(lambda) || lambda < 0.) lambda = 0.;
+				lambda = std::max(0.0, lambda - rho * pen_depth);
+				particles[i].contact_lambda_n = lambda;
+				cntc = lambda * surf_norm;
+			} else {
+				particles[i].contact_lambda_n = 0.;
+				cntc = compute_contact_force_nianfei(master, pen_depth, surf_norm, alpha, ms, dt);
+			}
+		} else {
+			particles[i].contact_lambda_n = 0.;
+			cntc = compute_contact_force_nianfei(master, pen_depth, surf_norm, alpha, ms, dt);
+		}
 		glm::dvec2 fric = compute_friction_ldyna(master, cntc, surf_norm, vs, fricold, alpha, ms, dt, master->mu());
 
 		// X and Y components of the contact force

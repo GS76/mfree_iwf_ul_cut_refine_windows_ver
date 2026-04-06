@@ -56,6 +56,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <sstream>
@@ -69,6 +70,31 @@ static double tri_area2(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dve
 }
 
 fe_tool::fe_tool() {}
+
+double fe_tool::table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
+	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T)) return fallback;
+	if (T <= T_tab.front()) return v_tab.front();
+	if (T >= T_tab.back()) return v_tab.back();
+	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
+	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
+	if (i1 == 0 || i1 >= T_tab.size()) return fallback;
+	std::size_t i0 = i1 - 1;
+	double T0 = T_tab[i0];
+	double T1 = T_tab[i1];
+	double v0 = v_tab[i0];
+	double v1 = v_tab[i1];
+	double dT = T1 - T0;
+	if (!(dT > 0.)) return fallback;
+	double a = (T - T0) / dT;
+	return (1.0 - a) * v0 + a * v1;
+}
+
+double fe_tool::rho_at(double T) const { return table_eval(T, m_rho_T, m_rho_val, m_mat.rho); }
+double fe_tool::cp_at(double T) const { return table_eval(T, m_cp_T, m_cp_val, m_mat.cp); }
+double fe_tool::k_at(double T) const { return table_eval(T, m_k_T, m_k_val, m_mat.k); }
+double fe_tool::E_at(double T) const { return table_eval(T, m_E_T, m_E_val, m_mech.E); }
+double fe_tool::nu_at(double T) const { return table_eval(T, m_nu_T, m_nu_val, m_mech.nu); }
+double fe_tool::alpha_at(double T) const { return table_eval(T, m_alpha_T, m_alpha_val, m_mech.alpha); }
 
 void fe_tool::set_mesh(const std::vector<glm::dvec2> &nodes_tool_frame,
                        const std::vector<std::array<unsigned int, 3>> &triangles,
@@ -263,11 +289,13 @@ double fe_tool::temperature_at_node(unsigned int i) const {
 }
 
 double fe_tool::temperature_at_world_point_nearest_boundary(glm::dvec2 x_world) const {
+	if (!std::isfinite(x_world.x) || !std::isfinite(x_world.y)) return 0.;
 	glm::dvec2 x_tool = to_tool_frame(x_world);
 	const auto bt = nearest_boundary_edge_barycentric(x_tool);
 	const unsigned int edge_idx = bt.first;
 	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return 0.;
+	if (!std::isfinite(t)) return 0.;
 
 	const boundary_edge &e = m_bnd[edge_idx];
 	double T0 = m_T[e.n0];
@@ -285,11 +313,14 @@ void fe_tool::add_nodal_power(unsigned int node, double power) {
 }
 
 void fe_tool::add_boundary_point_power(glm::dvec2 x_world, double power) {
+	if (!std::isfinite(x_world.x) || !std::isfinite(x_world.y)) return;
+	if (!std::isfinite(power)) return;
 	glm::dvec2 x_tool = to_tool_frame(x_world);
 	const auto bt = nearest_boundary_edge_barycentric(x_tool);
 	const unsigned int edge_idx = bt.first;
 	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return;
+	if (!std::isfinite(t)) return;
 
 	const boundary_edge &e = m_bnd[edge_idx];
 	m_power_sources[e.n0] += (1. - t) * power;
@@ -311,11 +342,14 @@ void fe_tool::add_nodal_force(unsigned int node, glm::dvec2 force) {
 }
 
 void fe_tool::add_boundary_point_force(glm::dvec2 x_world, glm::dvec2 force) {
+	if (!std::isfinite(x_world.x) || !std::isfinite(x_world.y)) return;
+	if (!std::isfinite(force.x) || !std::isfinite(force.y)) return;
 	glm::dvec2 x_tool = to_tool_frame(x_world);
 	const auto bt = nearest_boundary_edge_barycentric(x_tool);
 	const unsigned int edge_idx = bt.first;
 	const double t = bt.second;
 	if (edge_idx >= m_bnd.size()) return;
+	if (!std::isfinite(t)) return;
 
 	const boundary_edge &e = m_bnd[edge_idx];
 	m_force_sources[e.n0] += (1. - t) * force;
@@ -406,6 +440,36 @@ void fe_tool::set_dirichlet_on_physical(int physical_tag, double T) {
 	m_dirichlet_by_tag[physical_tag] = T;
 }
 
+void fe_tool::set_material_table_rho(std::vector<double> T, std::vector<double> rho) {
+	m_rho_T = std::move(T);
+	m_rho_val = std::move(rho);
+}
+
+void fe_tool::set_material_table_cp(std::vector<double> T, std::vector<double> cp) {
+	m_cp_T = std::move(T);
+	m_cp_val = std::move(cp);
+}
+
+void fe_tool::set_material_table_k(std::vector<double> T, std::vector<double> k) {
+	m_k_T = std::move(T);
+	m_k_val = std::move(k);
+}
+
+void fe_tool::set_mechanical_table_E(std::vector<double> T, std::vector<double> E) {
+	m_E_T = std::move(T);
+	m_E_val = std::move(E);
+}
+
+void fe_tool::set_mechanical_table_nu(std::vector<double> T, std::vector<double> nu) {
+	m_nu_T = std::move(T);
+	m_nu_val = std::move(nu);
+}
+
+void fe_tool::set_mechanical_table_alpha(std::vector<double> T, std::vector<double> alpha) {
+	m_alpha_T = std::move(T);
+	m_alpha_val = std::move(alpha);
+}
+
 void fe_tool::set_convection_air_all_exposed(convection_bc air_bc) {
 	m_air_all = air_bc;
 	m_use_air_all = true;
@@ -464,6 +528,8 @@ void fe_tool::advance_explicit(double dt) {
 	if (m_capacity.size() != m_T.size()) return;
 	if (m_K_rows.size() != m_T.size()) return;
 	if (m_mat.rho <= 0. || m_mat.cp <= 0. || m_mat.k < 0.) return;
+
+	if (!m_k_T.empty() || !m_cp_T.empty() || !m_rho_T.empty()) build_conduction_operator_from_temperature();
 
 	std::vector<char> is_fixed;
 	apply_dirichlet_bc(is_fixed);
@@ -525,6 +591,13 @@ void fe_tool::advance_explicit(double dt) {
 		if (cap <= 0.) continue;
 		m_T[i] += dt * power[i] / cap;
 	}
+}
+
+void fe_tool::set_mechanics_rayleigh(double a0, double a1) {
+	if (!std::isfinite(a0) || a0 < 0.) a0 = 0.;
+	if (!std::isfinite(a1) || a1 < 0.) a1 = 0.;
+	m_mech_rayleigh_a0 = a0;
+	m_mech_rayleigh_a1 = a1;
 }
 
 void fe_tool::build_boundary_edges_from_lines() {
@@ -722,6 +795,76 @@ void fe_tool::build_conduction_operator() {
 	}
 }
 
+void fe_tool::build_conduction_operator_from_temperature() {
+	if (m_nodes_tool.empty() || m_tris.empty()) return;
+	if (m_T.size() != m_nodes_tool.size()) return;
+
+	m_capacity.assign(m_nodes_tool.size(), 0.);
+	std::vector<std::unordered_map<unsigned int, double>> rows(m_nodes_tool.size());
+
+	for (const auto &tri : m_tris) {
+		unsigned int i0 = tri[0];
+		unsigned int i1 = tri[1];
+		unsigned int i2 = tri[2];
+		if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
+
+		const glm::dvec2 &x0 = m_nodes_tool[i0];
+		const glm::dvec2 &x1 = m_nodes_tool[i1];
+		const glm::dvec2 &x2 = m_nodes_tool[i2];
+
+		double area2 = tri_area2(x0, x1, x2);
+		double A = 0.5 * std::abs(area2);
+		if (A <= 0.) continue;
+
+		double Tavg = (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0;
+		double k = k_at(Tavg);
+		double rho = rho_at(Tavg);
+		double cp = cp_at(Tavg);
+		if (!std::isfinite(k) || k < 0.) k = m_mat.k;
+		if (!std::isfinite(rho) || rho <= 0.) rho = m_mat.rho;
+		if (!std::isfinite(cp) || cp <= 0.) cp = m_mat.cp;
+
+		double b0 = x1.y - x2.y;
+		double c0 = x2.x - x1.x;
+		double b1 = x2.y - x0.y;
+		double c1 = x0.x - x2.x;
+		double b2 = x0.y - x1.y;
+		double c2 = x1.x - x0.x;
+
+		double inv4A = 1.0 / (4.0 * A);
+		double kfac = k * inv4A;
+
+		double ke[3][3];
+		double b[3] = {b0, b1, b2};
+		double c[3] = {c0, c1, c2};
+		for (int a = 0; a < 3; a++) {
+			for (int bidx = 0; bidx < 3; bidx++) {
+				ke[a][bidx] = kfac * (b[a] * b[bidx] + c[a] * c[bidx]);
+			}
+		}
+
+		unsigned int idxs[3] = {i0, i1, i2};
+		for (int a = 0; a < 3; a++) {
+			unsigned int ia = idxs[a];
+			for (int bb = 0; bb < 3; bb++) {
+				unsigned int ib = idxs[bb];
+				rows[ia][ib] += ke[a][bb];
+			}
+		}
+
+		double cap = rho * cp * A / 3.0;
+		m_capacity[i0] += cap;
+		m_capacity[i1] += cap;
+		m_capacity[i2] += cap;
+	}
+
+	m_K_rows.assign(m_nodes_tool.size(), {});
+	for (unsigned int i = 0; i < rows.size(); i++) {
+		m_K_rows[i].reserve(rows[i].size());
+		for (const auto &kv : rows[i]) m_K_rows[i].push_back({kv.first, kv.second});
+	}
+}
+
 void fe_tool::build_mechanics_operator() {
 	if (m_nodes_tool.empty() || m_tris.empty()) return;
 	const double eps = std::numeric_limits<double>::epsilon();
@@ -807,30 +950,419 @@ void fe_tool::build_mechanics_operator() {
 	}
 }
 
+void fe_tool::build_mechanics_operator_from_temperature() {
+	if (m_nodes_tool.empty() || m_tris.empty()) return;
+	if (m_T.size() != m_nodes_tool.size()) return;
+	const double eps = std::numeric_limits<double>::epsilon();
+
+	std::vector<std::unordered_map<unsigned int, double>> rows(2 * m_nodes_tool.size());
+
+	for (const auto &tri : m_tris) {
+		unsigned int i0 = tri[0];
+		unsigned int i1 = tri[1];
+		unsigned int i2 = tri[2];
+		if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
+
+		const glm::dvec2 &x0 = m_nodes_tool[i0];
+		const glm::dvec2 &x1 = m_nodes_tool[i1];
+		const glm::dvec2 &x2 = m_nodes_tool[i2];
+
+		double area2 = tri_area2(x0, x1, x2);
+		double A = 0.5 * std::abs(area2);
+		if (A <= 0.) continue;
+
+		double Tavg = (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0;
+		double E = E_at(Tavg);
+		double nu = nu_at(Tavg);
+		if (!std::isfinite(E) || E <= eps) E = m_mech.E;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) nu = m_mech.nu;
+		if (!std::isfinite(E) || E <= eps) continue;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) continue;
+
+		double c = E / ((1.0 + nu) * (1.0 - 2.0 * nu));
+		double D[3][3] = {
+			{c * (1.0 - nu), c * nu, 0.0},
+			{c * nu, c * (1.0 - nu), 0.0},
+			{0.0, 0.0, c * 0.5 * (1.0 - 2.0 * nu)},
+		};
+
+		double b0 = x1.y - x2.y;
+		double c0 = x2.x - x1.x;
+		double b1 = x2.y - x0.y;
+		double c1 = x0.x - x2.x;
+		double b2 = x0.y - x1.y;
+		double c2 = x1.x - x0.x;
+
+		double inv2A = 1.0 / (2.0 * A);
+		double dNdx[3] = {b0 * inv2A, b1 * inv2A, b2 * inv2A};
+		double dNdy[3] = {c0 * inv2A, c1 * inv2A, c2 * inv2A};
+
+		double B[3][6] = {
+			{dNdx[0], 0., dNdx[1], 0., dNdx[2], 0.},
+			{0., dNdy[0], 0., dNdy[1], 0., dNdy[2]},
+			{dNdy[0], dNdx[0], dNdy[1], dNdx[1], dNdy[2], dNdx[2]},
+		};
+
+		double DB[3][6];
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 6; j++) {
+				DB[i][j] = D[i][0] * B[0][j] + D[i][1] * B[1][j] + D[i][2] * B[2][j];
+			}
+		}
+
+		double ke[6][6];
+		for (int i = 0; i < 6; i++) {
+			for (int j = 0; j < 6; j++) {
+				double v = 0.;
+				for (int k = 0; k < 3; k++) v += B[k][i] * DB[k][j];
+				ke[i][j] = A * v;
+			}
+		}
+
+		unsigned int idxn[3] = {i0, i1, i2};
+		for (int a = 0; a < 3; a++) {
+			for (int b = 0; b < 3; b++) {
+				for (int da = 0; da < 2; da++) {
+					for (int db = 0; db < 2; db++) {
+						unsigned int ia = 2 * idxn[a] + static_cast<unsigned int>(da);
+						unsigned int ib = 2 * idxn[b] + static_cast<unsigned int>(db);
+						rows[ia][ib] += ke[2 * a + da][2 * b + db];
+					}
+				}
+			}
+		}
+	}
+
+	m_Km_rows.assign(2 * m_nodes_tool.size(), {});
+	for (unsigned int i = 0; i < rows.size(); i++) {
+		m_Km_rows[i].reserve(rows[i].size());
+		for (const auto &kv : rows[i]) m_Km_rows[i].push_back({kv.first, kv.second});
+	}
+	m_mech_mass.clear();
+	m_mech_v_half.clear();
+	m_mech_v_half_initialized = false;
+}
+
+void fe_tool::build_mech_constrained(std::vector<char> &constrained) const {
+	constrained.assign(2 * m_nodes_tool.size(), 0);
+	if ((m_mech_fix_tags.empty() && m_mech_fix_nodes.empty()) || m_bnd.empty()) return;
+	for (const boundary_edge &e : m_bnd) {
+		bool fix = false;
+		if (!m_mech_fix_tags.empty() && m_mech_fix_tags.find(e.physical_tag) != m_mech_fix_tags.end()) fix = true;
+		if (!fix && !m_mech_fix_nodes.empty() && (m_mech_fix_nodes.find(e.n0) != m_mech_fix_nodes.end() || m_mech_fix_nodes.find(e.n1) != m_mech_fix_nodes.end())) fix = true;
+		if (!fix) continue;
+		if (e.n0 < m_nodes_tool.size()) {
+			constrained[2 * e.n0 + 0] = 1;
+			constrained[2 * e.n0 + 1] = 1;
+		}
+		if (e.n1 < m_nodes_tool.size()) {
+			constrained[2 * e.n1 + 0] = 1;
+			constrained[2 * e.n1 + 1] = 1;
+		}
+	}
+}
+
+void fe_tool::add_thermoelastic_rhs(std::vector<double> &rhs) const {
+	const double eps = std::numeric_limits<double>::epsilon();
+	if (m_T.empty()) return;
+	if (!std::isfinite(m_mech.alpha) || m_mech.alpha < -eps) return;
+
+	for (const auto &tri : m_tris) {
+		unsigned int i0 = tri[0];
+		unsigned int i1 = tri[1];
+		unsigned int i2 = tri[2];
+		if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
+
+		const glm::dvec2 &x0 = m_nodes_tool[i0];
+		const glm::dvec2 &x1 = m_nodes_tool[i1];
+		const glm::dvec2 &x2 = m_nodes_tool[i2];
+
+		double area2 = tri_area2(x0, x1, x2);
+		double A = 0.5 * std::abs(area2);
+		if (A <= 0.) continue;
+
+		double b0 = x1.y - x2.y;
+		double c0 = x2.x - x1.x;
+		double b1 = x2.y - x0.y;
+		double c1 = x0.x - x2.x;
+		double b2 = x0.y - x1.y;
+		double c2 = x1.x - x0.x;
+
+		double inv2A = 1.0 / (2.0 * A);
+		double dNdx[3] = {b0 * inv2A, b1 * inv2A, b2 * inv2A};
+		double dNdy[3] = {c0 * inv2A, c1 * inv2A, c2 * inv2A};
+
+		double B[3][6] = {
+			{dNdx[0], 0., dNdx[1], 0., dNdx[2], 0.},
+			{0., dNdy[0], 0., dNdy[1], 0., dNdy[2]},
+			{dNdy[0], dNdx[0], dNdy[1], dNdx[1], dNdy[2], dNdx[2]},
+		};
+
+		double Tavg = (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0;
+		double dT = Tavg - m_T_ref;
+		double alpha = alpha_at(Tavg);
+		if (!std::isfinite(alpha) || alpha < -eps) alpha = m_mech.alpha;
+		if (std::abs(alpha) <= eps) continue;
+
+		double E = E_at(Tavg);
+		double nu = nu_at(Tavg);
+		if (!std::isfinite(E) || E <= eps) E = m_mech.E;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) nu = m_mech.nu;
+		if (!std::isfinite(E) || E <= eps) continue;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) continue;
+
+		double c = E / ((1.0 + nu) * (1.0 - 2.0 * nu));
+		double D[3][3] = {
+			{c * (1.0 - nu), c * nu, 0.0},
+			{c * nu, c * (1.0 - nu), 0.0},
+			{0.0, 0.0, c * 0.5 * (1.0 - 2.0 * nu)},
+		};
+		double eps_th[3] = {alpha * dT, alpha * dT, 0.0};
+
+		double sig_th[3] = {
+			D[0][0] * eps_th[0] + D[0][1] * eps_th[1] + D[0][2] * eps_th[2],
+			D[1][0] * eps_th[0] + D[1][1] * eps_th[1] + D[1][2] * eps_th[2],
+			D[2][0] * eps_th[0] + D[2][1] * eps_th[1] + D[2][2] * eps_th[2],
+		};
+
+		double fe[6] = {0., 0., 0., 0., 0., 0.};
+		for (int a = 0; a < 6; a++) {
+			double v = 0.;
+			for (int k = 0; k < 3; k++) v += B[k][a] * sig_th[k];
+			fe[a] = A * v;
+		}
+
+		unsigned int idxn[3] = {i0, i1, i2};
+		for (int a = 0; a < 3; a++) {
+			rhs[2 * idxn[a] + 0] += fe[2 * a + 0];
+			rhs[2 * idxn[a] + 1] += fe[2 * a + 1];
+		}
+	}
+}
+
+void fe_tool::matvec_mechanics(const std::vector<char> &constrained, const std::vector<double> &x, std::vector<double> &y) const {
+	y.assign(x.size(), 0.);
+	for (unsigned int i = 0; i < m_Km_rows.size(); i++) {
+		if (i < constrained.size() && constrained[i]) {
+			y[i] = x[i];
+			continue;
+		}
+		double s = 0.;
+		for (const auto &kv : m_Km_rows[i]) s += kv.second * x[kv.first];
+		y[i] = s;
+	}
+}
+
+void fe_tool::ensure_mechanics_lumped_mass() {
+	if (m_nodes_tool.empty() || m_tris.empty()) return;
+	if (m_mat.rho <= 0.) return;
+	const std::size_t ndof = 2 * m_nodes_tool.size();
+	if (m_mech_mass.size() == ndof && m_mech_v_half.size() == ndof) return;
+
+	std::vector<double> nodal_mass(m_nodes_tool.size(), 0.);
+	for (const auto &tri : m_tris) {
+		unsigned int i0 = tri[0];
+		unsigned int i1 = tri[1];
+		unsigned int i2 = tri[2];
+		if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
+		const glm::dvec2 &x0 = m_nodes_tool[i0];
+		const glm::dvec2 &x1 = m_nodes_tool[i1];
+		const glm::dvec2 &x2 = m_nodes_tool[i2];
+		double area2 = tri_area2(x0, x1, x2);
+		double A = 0.5 * std::abs(area2);
+		if (A <= 0.) continue;
+		double Tavg = m_T.size() == m_nodes_tool.size() ? (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0 : m_T_ref;
+		double rho = rho_at(Tavg);
+		if (!std::isfinite(rho) || rho <= 0.) rho = m_mat.rho;
+		double m = rho * A / 3.0;
+		nodal_mass[i0] += m;
+		nodal_mass[i1] += m;
+		nodal_mass[i2] += m;
+	}
+
+	m_mech_mass.assign(ndof, 0.);
+	for (unsigned int i = 0; i < m_nodes_tool.size(); i++) {
+		m_mech_mass[2 * i + 0] = nodal_mass[i];
+		m_mech_mass[2 * i + 1] = nodal_mass[i];
+	}
+	m_mech_v_half.assign(ndof, 0.);
+	m_mech_mass_scaled = false;
+	m_mech_v_half_initialized = false;
+}
+
+double fe_tool::mechanics_dt_crit() const {
+	if (m_nodes_tool.empty() || m_tris.empty()) return std::numeric_limits<double>::infinity();
+	const double eps = std::numeric_limits<double>::epsilon();
+
+	double dtmin = std::numeric_limits<double>::infinity();
+	for (const auto &tri : m_tris) {
+		unsigned int i0 = tri[0];
+		unsigned int i1 = tri[1];
+		unsigned int i2 = tri[2];
+		if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
+		const glm::dvec2 &x0 = m_nodes_tool[i0];
+		const glm::dvec2 &x1 = m_nodes_tool[i1];
+		const glm::dvec2 &x2 = m_nodes_tool[i2];
+		double area2 = tri_area2(x0, x1, x2);
+		double A = 0.5 * std::abs(area2);
+		if (A <= 0.) continue;
+		double Tavg = m_T.size() == m_nodes_tool.size() ? (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0 : m_T_ref;
+		double rho = rho_at(Tavg);
+		double E = E_at(Tavg);
+		double nu = nu_at(Tavg);
+		if (!std::isfinite(rho) || rho <= 0.) rho = m_mat.rho;
+		if (!std::isfinite(E) || E <= eps) E = m_mech.E;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) nu = m_mech.nu;
+		if (!std::isfinite(rho) || rho <= 0.) continue;
+		if (!std::isfinite(E) || E <= eps) continue;
+		if (!std::isfinite(nu) || nu <= (-1.0 + eps) || nu >= (0.5 - eps)) continue;
+
+		double mu = E / (2.0 * (1.0 + nu));
+		double lambda = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu));
+		double c = std::sqrt((lambda + 2.0 * mu) / rho);
+		if (!(c > 0.) || !std::isfinite(c)) continue;
+		double e01 = glm::length(x1 - x0);
+		double e12 = glm::length(x2 - x1);
+		double e20 = glm::length(x0 - x2);
+		double emax = std::max(e01, std::max(e12, e20));
+		if (!(emax > 0.)) continue;
+		double h = 2.0 * A / emax;
+		if (!(h > 0.)) continue;
+		double dt = h / c;
+		if (dt > 0. && std::isfinite(dt)) dtmin = std::min(dtmin, dt);
+	}
+	return dtmin;
+}
+
+void fe_tool::advance_mechanics_explicit(double dt) {
+	if (dt <= 0.) return;
+	if (m_nodes_tool.empty() || m_tris.empty()) return;
+	if (m_Km_rows.size() != 2 * m_nodes_tool.size()) return;
+	if (m_force_sources.size() != m_nodes_tool.size()) return;
+
+	if (!m_E_T.empty() || !m_nu_T.empty()) build_mechanics_operator_from_temperature();
+
+	ensure_mechanics_lumped_mass();
+	if (m_mech_mass.size() != 2 * m_nodes_tool.size()) return;
+
+	bool hard_fail = false;
+	{
+		const char *s = std::getenv("MFREE_FE_TOOL_HARD_FAIL_ON_INVALID");
+		if (s && s[0] != '\0') hard_fail = (std::atoi(s) != 0);
+	}
+
+	const double dtcrit = mechanics_dt_crit();
+	if (std::isfinite(dtcrit) && dtcrit > 0. && dt > 0.9 * dtcrit) {
+		std::fprintf(stderr, "warning: fe_tool explicit mechanics dt=%g exceeds 0.9*dtcrit=%g\n", dt, 0.9 * dtcrit);
+	}
+
+	std::vector<char> constrained;
+	build_mech_constrained(constrained);
+
+	std::vector<double> rhs(2 * m_nodes_tool.size(), 0.);
+	for (unsigned int i = 0; i < m_nodes_tool.size(); i++) {
+		rhs[2 * i + 0] += m_force_sources[i].x;
+		rhs[2 * i + 1] += m_force_sources[i].y;
+	}
+	add_thermoelastic_rhs(rhs);
+	if (std::getenv("MFREE_DEBUG_FE_TOOL_MECH_RHS")) {
+		double mx = 0.;
+		for (double v : rhs) mx = std::max(mx, std::abs(v));
+		std::fprintf(stderr, "warning: fe_tool mech rhs max_abs=%g dt=%g\n", mx, dt);
+	}
+	for (unsigned int i = 0; i < rhs.size(); i++) if (constrained[i]) rhs[i] = 0.;
+
+	std::vector<double> u(2 * m_nodes_tool.size(), 0.);
+	for (unsigned int i = 0; i < m_nodes_tool.size() && i < m_u.size(); i++) {
+		u[2 * i + 0] = m_u[i].x;
+		u[2 * i + 1] = m_u[i].y;
+	}
+	for (unsigned int i = 0; i < u.size(); i++) if (constrained[i]) u[i] = 0.;
+
+	if (m_mech_v_half.size() != u.size()) m_mech_v_half.assign(u.size(), 0.);
+	for (unsigned int i = 0; i < m_mech_v_half.size(); i++) if (constrained[i]) m_mech_v_half[i] = 0.;
+
+	std::vector<double> Ku;
+	matvec_mechanics(constrained, u, Ku);
+
+	std::vector<double> damp(u.size(), 0.);
+	if (m_mech_rayleigh_a0 != 0.) {
+		for (unsigned int i = 0; i < damp.size(); i++) damp[i] += m_mech_rayleigh_a0 * m_mech_mass[i] * m_mech_v_half[i];
+	}
+	if (m_mech_rayleigh_a1 != 0.) {
+		std::vector<double> Kv;
+		matvec_mechanics(constrained, m_mech_v_half, Kv);
+		for (unsigned int i = 0; i < damp.size(); i++) damp[i] += m_mech_rayleigh_a1 * Kv[i];
+	}
+
+	auto hard_fail_now = [&](unsigned int idx, double ui, double vi) {
+		double max_abs_u = 0.;
+		for (double v : u) {
+			if (!std::isfinite(v)) continue;
+			max_abs_u = std::max(max_abs_u, std::abs(v));
+		}
+		double mi = idx < m_mech_mass.size() ? m_mech_mass[idx] : 0.;
+		double ri = idx < rhs.size() ? rhs[idx] : 0.;
+		double kui = idx < Ku.size() ? Ku[idx] : 0.;
+		double di = idx < damp.size() ? damp[idx] : 0.;
+		std::fprintf(stderr,
+		             "error: fe_tool explicit mechanics hard fail (idx=%u u=%g v=%g max_abs_u=%g dt=%g dtcrit=%g m=%g rhs=%g Ku=%g damp=%g)\n",
+		             idx, ui, vi, max_abs_u, dt, dtcrit, mi, ri, kui, di);
+		std::fflush(stderr);
+		std::abort();
+	};
+
+	if (hard_fail) {
+		for (unsigned int i = 0; i < u.size(); i++) {
+			if (constrained[i]) continue;
+			if (!std::isfinite(u[i]) || !std::isfinite(m_mech_v_half[i]) || std::abs(u[i]) > 1.0) hard_fail_now(i, u[i], m_mech_v_half[i]);
+		}
+	}
+
+	if (!m_mech_v_half_initialized) {
+		for (unsigned int i = 0; i < u.size(); i++) {
+			if (constrained[i]) continue;
+			double m = m_mech_mass[i];
+			if (!(m > 0.)) continue;
+			double a = (rhs[i] - Ku[i] - damp[i]) / m;
+			if (std::isfinite(a)) m_mech_v_half[i] = -0.5 * dt * a;
+		}
+		m_mech_v_half_initialized = true;
+	}
+
+	for (unsigned int i = 0; i < u.size(); i++) {
+		double m = m_mech_mass[i];
+		if (!(m > 0.)) continue;
+		double a = (rhs[i] - Ku[i] - damp[i]) / m;
+		m_mech_v_half[i] += dt * a;
+		u[i] += dt * m_mech_v_half[i];
+		if (hard_fail && (!std::isfinite(u[i]) || !std::isfinite(m_mech_v_half[i]) || std::abs(u[i]) > 1.0)) hard_fail_now(i, u[i], m_mech_v_half[i]);
+		if (!std::isfinite(u[i]) || !std::isfinite(m_mech_v_half[i]) || std::abs(u[i]) > 1.0) {
+			std::fprintf(stderr, "warning: fe_tool explicit mechanics produced invalid state (i=%u u=%g v=%g)\n", i, u[i], m_mech_v_half[i]);
+			u[i] = 0.;
+			m_mech_v_half[i] = 0.;
+		}
+	}
+
+	for (unsigned int i = 0; i < u.size(); i++) if (constrained[i]) u[i] = 0.;
+	for (unsigned int i = 0; i < m_nodes_tool.size(); i++) {
+		if (i >= m_u.size()) break;
+		m_u[i].x = u[2 * i + 0];
+		m_u[i].y = u[2 * i + 1];
+	}
+}
+
 void fe_tool::solve_mechanics_quasistatic(unsigned int max_iters, double rel_tol) {
 	if (m_nodes_tool.empty() || m_tris.empty()) return;
 	if (m_Km_rows.size() != 2 * m_nodes_tool.size()) return;
 	if (m_force_sources.size() != m_nodes_tool.size()) return;
 
+	if (!m_E_T.empty() || !m_nu_T.empty()) build_mechanics_operator_from_temperature();
+
 	const double eps = std::numeric_limits<double>::epsilon();
 
-	std::vector<char> constrained(2 * m_nodes_tool.size(), 0);
-	if ((!m_mech_fix_tags.empty() || !m_mech_fix_nodes.empty()) && !m_bnd.empty()) {
-		for (const boundary_edge &e : m_bnd) {
-			bool fix = false;
-			if (!m_mech_fix_tags.empty() && m_mech_fix_tags.find(e.physical_tag) != m_mech_fix_tags.end()) fix = true;
-			if (!fix && !m_mech_fix_nodes.empty() && (m_mech_fix_nodes.find(e.n0) != m_mech_fix_nodes.end() || m_mech_fix_nodes.find(e.n1) != m_mech_fix_nodes.end())) fix = true;
-			if (!fix) continue;
-			if (e.n0 < m_nodes_tool.size()) {
-				constrained[2 * e.n0 + 0] = 1;
-				constrained[2 * e.n0 + 1] = 1;
-			}
-			if (e.n1 < m_nodes_tool.size()) {
-				constrained[2 * e.n1 + 0] = 1;
-				constrained[2 * e.n1 + 1] = 1;
-			}
-		}
-	}
+	std::vector<char> constrained;
+	build_mech_constrained(constrained);
 
 	unsigned int fixed_nodes = 0;
 	unsigned int fixed_nodes_x = 0;
@@ -865,92 +1397,13 @@ void fe_tool::solve_mechanics_quasistatic(unsigned int max_iters, double rel_tol
 		rhs[2 * i + 0] += m_force_sources[i].x;
 		rhs[2 * i + 1] += m_force_sources[i].y;
 	}
-
-	if (!std::isfinite(m_mech.E) || m_mech.E <= eps) return;
-	if (!std::isfinite(m_mech.nu) || m_mech.nu <= (-1.0 + eps) || m_mech.nu >= (0.5 - eps)) return;
-	if (!std::isfinite(m_mech.alpha) || m_mech.alpha < -eps) return;
-	if (std::abs(m_mech.alpha) > eps && !m_T.empty()) {
-		double E = m_mech.E;
-		double nu = m_mech.nu;
-		double c = E / ((1.0 + nu) * (1.0 - 2.0 * nu));
-		double D[3][3] = {
-			{c * (1.0 - nu), c * nu, 0.0},
-			{c * nu, c * (1.0 - nu), 0.0},
-			{0.0, 0.0, c * 0.5 * (1.0 - 2.0 * nu)},
-		};
-
-		for (const auto &tri : m_tris) {
-			unsigned int i0 = tri[0];
-			unsigned int i1 = tri[1];
-			unsigned int i2 = tri[2];
-			if (i0 >= m_nodes_tool.size() || i1 >= m_nodes_tool.size() || i2 >= m_nodes_tool.size()) continue;
-
-			const glm::dvec2 &x0 = m_nodes_tool[i0];
-			const glm::dvec2 &x1 = m_nodes_tool[i1];
-			const glm::dvec2 &x2 = m_nodes_tool[i2];
-
-			double area2 = tri_area2(x0, x1, x2);
-			double A = 0.5 * std::abs(area2);
-			if (A <= 0.) continue;
-
-			double b0 = x1.y - x2.y;
-			double c0 = x2.x - x1.x;
-			double b1 = x2.y - x0.y;
-			double c1 = x0.x - x2.x;
-			double b2 = x0.y - x1.y;
-			double c2 = x1.x - x0.x;
-
-			double inv2A = 1.0 / (2.0 * A);
-			double dNdx[3] = {b0 * inv2A, b1 * inv2A, b2 * inv2A};
-			double dNdy[3] = {c0 * inv2A, c1 * inv2A, c2 * inv2A};
-
-			double B[3][6] = {
-				{dNdx[0], 0., dNdx[1], 0., dNdx[2], 0.},
-				{0., dNdy[0], 0., dNdy[1], 0., dNdy[2]},
-				{dNdy[0], dNdx[0], dNdy[1], dNdx[1], dNdy[2], dNdx[2]},
-			};
-
-			double Tavg = (m_T[i0] + m_T[i1] + m_T[i2]) / 3.0;
-			double dT = Tavg - m_T_ref;
-			double eps_th[3] = {m_mech.alpha * dT, m_mech.alpha * dT, 0.0};
-
-			double sig_th[3] = {
-				D[0][0] * eps_th[0] + D[0][1] * eps_th[1] + D[0][2] * eps_th[2],
-				D[1][0] * eps_th[0] + D[1][1] * eps_th[1] + D[1][2] * eps_th[2],
-				D[2][0] * eps_th[0] + D[2][1] * eps_th[1] + D[2][2] * eps_th[2],
-			};
-
-			double fe[6] = {0., 0., 0., 0., 0., 0.};
-			for (int a = 0; a < 6; a++) {
-				double v = 0.;
-				for (int k = 0; k < 3; k++) v += B[k][a] * sig_th[k];
-				fe[a] = A * v;
-			}
-
-			unsigned int idxn[3] = {i0, i1, i2};
-			for (int a = 0; a < 3; a++) {
-				rhs[2 * idxn[a] + 0] += fe[2 * a + 0];
-				rhs[2 * idxn[a] + 1] += fe[2 * a + 1];
-			}
-		}
-	}
+	add_thermoelastic_rhs(rhs);
 
 	for (unsigned int i = 0; i < rhs.size(); i++) {
 		if (constrained[i]) rhs[i] = 0.;
 	}
 
-	auto matvec = [&](const std::vector<double> &x, std::vector<double> &y) {
-		y.assign(x.size(), 0.);
-		for (unsigned int i = 0; i < m_Km_rows.size(); i++) {
-			if (constrained[i]) {
-				y[i] = x[i];
-				continue;
-			}
-			double s = 0.;
-			for (const auto &kv : m_Km_rows[i]) s += kv.second * x[kv.first];
-			y[i] = s;
-		}
-	};
+	auto matvec = [&](const std::vector<double> &x, std::vector<double> &y) { matvec_mechanics(constrained, x, y); };
 
 	auto dot = [&](const std::vector<double> &a, const std::vector<double> &b) {
 		double s = 0.;

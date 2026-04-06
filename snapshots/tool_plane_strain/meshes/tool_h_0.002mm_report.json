@@ -2,28 +2,28 @@
   "unit": "m",
   "tool_bbox": {
     "min": {
-      "x": 0.0,
-      "y": -0.002074870178202187
+      "x": -0.0009215,
+      "y": 0.00047512982179781363
     },
     "max": {
-      "x": 0.001,
-      "y": -0.001
+      "x": 7.850000000000001e-05,
+      "y": 0.00155
     }
   },
   "mesh": {
-    "nodes": 8739,
-    "triangles": 17212,
-    "min_angle_deg": 37.625915635848294,
-    "min_quality_radius_ratio": 0.6764027684742917
+    "nodes": 28327,
+    "triangles": 56216,
+    "min_angle_deg": 37.3193033605386,
+    "min_quality_radius_ratio": 0.7009077996525446
   },
   "refinement": {
     "center": {
-      "x": 0.0008601278399054339,
-      "y": -0.002025060443297599
+      "x": -6.137216009456549e-05,
+      "y": 0.0005249395567024008
     },
-    "diameter_mm": 0.2,
+    "diameter_mm": 0.5,
     "fine_size_mm": 0.002,
-    "transition_length_mm": 0.6,
+    "transition_length_mm": 0.8,
     "max_size_mm": 0.05
   },
   "physical_groups": {

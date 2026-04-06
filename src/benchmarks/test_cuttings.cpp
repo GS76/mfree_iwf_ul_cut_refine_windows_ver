@@ -50,6 +50,7 @@
 
 #include "test_cuttings.h"
 
+#include <algorithm>
 #include <limits>
 #include <cmath>
 #include <unordered_map>
@@ -62,6 +63,50 @@ static bool try_read_env_double(const char *key, double &out) {
 	if (end == s || !std::isfinite(v)) return false;
 	out = v;
 	return true;
+}
+
+static bool try_read_env_table(const char *key, std::vector<double> &T_out, std::vector<double> &v_out) {
+	const char *s = getenv(key);
+	if (!s || s[0] == '\0') return false;
+
+	std::vector<std::pair<double, double>> pairs;
+	const char *p = s;
+	while (*p) {
+		while (*p == ' ' || *p == '\t' || *p == ',' || *p == ';' || *p == '\n' || *p == '\r') ++p;
+		if (!*p) break;
+
+		char *end = nullptr;
+		double T = strtod(p, &end);
+		if (end == p || !std::isfinite(T)) return false;
+		p = end;
+
+		while (*p == ' ' || *p == '\t') ++p;
+		if (*p != ':' && *p != '=') return false;
+		++p;
+		while (*p == ' ' || *p == '\t') ++p;
+
+		end = nullptr;
+		double v = strtod(p, &end);
+		if (end == p || !std::isfinite(v)) return false;
+		p = end;
+
+		pairs.push_back({T, v});
+	}
+
+	if (pairs.size() < 2) return false;
+	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+
+	T_out.clear();
+	v_out.clear();
+	for (const auto &kv : pairs) {
+		if (!T_out.empty() && kv.first == T_out.back()) {
+			v_out.back() = kv.second;
+			continue;
+		}
+		T_out.push_back(kv.first);
+		v_out.push_back(kv.second);
+	}
+	return T_out.size() >= 2;
 }
 
 static void apply_mech_fix_tags_from_env(fe_tool &ft) {
@@ -182,6 +227,14 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0) {
 	try_read_env_double("MFREE_FE_TOOL_K", mat.k);
 	ft->set_material(mat);
 
+	{
+		std::vector<double> T;
+		std::vector<double> v;
+		if (try_read_env_table("MFREE_FE_TOOL_RHO_TABLE", T, v)) ft->set_material_table_rho(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_CP_TABLE", T, v)) ft->set_material_table_cp(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_K_TABLE", T, v)) ft->set_material_table_k(std::move(T), std::move(v));
+	}
+
 	fe_tool::mechanical_material mech;
 	mech.E = 600e9;
 	mech.nu = 0.22;
@@ -190,6 +243,14 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0) {
 	try_read_env_double("MFREE_FE_TOOL_NU", mech.nu);
 	try_read_env_double("MFREE_FE_TOOL_ALPHA", mech.alpha);
 	ft->set_mechanical_material(mech);
+
+	{
+		std::vector<double> T;
+		std::vector<double> v;
+		if (try_read_env_table("MFREE_FE_TOOL_E_TABLE", T, v)) ft->set_mechanical_table_E(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_NU_TABLE", T, v)) ft->set_mechanical_table_nu(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_ALPHA_TABLE", T, v)) ft->set_mechanical_table_alpha(std::move(T), std::move(v));
+	}
 	ft->set_reference_temperature(T0);
 	apply_mech_fix_tags_from_env(*ft);
 

@@ -51,6 +51,7 @@
 #include "logger.h"
 
 #include <cstdlib>
+#include <filesystem>
 
 void logger::close() {
 	fclose(m_fp_forces);
@@ -83,9 +84,23 @@ void logger::set_folder(const char* folder) {
 }
 
 void logger::log(const body &b, unsigned int step) {
+	static int cfg_init = 0;
+	static bool log_vtk_workpiece = true;
+	static bool log_vtk_tool = true;
+	static bool log_vtk_fe_tool = true;
+	static bool log_forces = true;
+	static bool log_trace = true;
+	if (cfg_init == 0) {
+		cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_WORKPIECE"); s && std::atoi(s) == 0) log_vtk_workpiece = false;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_TOOL"); s && std::atoi(s) == 0) log_vtk_tool = false;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_FE_TOOL"); s && std::atoi(s) == 0) log_vtk_fe_tool = false;
+		if (const char *s = std::getenv("MFREE_LOG_FORCES"); s && std::atoi(s) == 0) log_forces = false;
+		if (const char *s = std::getenv("MFREE_LOG_TRACE"); s && std::atoi(s) == 0) log_trace = false;
+	}
 
 	//log forces (if desired)
-	if (m_log_forces) {
+	if (m_log_forces && log_forces) {
 		double fx = 0.;
 		double fy = 0.;
 
@@ -103,33 +118,38 @@ void logger::log(const body &b, unsigned int step) {
 	}
 
 	//trace particles to be traced
-	for (const auto it : m_trace_p) {
-		fprintf(m_fp_trace, "%f %f ", b.get_particles()[it].x, b.get_particles()[it].y);
-	}
-	if (m_trace_p.size() != 0) {
-		fprintf(m_fp_trace, "\n");
+	if (log_trace) {
+		for (const auto it : m_trace_p) {
+			fprintf(m_fp_trace, "%f %f ", b.get_particles()[it].x, b.get_particles()[it].y);
+		}
+		if (m_trace_p.size() != 0) {
+			fprintf(m_fp_trace, "\n");
+		}
 	}
 
 	if (m_emit_vtk) {
-		vtk_writer_write(b.get_particles(), step, m_folder);
+		if (log_vtk_workpiece) vtk_writer_write(b.get_particles(), step, m_folder);
 		const char *use_mesh_env = std::getenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
 		bool use_mesh_for_contact = (use_mesh_env && std::atoi(use_mesh_env) != 0);
-		if (m_t && !(use_mesh_for_contact && b.get_fe_tool())) {
+		if (log_vtk_tool && m_t && !(use_mesh_for_contact && b.get_fe_tool())) {
 			vtk_writer_write(m_t, step, m_folder);
 		}
 		if (b.get_fe_tool()) {
-			if (use_mesh_for_contact) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
-			vtk_writer_write(b.get_fe_tool(), step, m_folder);
+			if (log_vtk_tool && use_mesh_for_contact) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
+			if (log_vtk_fe_tool) vtk_writer_write(b.get_fe_tool(), step, m_folder);
 		}
 	}
 }
 
 logger::logger(const char *case_name, const char *foldername) {
+	const char *results_dir_env = std::getenv("MFREE_RESULTS_DIR");
+	const char *folder = (results_dir_env && results_dir_env[0] != '\0') ? results_dir_env : foldername;
+	std::filesystem::create_directories(folder);
 	char buf[256];
-	sprintf(buf, "./%s/%s_forces", foldername, case_name);
+	sprintf(buf, "./%s/%s_forces", folder, case_name);
 	m_fp_forces = fopen(buf, "w+");
-	sprintf(buf, "./%s/trace.txt", foldername);
+	sprintf(buf, "./%s/trace.txt", folder);
 	m_fp_trace = fopen(buf, "w+");
-	strcpy(m_folder, foldername);
+	strcpy(m_folder, folder);
 	strcpy(m_case_name, case_name);
 }

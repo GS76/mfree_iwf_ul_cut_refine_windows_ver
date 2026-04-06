@@ -95,6 +95,7 @@ public:
 	void apply_thermal_conduction();
 	void apply_contact();
 	void advance_fe_tool_thermal();
+	void advance_fe_tool_mechanics_explicit();
 	void move_tool();
 	void apply_adaptivity();
 

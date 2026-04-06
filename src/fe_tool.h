@@ -92,9 +92,15 @@ public:
 
 	void set_material(thermal_material mat);
 	thermal_material get_material() const;
+	void set_material_table_rho(std::vector<double> T, std::vector<double> rho);
+	void set_material_table_cp(std::vector<double> T, std::vector<double> cp);
+	void set_material_table_k(std::vector<double> T, std::vector<double> k);
 
 	void set_mechanical_material(mechanical_material mat);
 	mechanical_material get_mechanical_material() const;
+	void set_mechanical_table_E(std::vector<double> T, std::vector<double> E);
+	void set_mechanical_table_nu(std::vector<double> T, std::vector<double> nu);
+	void set_mechanical_table_alpha(std::vector<double> T, std::vector<double> alpha);
 	void set_reference_temperature(double T_ref);
 	double reference_temperature() const;
 	void set_mechanics_fixed_on_physical(int physical_tag);
@@ -144,6 +150,9 @@ public:
 	double min_temperature() const;
 
 	void advance_explicit(double dt);
+	void set_mechanics_rayleigh(double a0, double a1);
+	void advance_mechanics_explicit(double dt);
+	double mechanics_dt_crit() const;
 	void solve_mechanics_quasistatic(unsigned int max_iters, double rel_tol);
 	double max_displacement_norm() const;
 
@@ -185,11 +194,24 @@ private:
 	};
 
 	void build_conduction_operator();
+	void build_conduction_operator_from_temperature();
 	void build_boundary_edges_from_lines();
 	void build_boundary_edge_to_adjacent_triangle();
 	void build_boundary_loop();
 	void build_mechanics_operator();
+	void build_mechanics_operator_from_temperature();
 	void apply_dirichlet_bc(std::vector<char> &is_fixed);
+	void build_mech_constrained(std::vector<char> &constrained) const;
+	void add_thermoelastic_rhs(std::vector<double> &rhs) const;
+	void matvec_mechanics(const std::vector<char> &constrained, const std::vector<double> &x, std::vector<double> &y) const;
+	void ensure_mechanics_lumped_mass();
+	static double table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback);
+	double rho_at(double T) const;
+	double cp_at(double T) const;
+	double k_at(double T) const;
+	double E_at(double T) const;
+	double nu_at(double T) const;
+	double alpha_at(double T) const;
 
 	std::pair<unsigned int, double> nearest_boundary_edge_barycentric(glm::dvec2 x_tool) const;
 
@@ -212,6 +234,18 @@ private:
 	convection_bc m_flood_air;
 	convection_bc m_flood_water;
 	double m_flood_y_threshold_world = 0.;
+	std::vector<double> m_rho_T;
+	std::vector<double> m_rho_val;
+	std::vector<double> m_cp_T;
+	std::vector<double> m_cp_val;
+	std::vector<double> m_k_T;
+	std::vector<double> m_k_val;
+	std::vector<double> m_E_T;
+	std::vector<double> m_E_val;
+	std::vector<double> m_nu_T;
+	std::vector<double> m_nu_val;
+	std::vector<double> m_alpha_T;
+	std::vector<double> m_alpha_val;
 
 	std::vector<double> m_T;
 	std::vector<double> m_capacity;
@@ -219,6 +253,12 @@ private:
 	std::vector<double> m_power_sources;
 	std::vector<glm::dvec2> m_force_sources;
 	std::vector<glm::dvec2> m_u;
+	std::vector<double> m_mech_mass;
+	std::vector<double> m_mech_v_half;
+	double m_mech_rayleigh_a0 = 0.;
+	double m_mech_rayleigh_a1 = 0.;
+	bool m_mech_mass_scaled = false;
+	bool m_mech_v_half_initialized = false;
 	std::vector<std::vector<std::pair<unsigned int, double>>> m_Km_rows;
 	std::unordered_set<int> m_mech_fix_tags;
 	std::unordered_set<unsigned int> m_mech_fix_nodes;

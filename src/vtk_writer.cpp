@@ -52,6 +52,8 @@
 
 #include "fe_tool.h"
 
+#include <cmath>
+
 void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
 	char buf[256];
 	sprintf(buf, "%s/out_%06d.vtk", folder, step);
@@ -67,7 +69,7 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");		// Particle positions
 	fprintf(fp, "POINTS %d float\n", np);
 	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%f %f %f\n", particles[i].x, particles[i].y, 0.);
+		fprintf(fp, "%e %e %e\n", particles[i].x, particles[i].y, 0.);
 	}
 	fprintf(fp, "\n");
 
@@ -220,9 +222,9 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 	fprintf(fp, "POINTS %d float\n", 3*num_tri);
 
 	for (auto it : triangles) {
-		fprintf(fp, "%f %f %f\n", it.p1.x, it.p1.y, 0.);
-		fprintf(fp, "%f %f %f\n", it.p2.x, it.p2.y, 0.);
-		fprintf(fp, "%f %f %f\n", it.p3.x, it.p3.y, 0.);
+		fprintf(fp, "%e %e %e\n", it.p1.x, it.p1.y, 0.);
+		fprintf(fp, "%e %e %e\n", it.p2.x, it.p2.y, 0.);
+		fprintf(fp, "%e %e %e\n", it.p3.x, it.p3.y, 0.);
 	}
 	fprintf(fp, "\n");
 
@@ -266,7 +268,8 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	fprintf(fp, "POINTS %d float\n", static_cast<int>(nodes_tool.size()));
 	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
 		glm::dvec2 pw = tool->node_world(static_cast<unsigned int>(i));
-		fprintf(fp, "%f %f %f\n", pw.x, pw.y, 0.);
+		if (!std::isfinite(pw.x) || !std::isfinite(pw.y)) pw = glm::dvec2(0.);
+		fprintf(fp, "%e %e %e\n", pw.x, pw.y, 0.);
 	}
 	fprintf(fp, "\n");
 

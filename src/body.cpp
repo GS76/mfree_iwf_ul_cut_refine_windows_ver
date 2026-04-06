@@ -179,12 +179,19 @@ void body::apply_contact() {
 	double contact_tol = 0.01;
 	double mech_rel_tol = 1e-6;
 	double relax = 0.2;
+	bool explicit_coupled = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL_EXPLICIT");
+	unsigned int explicit_max_substeps = 100;
+	unsigned int explicit_substeps_override = 0;
+	unsigned int thermal_substeps_override = 0;
 
 	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_MAX_ITERS", 1u, max_contact_iters);
 	parse_env_double_strict_min("MFREE_DEFORMABLE_TOOL_TOL", 0.0, contact_tol);
 	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_MECH_CG_ITERS", 100u, mech_cg_iters);
 	parse_env_double_strict_min("MFREE_DEFORMABLE_TOOL_MECH_REL_TOL", 0.0, mech_rel_tol);
 	parse_env_double_strict_range("MFREE_DEFORMABLE_TOOL_RELAX", 0.0, 1.0, relax);
+	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_EXPLICIT_MAX_SUBSTEPS", 1u, explicit_max_substeps);
+	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_EXPLICIT_SUBSTEPS", 1u, explicit_substeps_override);
+	parse_env_uint_strict_min("MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS", 1u, thermal_substeps_override);
 
 	std::vector<particle> &particles = get_particles();
 	std::vector<double> base_T_t(particles.size(), 0.);
@@ -193,6 +200,111 @@ void body::apply_contact() {
 	const auto &nodes = m_fe_tool->nodes_tool_frame();
 	std::vector<glm::dvec2> prev_forces(nodes.size(), glm::dvec2(0.));
 	std::vector<double> prev_powers(nodes.size(), 0.);
+
+	simulation_time *time = &simulation_time::getInstance();
+	double dt = time->get_dt();
+
+	if (explicit_coupled) {
+		double a0 = 0.;
+		double a1 = 0.;
+		parse_env_double_strict_min("MFREE_FE_TOOL_RAYLEIGH_A0", 0.0, a0);
+		parse_env_double_strict_min("MFREE_FE_TOOL_RAYLEIGH_A1", 0.0, a1);
+		m_fe_tool->set_mechanics_rayleigh(a0, a1);
+
+		unsigned int mech_substeps = 1;
+		double dtcrit = m_fe_tool->mechanics_dt_crit();
+		if (explicit_substeps_override > 0) {
+			mech_substeps = explicit_substeps_override;
+		} else if (std::isfinite(dtcrit) && dtcrit > 0.) {
+			double max_dt = 0.9 * dtcrit;
+			mech_substeps = static_cast<unsigned int>(std::ceil(dt / max_dt));
+			if (mech_substeps < 1) mech_substeps = 1;
+		}
+		if (mech_substeps > explicit_max_substeps) mech_substeps = explicit_max_substeps;
+		unsigned int thermal_substeps = (thermal_substeps_override > 0) ? thermal_substeps_override : mech_substeps;
+		unsigned int substeps = std::max(mech_substeps, thermal_substeps);
+		if (substeps < 1) substeps = 1;
+
+		std::vector<double> sum_fcx(particles.size(), 0.);
+		std::vector<double> sum_fcy(particles.size(), 0.);
+		std::vector<double> sum_ftx(particles.size(), 0.);
+		std::vector<double> sum_fty(particles.size(), 0.);
+		std::vector<double> sum_dTt(particles.size(), 0.);
+
+		for (unsigned int s = 0; s < substeps; s++) {
+			for (unsigned int i = 0; i < particles.size(); i++) {
+				particles[i].fcx = 0.;
+				particles[i].fcy = 0.;
+				particles[i].ftx = 0.;
+				particles[i].fty = 0.;
+				particles[i].T_t = base_T_t[i];
+			}
+			m_fe_tool->clear_sources();
+			m_fe_tool->clear_forces();
+
+			std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
+			{
+				std::vector<glm::dvec2> uniq;
+				uniq.reserve(poly.size());
+				const double eps2 = 1e-24;
+				for (const auto &p : poly) {
+					if (!uniq.empty()) {
+						glm::dvec2 d = p - uniq.back();
+						if (d.x * d.x + d.y * d.y <= eps2) continue;
+					}
+					uniq.push_back(p);
+				}
+				if (uniq.size() >= 2) {
+					glm::dvec2 d = uniq.front() - uniq.back();
+					if (d.x * d.x + d.y * d.y <= eps2) uniq.pop_back();
+				}
+				poly.swap(uniq);
+			}
+
+			if (poly.size() >= 3) {
+				tool tpoly(poly, m_tool->mu());
+				tpoly.set_vel(m_tool->get_vel());
+				tpoly.set_edge_coord(m_tool->get_edge_coord());
+				contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
+			} else {
+				contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+			}
+
+			double dt_th = dt / static_cast<double>(thermal_substeps);
+			if (s < thermal_substeps) m_fe_tool->advance_explicit(dt_th);
+
+			double dt_mech = dt / static_cast<double>(mech_substeps);
+			if (s < mech_substeps) m_fe_tool->advance_mechanics_explicit(dt_mech);
+
+			for (unsigned int i = 0; i < particles.size(); i++) {
+				sum_fcx[i] += particles[i].fcx;
+				sum_fcy[i] += particles[i].fcy;
+				sum_ftx[i] += particles[i].ftx;
+				sum_fty[i] += particles[i].fty;
+				sum_dTt[i] += (particles[i].T_t - base_T_t[i]);
+			}
+		}
+
+		double inv = 1.0 / static_cast<double>(substeps);
+		for (unsigned int i = 0; i < particles.size(); i++) {
+			particles[i].fcx = sum_fcx[i] * inv;
+			particles[i].fcy = sum_fcy[i] * inv;
+			particles[i].ftx = sum_ftx[i] * inv;
+			particles[i].fty = sum_fty[i] * inv;
+			particles[i].T_t = base_T_t[i] + sum_dTt[i] * inv;
+		}
+
+		fe_tool::contact_convergence cc;
+		cc.iters = substeps;
+		cc.rel_force = 0.;
+		cc.rel_power = 0.;
+		cc.max_rel_force_node = 0.;
+		cc.max_rel_power_node = 0.;
+		cc.nodes_force_over_tol = 0;
+		cc.nodes_power_over_tol = 0;
+		m_fe_tool->set_contact_convergence(cc);
+		return;
+	}
 
 	for (unsigned int it = 0; it < max_contact_iters; it++) {
 		for (unsigned int i = 0; i < particles.size(); i++) {
@@ -288,9 +400,29 @@ void body::apply_contact() {
 
 void body::advance_fe_tool_thermal() {
 	if (!m_fe_tool) return;
+	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
+	bool coupled_explicit = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL_EXPLICIT");
+	if (deformable && coupled_explicit) return;
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 	m_fe_tool->advance_explicit(dt);
+}
+
+void body::advance_fe_tool_mechanics_explicit() {
+	if (!m_fe_tool) return;
+	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
+	bool coupled_explicit = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL_EXPLICIT");
+	if (deformable && coupled_explicit) return;
+	bool use = parse_env_bool_strict("MFREE_FE_TOOL_MECH_EXPLICIT");
+	if (!use) return;
+	simulation_time *time = &simulation_time::getInstance();
+	double dt = time->get_dt();
+	double a0 = 0.;
+	double a1 = 0.;
+	parse_env_double_strict_min("MFREE_FE_TOOL_RAYLEIGH_A0", 0.0, a0);
+	parse_env_double_strict_min("MFREE_FE_TOOL_RAYLEIGH_A1", 0.0, a1);
+	m_fe_tool->set_mechanics_rayleigh(a0, a1);
+	m_fe_tool->advance_mechanics_explicit(dt);
 }
 
 void body::apply_adaptivity() {

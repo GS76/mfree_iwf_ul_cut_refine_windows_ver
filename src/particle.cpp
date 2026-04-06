@@ -106,6 +106,8 @@ particle::particle(const particle &other) {
 
 	T = other.T;
 
+	contact_lambda_n = other.contact_lambda_n;
+
 	last_refine_at = other.last_refine_at;
 	refine_step = other.refine_step;
 	split = other.split;
@@ -144,6 +146,8 @@ particle &particle::operator=(const particle &other) {
 	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
 
 	T = other.T;
+
+	contact_lambda_n = other.contact_lambda_n;
 
 	last_refine_at = other.last_refine_at;
 	refine_step = other.refine_step;
@@ -192,6 +196,9 @@ void particle::copy_into(particle &p) const {
 
 	p.fcx = fcx;
 	p.fcy = fcy;
+	p.ftx = ftx;
+	p.fty = fty;
+	p.contact_lambda_n = contact_lambda_n;
 
 	p.fixed = fixed;
 

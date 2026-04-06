@@ -54,6 +54,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cerrno>
 #include <filesystem>
 #include <limits>
 #include <string>
@@ -303,13 +304,35 @@ int main(int argc, char * argv[]) {
 	feenableexcept(FE_INVALID | FE_OVERFLOW);
 	#endif
 
-	std::filesystem::create_directories("results");
-	for (const auto &p : std::filesystem::directory_iterator("results")) {
-		if (!p.is_regular_file()) continue;
-		const auto ext = p.path().extension().string();
-		if (ext == ".txt" || ext == ".vtk") {
-			std::error_code ec;
-			std::filesystem::remove(p.path(), ec);
+	const char *results_dir_env = std::getenv("MFREE_RESULTS_DIR");
+	const std::string results_dir = (results_dir_env && results_dir_env[0] != '\0') ? std::string(results_dir_env) : std::string("results");
+
+	#ifdef _OPENMP
+	if (const char *s = std::getenv("MFREE_OMP_THREADS"); s && s[0] != '\0') {
+		errno = 0;
+		char *end = nullptr;
+		long n = std::strtol(s, &end, 10);
+		bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
+		if (ok && n > 0 && n <= std::numeric_limits<int>::max()) {
+			omp_set_dynamic(0);
+			omp_set_num_threads(static_cast<int>(n));
+		} else {
+			std::fprintf(stderr, "warning: invalid MFREE_OMP_THREADS=\"%s\"; expected positive integer\n", s);
+		}
+	}
+	#endif
+
+	std::filesystem::create_directories(results_dir);
+	bool clean_results = true;
+	if (const char *s = std::getenv("MFREE_CLEAN_RESULTS"); s && std::atoi(s) == 0) clean_results = false;
+	if (clean_results) {
+		for (const auto &p : std::filesystem::directory_iterator(results_dir)) {
+			if (!p.is_regular_file()) continue;
+			const auto ext = p.path().extension().string();
+			if (ext == ".txt" || ext == ".vtk") {
+				std::error_code ec;
+				std::filesystem::remove(p.path(), ec);
+			}
 		}
 	}
 
@@ -369,7 +392,7 @@ int main(int argc, char * argv[]) {
 		}
 		b->apply_contact();
 		if (global_logger) global_logger->log(*b, 0);
-		write_precheck_report(*b, "results");
+		write_precheck_report(*b, results_dir.c_str());
 		return EXIT_SUCCESS;
 	}
 
@@ -392,11 +415,40 @@ int main(int argc, char * argv[]) {
 	}
 	unsigned int num_step = time->get_t_final()/time->get_dt();
 	int num_print = 150;
-	unsigned int freq = num_step / num_print;
+	const char *num_print_env = std::getenv("MFREE_NUM_PRINT");
+	if (num_print_env && num_print_env[0] != '\0') {
+		errno = 0;
+		char *end = nullptr;
+		long v = std::strtol(num_print_env, &end, 10);
+		bool ok = (end != num_print_env && end != nullptr && *end == '\0' && errno == 0);
+		if (ok && v >= 0 && v <= std::numeric_limits<int>::max()) {
+			num_print = static_cast<int>(v);
+		} else {
+			std::fprintf(stderr, "warning: invalid MFREE_NUM_PRINT=\"%s\"; expected integer >= 0\n", num_print_env);
+		}
+	}
+	unsigned int freq = 1u;
+	if (num_print > 0) freq = num_step / static_cast<unsigned int>(num_print);
 	unsigned int print_iter = 0;
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	freq = std::max(1, (int) freq);
+	freq = std::max(1u, freq);
+	if (num_print <= 0) freq = std::numeric_limits<unsigned int>::max();
+
+	const char *output_freq_env = std::getenv("MFREE_OUTPUT_FREQ");
+	if (output_freq_env && output_freq_env[0] != '\0') {
+		errno = 0;
+		char *end = nullptr;
+		unsigned long v = std::strtoul(output_freq_env, &end, 10);
+		bool ok = (end != output_freq_env && end != nullptr && *end == '\0' && errno == 0);
+		if (ok && v <= std::numeric_limits<unsigned int>::max()) {
+			unsigned int f = static_cast<unsigned int>(v);
+			if (f >= 1u) freq = f;
+			else freq = std::numeric_limits<unsigned int>::max();
+		} else {
+			std::fprintf(stderr, "warning: invalid MFREE_OUTPUT_FREQ=\"%s\"; expected integer >= 0\n", output_freq_env);
+		}
+	}
 	unsigned int max_steps = 0;
 	const char *max_steps_env = std::getenv("MFREE_MAX_STEPS");
 	if (max_steps_env) max_steps = static_cast<unsigned int>(std::atoi(max_steps_env));

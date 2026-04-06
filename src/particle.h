@@ -100,6 +100,7 @@ public:
 	// components of contact (_c) & tangential (_t) forces
 	double fcx = 0.; double fcy = 0.;
 	double ftx = 0.; double fty = 0.;
+	double contact_lambda_n = 0.;
 
 	// artificial stress components
 	double Rxx = 0., Rxy = 0., Ryy = 0.;

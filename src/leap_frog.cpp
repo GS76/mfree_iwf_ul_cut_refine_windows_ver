@@ -121,6 +121,7 @@ void leap_frog::step(body &body) {
 
 	// move the tool & do penalty contact
 	body.apply_contact();
+	body.advance_fe_tool_mechanics_explicit();
 	body.move_tool();
 
 	// Compute time derivatives of physical properties
