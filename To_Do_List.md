@@ -1,4 +1,5 @@
 ### Project To-Do List
+- [ ] FE tool penetrating SPH workpiece excessively.
 - [ ] Move tool into position for 0.2 mm/rev.
 - [ ] Is the FE tool and SPH workpiece, being solved sequentially?
 - [ ] Add a time history plot of all the energies.
