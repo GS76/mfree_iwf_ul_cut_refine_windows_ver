@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\\..")
 Push-Location $repoRoot
 
-$env:MFREE_FE_TOOL_MSH = "snapshots/tool_plane_strain/meshes/tool_h_0.002mm.msh"
+$env:MFREE_FE_TOOL_MSH = "snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh"
 $env:MFREE_FE_TOOL_ALIGN_CENTER = "0"
 
 $env:MFREE_USE_FE_TOOL_FOR_CONTACT = "1"
