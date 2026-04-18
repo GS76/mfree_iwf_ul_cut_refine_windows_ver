@@ -61,6 +61,12 @@
     <ClCompile Include="D:\mfree_iwf_ul_cut_refine_windows_ver\src\tool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D:\mfree_iwf_ul_cut_refine_windows_ver\src\tool_adapter_rigid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\mfree_iwf_ul_cut_refine_windows_ver\src\tool_adapter_poly.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="D:\mfree_iwf_ul_cut_refine_windows_ver\src\vtk_writer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

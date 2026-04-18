@@ -53,11 +53,13 @@
 #include "fe_tool.h"
 
 #include <cmath>
+#include <cstdio>
 
 void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
-	char buf[256];
-	sprintf(buf, "%s/out_%06d.vtk", folder, step);
+	char buf[1024];
+	std::snprintf(buf, sizeof(buf), "%s/out_%06d.vtk", folder, step);
 	FILE *fp = fopen(buf, "w+");
+	if (!fp) return;
 
 	unsigned int np = particles.size();
 
@@ -124,6 +126,40 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "VECTORS velocity float\n");		// Particle velocities
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].vx, particles[i].vy, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "VECTORS contact_force_n float\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e %e %e\n", particles[i].fcx, particles[i].fcy, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "VECTORS contact_force_t float\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e %e %e\n", particles[i].ftx, particles[i].fty, 0.);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS contact_pressure float 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		double Fn = std::sqrt(particles[i].fcx * particles[i].fcx + particles[i].fcy * particles[i].fcy);
+		double p = 0.0;
+		if (Fn > 0.0 && particles[i].m > 0.0 && particles[i].rho > 0.0) {
+			p = Fn * particles[i].rho / particles[i].m;
+		}
+		fprintf(fp, "%e\n", p);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS displacement float 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		double dx = particles[i].x - particles[i].X;
+		double dy = particles[i].y - particles[i].Y;
+		double u = std::sqrt(dx * dx + dy * dy);
+		fprintf(fp, "%e\n", u);
 	}
 	fprintf(fp, "\n");
 
@@ -210,9 +246,10 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
 
 	int num_tri = triangles.size();
 
-	char buf[256];
-	sprintf(buf, "%s/tool_%06d.vtk", folder, step);
+	char buf[1024];
+	std::snprintf(buf, sizeof(buf), "%s/tool_%06d.vtk", folder, step);
 	FILE *fp = fopen(buf, "w+");
+	if (!fp) return;
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
 	fprintf(fp, "mfree iwf\n");
@@ -253,9 +290,9 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	const auto &tris = tool->triangles();
 	if (nodes_tool.empty() || tris.empty()) return;
 
-	char buf[256];
+	char buf[1024];
 	if (!filename_prefix || filename_prefix[0] == '\0') filename_prefix = "fe_tool";
-	sprintf(buf, "%s/%s_%06d.vtk", folder, filename_prefix, step);
+	std::snprintf(buf, sizeof(buf), "%s/%s_%06d.vtk", folder, filename_prefix, step);
 	FILE *fp = fopen(buf, "w+");
 	if (!fp) return;
 

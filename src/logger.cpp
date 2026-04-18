@@ -54,7 +54,8 @@
 #include <filesystem>
 
 void logger::close() {
-	fclose(m_fp_forces);
+	if (m_fp_forces) fclose(m_fp_forces);
+	if (m_fp_trace) fclose(m_fp_trace);
 }
 
 void logger::set_tool(tool *t) {
@@ -74,13 +75,15 @@ void logger::add_tracer_particle(unsigned int tracer_idx) {
 }
 
 void logger::set_folder(const char* folder) {
-	strcpy(m_folder, folder);
+	std::snprintf(m_folder, sizeof(m_folder), "%s", folder ? folder : "");
 
-	fclose(m_fp_forces);
+	if (m_fp_forces) fclose(m_fp_forces);
 
-	char buf[256];
-	sprintf(buf, "./%s/%s_forces", m_folder, m_case_name);
-	m_fp_forces = fopen(buf, "w+");
+	std::filesystem::create_directories(m_folder);
+
+	std::filesystem::path base(m_folder);
+	std::filesystem::path forces = base / (std::string(m_case_name) + "_forces");
+	m_fp_forces = fopen(forces.string().c_str(), "w+");
 }
 
 void logger::log(const body &b, unsigned int step) {
@@ -100,7 +103,7 @@ void logger::log(const body &b, unsigned int step) {
 	}
 
 	//log forces (if desired)
-	if (m_log_forces && log_forces) {
+	if (m_log_forces && log_forces && m_fp_forces) {
 		double fx = 0.;
 		double fy = 0.;
 
@@ -119,11 +122,13 @@ void logger::log(const body &b, unsigned int step) {
 
 	//trace particles to be traced
 	if (log_trace) {
-		for (const auto it : m_trace_p) {
-			fprintf(m_fp_trace, "%f %f ", b.get_particles()[it].x, b.get_particles()[it].y);
-		}
-		if (m_trace_p.size() != 0) {
-			fprintf(m_fp_trace, "\n");
+		if (m_fp_trace) {
+			for (const auto it : m_trace_p) {
+				fprintf(m_fp_trace, "%f %f ", b.get_particles()[it].x, b.get_particles()[it].y);
+			}
+			if (m_trace_p.size() != 0) {
+				fprintf(m_fp_trace, "\n");
+			}
 		}
 	}
 
@@ -145,11 +150,12 @@ logger::logger(const char *case_name, const char *foldername) {
 	const char *results_dir_env = std::getenv("MFREE_RESULTS_DIR");
 	const char *folder = (results_dir_env && results_dir_env[0] != '\0') ? results_dir_env : foldername;
 	std::filesystem::create_directories(folder);
-	char buf[256];
-	sprintf(buf, "./%s/%s_forces", folder, case_name);
-	m_fp_forces = fopen(buf, "w+");
-	sprintf(buf, "./%s/trace.txt", folder);
-	m_fp_trace = fopen(buf, "w+");
-	strcpy(m_folder, folder);
-	strcpy(m_case_name, case_name);
+	std::snprintf(m_folder, sizeof(m_folder), "%s", folder ? folder : "");
+	std::snprintf(m_case_name, sizeof(m_case_name), "%s", case_name ? case_name : "");
+
+	std::filesystem::path base(m_folder);
+	std::filesystem::path forces = base / (std::string(m_case_name) + "_forces");
+	std::filesystem::path trace = base / "trace.txt";
+	m_fp_forces = fopen(forces.string().c_str(), "w+");
+	m_fp_trace = fopen(trace.string().c_str(), "w+");
 }

@@ -50,7 +50,10 @@
 
 #include "contact.h"
 
+#include "contact_iface.h"
 #include "fe_tool.h"
+#include "tool_adapter_rigid.h"
+#include "tool_iface.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -292,7 +295,7 @@ static const contact_penalty_params &get_contact_penalty_params() {
 }
 }
 
-static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
+static glm::dvec2 compute_contact_force_nianfei(double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
 	// friction force according to
 	// "3D adaptive RKPM method for contact problems with elastic–plastic dynamic
 	// large deformation" - Nianfei, Guangyao, Shuyao
@@ -306,10 +309,10 @@ static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_d
 	return fN;
 }
 
-static glm::dvec2 compute_friction_ldyna(const tool *master, glm::dvec2 fN, glm::dvec2 n, glm::dvec2 vs, glm::dvec2 fricold, double alpha, double ms, double dt, double mu) {
+static glm::dvec2 compute_friction_ldyna(const tool_contact_2d &master, glm::dvec2 fN, glm::dvec2 n, glm::dvec2 vs, glm::dvec2 fricold, double alpha, double ms, double dt, double mu) {
 	if (mu == 0.) return glm::dvec2(0.);
 
-	glm::dvec2 vm = master->get_vel();
+	glm::dvec2 vm = master.velocity_world();
 	glm::dvec2 v = vs-vm;
 	glm::dvec2 vr = v - v*n;
 
@@ -324,11 +327,7 @@ static glm::dvec2 compute_friction_ldyna(const tool *master, glm::dvec2 fN, glm:
 	}
 }
 
-void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
-	contact_apply_tool_to_body_2d(master, slave, nullptr);
-}
-
-void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *thermal_master) {
+void contact_apply_master_to_body_2d(const tool_contact_2d &master, body &slave, fe_tool *thermal_master) {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
@@ -370,16 +369,10 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 		double qx = particles[i].x;
 		double qy = particles[i].y;
 
-		glm::dvec2 xcntct(0.);
-		glm::dvec2 surf_norm(0.);
 		glm::dvec2 xslave(qx, qy);
+		tool_contact_hit_2d hit;
+		bool inside = master.contact(xslave, hit);
 
-		bool inside = master->contact(xslave, xcntct, surf_norm);
-
-		/*
-		 both CONTACT & TANGENTIAL forces are ZERO
-		 for particles which are outside the tool
-		*/
 		if (!inside) {
 			particles[i].fcx = 0.;
 			particles[i].fcy = 0.;
@@ -391,10 +384,13 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 			continue;
 		}
 
+		glm::dvec2 xcntct = hit.x_contact;
+		glm::dvec2 surf_norm = hit.normal;
+
 		double pen_depth = glm::dot((xslave-xcntct), surf_norm);
 		glm::dvec2 fricold(particles[i].ftx, particles[i].fty);
 
-		double ms   = particles[i].m;
+		double ms = particles[i].m;
 
 		glm::dvec2 vs(particles[i].vx, particles[i].vy);
 
@@ -418,18 +414,17 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 				cntc = lambda * surf_norm;
 			} else {
 				particles[i].contact_lambda_n = 0.;
-				cntc = compute_contact_force_nianfei(master, pen_depth, surf_norm, alpha, ms, dt);
+				cntc = compute_contact_force_nianfei(pen_depth, surf_norm, alpha, ms, dt);
 			}
 		} else {
 			particles[i].contact_lambda_n = 0.;
-			cntc = compute_contact_force_nianfei(master, pen_depth, surf_norm, alpha, ms, dt);
+			cntc = compute_contact_force_nianfei(pen_depth, surf_norm, alpha, ms, dt);
 		}
-		glm::dvec2 fric = compute_friction_ldyna(master, cntc, surf_norm, vs, fricold, alpha, ms, dt, master->mu());
+		double mu = master.mu();
+		glm::dvec2 fric = compute_friction_ldyna(master, cntc, surf_norm, vs, fricold, alpha, ms, dt, mu);
 
-		// X and Y components of the contact force
 		particles[i].fcx = cntc.x;
 		particles[i].fcy = cntc.y;
-		// X and Y components of the tangential force
 		particles[i].ftx = fric.x;
 		particles[i].fty = fric.y;
 
@@ -508,7 +503,7 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 			double P_cond = h_c * A_eff * (p.T - T_tool);
 			if (!std::isfinite(P_cond)) continue;
 
-			glm::dvec2 vm = master->get_vel();
+			glm::dvec2 vm = master.velocity_world();
 			glm::dvec2 vs(p.vx, p.vy);
 			glm::dvec2 v = vs - vm;
 			glm::dvec2 vt = v - glm::dot(v, ev.surf_norm) * ev.surf_norm;
@@ -562,5 +557,13 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *the
 			if (std::isfinite(P_tool)) thermal_master->add_boundary_point_power(tev.xcntct, P_tool);
 		}
 	}
+}
 
+void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
+	contact_apply_tool_to_body_2d(master, slave, nullptr);
+}
+
+void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *thermal_master) {
+	rigid_tool_contact_adapter adapt(master);
+	contact_apply_master_to_body_2d(adapt, slave, thermal_master);
 }

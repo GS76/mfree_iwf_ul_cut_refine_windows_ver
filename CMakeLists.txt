@@ -28,6 +28,8 @@ add_executable(mfree_iwf
   src/simulation_time.cpp
   src/thermal.cpp
   src/tool.cpp
+  src/tool_adapter_rigid.cpp
+  src/tool_adapter_poly.cpp
   src/vtk_writer.cpp
   src/benchmarks/material_library.cpp
   src/benchmarks/test_benches.cpp
@@ -68,6 +70,8 @@ add_executable(mfree_iwf_validate
   src/simulation_time.cpp
   src/thermal.cpp
   src/tool.cpp
+  src/tool_adapter_rigid.cpp
+  src/tool_adapter_poly.cpp
   src/vtk_writer.cpp
   src/benchmarks/material_library.cpp
   src/benchmarks/validate_main.cpp
@@ -83,3 +87,15 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 add_test(NAME mfree_iwf_validate COMMAND mfree_iwf_validate)
+
+add_test(NAME mfree_iwf_preprocess_model1_rigid COMMAND $<TARGET_FILE:mfree_iwf> -m 1)
+set_tests_properties(mfree_iwf_preprocess_model1_rigid PROPERTIES
+  ENVIRONMENT
+    "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/model1_rigid"
+)
+
+add_test(NAME mfree_iwf_preprocess_model1_fe_only COMMAND $<TARGET_FILE:mfree_iwf> -m 1)
+set_tests_properties(mfree_iwf_preprocess_model1_fe_only PROPERTIES
+  ENVIRONMENT
+    "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/model1_fe_only;MFREE_NO_RIGID_TOOL=1;MFREE_USE_FE_TOOL_FOR_CONTACT=1;MFREE_CONTACT_MU=0.35;MFREE_FE_TOOL_MSH=${CMAKE_SOURCE_DIR}/snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh"
+)

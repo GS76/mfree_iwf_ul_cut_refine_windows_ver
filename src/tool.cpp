@@ -724,8 +724,8 @@ void tool::print(FILE *fp) {
 }
 
 void tool::print(unsigned int step, const char *folder_name) {
-	char buf[256];
-	sprintf(buf, "./%s/tool_%07d.txt", folder_name, step);
+	char buf[1024];
+	std::snprintf(buf, sizeof(buf), "./%s/tool_%07d.txt", folder_name, step);
 
 	FILE *fp = fopen(buf, "w+");
 	if (!fp) {

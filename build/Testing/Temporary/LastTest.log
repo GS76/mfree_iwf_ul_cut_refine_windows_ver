@@ -1,10 +1,10 @@
-Start testing: Apr 05 20:45 South Africa Standard Time
+Start testing: Apr 18 19:50 South Africa Standard Time
 ----------------------------------------------------------
-1/1 Testing: mfree_iwf_validate
-1/1 Test: mfree_iwf_validate
+1/3 Testing: mfree_iwf_validate
+1/3 Test: mfree_iwf_validate
 Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/Release/mfree_iwf_validate.exe"
 Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
-"mfree_iwf_validate" start time: Apr 05 20:45 South Africa Standard Time
+"mfree_iwf_validate" start time: Apr 18 19:50 South Africa Standard Time
 Output:
 ----------------------------------------------------------
 tool_1d rel=5.417064e-35 T_num=5.41706e-47 T_ref=0
@@ -19,8 +19,44 @@ validation_ok
 Test time =   0.14 sec
 ----------------------------------------------------------
 Test Passed.
-"mfree_iwf_validate" end time: Apr 05 20:45 South Africa Standard Time
+"mfree_iwf_validate" end time: Apr 18 19:50 South Africa Standard Time
 "mfree_iwf_validate" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Apr 05 20:45 South Africa Standard Time
+2/3 Testing: mfree_iwf_preprocess_model1_rigid
+2/3 Test: mfree_iwf_preprocess_model1_rigid
+Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/Release/mfree_iwf.exe" "-m" "1"
+Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
+"mfree_iwf_preprocess_model1_rigid" start time: Apr 18 19:50 South Africa Standard Time
+Output:
+----------------------------------------------------------
+running model 1
+feed: 0.000300, dt 1.000000e-09, num_part 3751
+<<< single-resolution simulation >>>
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"mfree_iwf_preprocess_model1_rigid" end time: Apr 18 19:50 South Africa Standard Time
+"mfree_iwf_preprocess_model1_rigid" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: mfree_iwf_preprocess_model1_fe_only
+3/3 Test: mfree_iwf_preprocess_model1_fe_only
+Command: "D:/mfree_iwf_ul_cut_refine_windows_ver/build/Release/mfree_iwf.exe" "-m" "1"
+Directory: D:/mfree_iwf_ul_cut_refine_windows_ver/build
+"mfree_iwf_preprocess_model1_fe_only" start time: Apr 18 19:50 South Africa Standard Time
+Output:
+----------------------------------------------------------
+running model 1
+feed: 0.000300, dt 1.000000e-09, num_part 3751
+<<< single-resolution simulation >>>
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"mfree_iwf_preprocess_model1_fe_only" end time: Apr 18 19:50 South Africa Standard Time
+"mfree_iwf_preprocess_model1_fe_only" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 18 19:50 South Africa Standard Time

@@ -50,12 +50,15 @@
 
 #include "body.h"
 
+#include "contact_iface.h"
 #include "fe_tool.h"
 #include "simulation_time.h"
+#include "tool_adapter_poly.h"
 #include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -142,15 +145,26 @@ void body::apply_thermal_conduction() {
 }
 
 void body::apply_contact() {
-	if (m_tool == 0) return;
+	if (m_tool == 0 && m_fe_tool == nullptr) return;
 	bool use_mesh_for_contact = parse_env_bool_strict("MFREE_USE_FE_TOOL_FOR_CONTACT");
+	if (m_tool == nullptr) use_mesh_for_contact = true;
+
+	double mu = 0.35;
+	glm::dvec2 v_master(0.);
+	if (m_tool) {
+		mu = m_tool->mu();
+		v_master = m_tool->get_vel();
+	} else if (m_fe_tool) {
+		v_master = m_fe_tool->get_vel();
+		parse_env_double_strict_min("MFREE_CONTACT_MU", 0.0, mu);
+	}
 
 	if (m_fe_tool == nullptr) {
-		contact_apply_tool_to_body_2d(m_tool, *this, nullptr);
+		if (m_tool) contact_apply_tool_to_body_2d(m_tool, *this, nullptr);
 		return;
 	}
 
-	if (!use_mesh_for_contact) {
+	if (!use_mesh_for_contact && m_tool) {
 		m_fe_tool->clear_sources();
 		m_fe_tool->clear_forces();
 		contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
@@ -164,11 +178,9 @@ void body::apply_contact() {
 		m_fe_tool->clear_forces();
 		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
 		if (poly.size() >= 3) {
-			tool tpoly(poly, m_tool->mu());
-			tpoly.set_vel(m_tool->get_vel());
-			tpoly.set_edge_coord(m_tool->get_edge_coord());
-			contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
-		} else {
+			poly_tool_contact_adapter tpoly(poly, mu, v_master);
+			contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
+		} else if (m_tool) {
 			contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 		}
 		return;
@@ -262,11 +274,9 @@ void body::apply_contact() {
 			}
 
 			if (poly.size() >= 3) {
-				tool tpoly(poly, m_tool->mu());
-				tpoly.set_vel(m_tool->get_vel());
-				tpoly.set_edge_coord(m_tool->get_edge_coord());
-				contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
-			} else {
+				poly_tool_contact_adapter tpoly(poly, mu, v_master);
+				contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
+			} else if (m_tool) {
 				contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 			}
 
@@ -321,15 +331,12 @@ void body::apply_contact() {
 
 		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
 		if (poly.size() < 3) {
-			contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
+			if (m_tool) contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 			break;
 		}
 
-		tool tpoly(poly, m_tool->mu());
-		tpoly.set_vel(m_tool->get_vel());
-		tpoly.set_edge_coord(m_tool->get_edge_coord());
-
-		contact_apply_tool_to_body_2d(&tpoly, *this, m_fe_tool);
+		poly_tool_contact_adapter tpoly(poly, mu, v_master);
+		contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
 		m_fe_tool->solve_mechanics_quasistatic(mech_cg_iters, mech_rel_tol);
 		if (relax < 1.0) {
 			std::vector<glm::dvec2> u_new = m_fe_tool->displacements();
@@ -439,19 +446,31 @@ void body::set_fe_tool(fe_tool *tool) {
 }
 
 void body::move_tool() {
-	if (m_tool == 0) return;
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
-	m_tool->update_tool(dt);
+	if (m_tool) m_tool->update_tool(dt);
 	if (m_fe_tool) m_fe_tool->update_pose(dt);
 }
 
 glm::dvec2 body::speed_tool() {
-	return m_tool->get_vel();
+	if (m_tool) return m_tool->get_vel();
+	if (m_fe_tool) return m_fe_tool->get_vel();
+	return glm::dvec2(0.);
 }
 
 glm::dvec2 body::edge_tool() {
-	return m_tool->get_edge_coord();
+	if (m_tool) return m_tool->get_edge_coord();
+	if (m_fe_tool) {
+		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
+		if (!poly.empty()) {
+			glm::dvec2 best = poly[0];
+			for (const auto &p : poly) {
+				if (p.y < best.y) best = p;
+			}
+			return best;
+		}
+	}
+	return glm::dvec2(0.);
 }
 
 const tool *body::get_tool() const { return m_tool; }

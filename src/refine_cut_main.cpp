@@ -101,6 +101,50 @@ static double tri_min_angle_deg(glm::dvec2 a, glm::dvec2 b, glm::dvec2 c) {
 	return std::min(a0, std::min(a1, a2));
 }
 
+static glm::dvec2 closest_point_on_segment(glm::dvec2 p, glm::dvec2 a, glm::dvec2 b) {
+	glm::dvec2 ab = b - a;
+	double ab2 = ab.x * ab.x + ab.y * ab.y;
+	if (!(ab2 > 0.0) || !std::isfinite(ab2)) return a;
+	double t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / ab2;
+	if (!std::isfinite(t)) t = 0.0;
+	t = std::max(0.0, std::min(1.0, t));
+	return a + t * ab;
+}
+
+static bool point_in_polygon(glm::dvec2 p, const std::vector<glm::dvec2> &poly) {
+	bool inside = false;
+	std::size_t n = poly.size();
+	for (std::size_t i = 0, j = n - 1; i < n; j = i++) {
+		const glm::dvec2 pi = poly[i];
+		const glm::dvec2 pj = poly[j];
+		bool intersect = ((pi.y > p.y) != (pj.y > p.y)) &&
+		                 (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y + 0.0) + pi.x);
+		if (intersect) inside = !inside;
+	}
+	return inside;
+}
+
+static double polygon_inside_depth(glm::dvec2 p, const std::vector<glm::dvec2> &poly, glm::dvec2 *closest_point_out = nullptr) {
+	if (poly.size() < 3) return 0.0;
+	if (!point_in_polygon(p, poly)) return 0.0;
+	double best_d2 = std::numeric_limits<double>::infinity();
+	glm::dvec2 best_cp(0.);
+	for (std::size_t i = 0; i < poly.size(); i++) {
+		glm::dvec2 a = poly[i];
+		glm::dvec2 b = poly[(i + 1) % poly.size()];
+		glm::dvec2 cp = closest_point_on_segment(p, a, b);
+		glm::dvec2 d = p - cp;
+		double d2 = d.x * d.x + d.y * d.y;
+		if (std::isfinite(d2) && d2 < best_d2) {
+			best_d2 = d2;
+			best_cp = cp;
+		}
+	}
+	if (closest_point_out) *closest_point_out = best_cp;
+	if (!std::isfinite(best_d2) || best_d2 < 0.0) return 0.0;
+	return std::sqrt(best_d2);
+}
+
 static void write_precheck_report(body &b, const char *folder) {
 	const std::vector<particle> &p = b.get_particles();
 	const double cp_wp = b.get_sim_data().get_physical_constants().tc().cp();
@@ -187,22 +231,20 @@ static void write_precheck_report(body &b, const char *folder) {
 		}
 
 		std::vector<glm::dvec2> poly = ft->boundary_loop_world();
-		if (poly.size() >= 3 && t) {
+		if (poly.size() >= 3) {
 			contact_poly_nodes = static_cast<unsigned int>(poly.size());
 			glm::dvec2 ctr(0.);
 			for (const auto &pp : poly) ctr += pp;
 			ctr /= static_cast<double>(poly.size());
-			tool tpoly(poly, t->mu());
-			contact_poly_ctr_inside = tpoly.inside(ctr);
-			auto seg = tpoly.get_segments();
-			for (const auto &s : seg) {
-				tool_c_xmin = std::min(tool_c_xmin, std::min(s.left.x, s.right.x));
-				tool_c_xmax = std::max(tool_c_xmax, std::max(s.left.x, s.right.x));
-				tool_c_ymin = std::min(tool_c_ymin, std::min(s.left.y, s.right.y));
-				tool_c_ymax = std::max(tool_c_ymax, std::max(s.left.y, s.right.y));
+			contact_poly_ctr_inside = polygon_inside_depth(ctr, poly);
+			for (const auto &pp : poly) {
+				tool_c_xmin = std::min(tool_c_xmin, pp.x);
+				tool_c_xmax = std::max(tool_c_xmax, pp.x);
+				tool_c_ymin = std::min(tool_c_ymin, pp.y);
+				tool_c_ymax = std::max(tool_c_ymax, pp.y);
 			}
 			for (const particle &pi : p) {
-				double d = tpoly.inside(glm::dvec2(pi.x, pi.y));
+				double d = polygon_inside_depth(glm::dvec2(pi.x, pi.y), poly);
 				if (std::isfinite(d) && d > 0.) {
 					overlap_count_contact++;
 					overlap_max_depth_contact = std::max(overlap_max_depth_contact, d);
@@ -293,6 +335,102 @@ static void write_precheck_report(body &b, const char *folder) {
 		std::fprintf(fp, "    \"triangles\": 0,\n");
 		std::fprintf(fp, "    \"min_triangle_angle_deg\": 0.0\n");
 	}
+	std::fprintf(fp, "  }\n");
+	std::fprintf(fp, "}\n");
+
+	std::fclose(fp);
+}
+
+static void write_validation_summary(const body &b, const char *folder, int model) {
+	const std::vector<particle> &p = b.get_particles();
+	double u_max = 0.;
+	double svm_max = 0.;
+	double epsp_max = 0.;
+	double T_min = std::numeric_limits<double>::infinity();
+	double T_max = -std::numeric_limits<double>::infinity();
+	double cp_max = 0.;
+	double cp_sum = 0.;
+	unsigned int cp_count = 0;
+
+	for (const particle &pi : p) {
+		double dx = pi.x - pi.X;
+		double dy = pi.y - pi.Y;
+		if (std::isfinite(dx) && std::isfinite(dy)) u_max = std::max(u_max, std::sqrt(dx * dx + dy * dy));
+
+		if (std::isfinite(pi.T)) {
+			T_min = std::min(T_min, pi.T);
+			T_max = std::max(T_max, pi.T);
+		}
+		if (std::isfinite(pi.eps_pl_equiv)) epsp_max = std::max(epsp_max, pi.eps_pl_equiv);
+
+		double sxx = pi.Sxx - pi.p;
+		double sxy = pi.Sxy;
+		double syy = pi.Syy - pi.p;
+		double szz = pi.Szz - pi.p;
+		double svm = std::sqrt(std::fabs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
+		if (std::isfinite(svm)) svm_max = std::max(svm_max, svm);
+
+		double Fn = std::sqrt(pi.fcx * pi.fcx + pi.fcy * pi.fcy);
+		if (Fn > 0. && std::isfinite(Fn) && pi.m > 0. && pi.rho > 0.) {
+			double cp = Fn * pi.rho / pi.m;
+			if (std::isfinite(cp)) {
+				cp_max = std::max(cp_max, cp);
+				cp_sum += cp;
+				cp_count++;
+			}
+		}
+	}
+
+	const fe_tool *ft = b.get_fe_tool();
+	std::size_t fe_nodes = 0;
+	std::size_t fe_tris = 0;
+	double fe_min_angle = 0.;
+	double fe_Tmin = 0.;
+	double fe_Tmax = 0.;
+	double fe_Fmax = 0.;
+
+	if (ft) {
+		fe_nodes = ft->nodes_tool_frame().size();
+		fe_tris = ft->triangles().size();
+		fe_min_angle = 180.;
+		for (const auto &tri : ft->triangles()) {
+			glm::dvec2 a = ft->to_world_frame(ft->nodes_tool_frame()[tri[0]]);
+			glm::dvec2 bb = ft->to_world_frame(ft->nodes_tool_frame()[tri[1]]);
+			glm::dvec2 c = ft->to_world_frame(ft->nodes_tool_frame()[tri[2]]);
+			fe_min_angle = std::min(fe_min_angle, tri_min_angle_deg(a, bb, c));
+		}
+		fe_Tmin = ft->min_temperature();
+		fe_Tmax = ft->max_temperature();
+		for (unsigned int i = 0; i < fe_nodes; i++) {
+			glm::dvec2 f = ft->nodal_force(i);
+			double fm = std::sqrt(f.x * f.x + f.y * f.y);
+			if (std::isfinite(fm)) fe_Fmax = std::max(fe_Fmax, fm);
+		}
+	}
+
+	char path[256];
+	std::snprintf(path, sizeof(path), "%s/validation_summary.json", folder);
+	FILE *fp = std::fopen(path, "w+");
+	if (!fp) return;
+
+	std::fprintf(fp, "{\n");
+	std::fprintf(fp, "  \"model\": %d,\n", model);
+	std::fprintf(fp, "  \"particles\": {\n");
+	std::fprintf(fp, "    \"count\": %u,\n", static_cast<unsigned int>(p.size()));
+	std::fprintf(fp, "    \"temperature\": {\"min\": %.15e, \"max\": %.15e},\n", T_min, T_max);
+	std::fprintf(fp, "    \"max_displacement\": %.15e,\n", u_max);
+	std::fprintf(fp, "    \"max_von_mises\": %.15e,\n", svm_max);
+	std::fprintf(fp, "    \"max_equiv_plastic_strain\": %.15e,\n", epsp_max);
+	std::fprintf(fp, "    \"contact_pressure\": {\"count\": %u, \"avg\": %.15e, \"max\": %.15e}\n",
+	             cp_count, (cp_count ? cp_sum / static_cast<double>(cp_count) : 0.0), cp_max);
+	std::fprintf(fp, "  },\n");
+	std::fprintf(fp, "  \"fe_tool\": {\n");
+	std::fprintf(fp, "    \"attached\": %d,\n", ft ? 1 : 0);
+	std::fprintf(fp, "    \"nodes\": %u,\n", static_cast<unsigned int>(fe_nodes));
+	std::fprintf(fp, "    \"triangles\": %u,\n", static_cast<unsigned int>(fe_tris));
+	std::fprintf(fp, "    \"min_triangle_angle_deg\": %.6f,\n", fe_min_angle);
+	std::fprintf(fp, "    \"temperature\": {\"min\": %.15e, \"max\": %.15e},\n", fe_Tmin, fe_Tmax);
+	std::fprintf(fp, "    \"max_nodal_force\": %.15e\n", fe_Fmax);
 	std::fprintf(fp, "  }\n");
 	std::fprintf(fp, "}\n");
 
@@ -393,6 +531,7 @@ int main(int argc, char * argv[]) {
 		b->apply_contact();
 		if (global_logger) global_logger->log(*b, 0);
 		write_precheck_report(*b, results_dir.c_str());
+		write_validation_summary(*b, results_dir.c_str(), model);
 		return EXIT_SUCCESS;
 	}
 
@@ -506,6 +645,7 @@ int main(int argc, char * argv[]) {
 	auto end = std::chrono::high_resolution_clock::now();
 	double elapsed = std::chrono::duration<double>(end - begin).count();
 	printf("Runtime: %f\n", elapsed);
+	write_validation_summary(*b, results_dir.c_str(), model);
 
 	return EXIT_SUCCESS;
 }

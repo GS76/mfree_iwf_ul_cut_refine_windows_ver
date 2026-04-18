@@ -1,0 +1,25 @@
+{
+  "particles": {
+    "count": 3751,
+    "bbox": {"xmin": 0.000000000000000e+00, "xmax": 2.000000000000000e-03, "ymin": 9.999999999999994e-05, "ymax": 5.999999999999999e-04},
+    "density": {"min": 4.430000000000000e+03, "max": 4.430000000000000e+03},
+    "fixed_count": 151,
+    "num_neighbors": {"min": 10, "max": 29, "avg": 25.720341}
+  },
+  "tool": {
+    "segments": 5,
+    "bbox": {"xmin": -4.266666666666667e-04, "xmax": -1.349058604944777e-05, "ymin": 3.000918640827491e-04, "ymax": 8.102478023664665e-04},
+    "fillet": {"cx": -1.849058604944770e-05, "cy": 3.049999999999999e-04, "r": 5.000000000000000e-06},
+    "overlap": {"count": 0, "max_depth": 0.000000000000000e+00}
+  },
+  "tool_contact": {
+    "bbox": null,
+    "polygon": {"nodes": 0, "centroid_inside": 0.0},
+    "overlap": {"count": 0, "max_depth": 0.0}
+  },
+  "fe_tool": {
+    "nodes": 0,
+    "triangles": 0,
+    "min_triangle_angle_deg": 0.0
+  }
+}
