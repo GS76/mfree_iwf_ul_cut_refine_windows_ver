@@ -76,6 +76,8 @@ private:
 	tool *m_t = 0;
 	FILE *m_fp_forces = 0;
 	FILE *m_fp_trace = 0;
+	FILE *m_fp_thermal = 0;
+	FILE *m_fp_metrics = 0;
 	std::vector<unsigned int> m_trace_p;
 	char m_folder[256] = "results";
 	char m_case_name[256] = "case";

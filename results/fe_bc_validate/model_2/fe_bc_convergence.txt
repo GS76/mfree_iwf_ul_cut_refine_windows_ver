@@ -1,0 +1,9 @@
+FE BC convergence report (model 2)
+Top tag: 110, Rear tag: 114, Ambient: 25.000000 C
+Mechanics iterations per solve: 50, rel_tol: 1.000e-06
+Thermal pre-step dt: 4.311e-07 s
+Max displacement change between solve #1 and #2: 1.563731e-10 m
+Relative change (max_du / max_u): 1.831785e-01
+Absolute tolerance: 1.000000e-09 m
+Pass criterion: (max_du <= abs_tol) OR (relative_change <= 1%): PASS
+Rigid-body motion warnings: not emitted by this solver; constraint set includes an optional UX anchor via MFREE_FE_BC_ANCHOR_UX.

@@ -99,3 +99,20 @@ set_tests_properties(mfree_iwf_preprocess_model1_fe_only PROPERTIES
   ENVIRONMENT
     "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/model1_fe_only;MFREE_NO_RIGID_TOOL=1;MFREE_USE_FE_TOOL_FOR_CONTACT=1;MFREE_CONTACT_MU=0.35;MFREE_FE_TOOL_MSH=${CMAKE_SOURCE_DIR}/snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh"
 )
+
+add_test(NAME mfree_iwf_geom_validate_model1_fe_only COMMAND $<TARGET_FILE:mfree_iwf> -m 1)
+set_tests_properties(mfree_iwf_geom_validate_model1_fe_only PROPERTIES
+  ENVIRONMENT
+    "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/geom_model1_fe_only;MFREE_NO_RIGID_TOOL=1;MFREE_USE_FE_TOOL_FOR_CONTACT=1;MFREE_CONTACT_MU=0.35;MFREE_FE_TOOL_MSH=${CMAKE_SOURCE_DIR}/snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh;MFREE_GEOM_VALIDATE=1"
+)
+
+add_executable(mfree_geom_validation_math_test
+  src/benchmarks/test_geom_validation_math.cpp
+)
+
+target_include_directories(mfree_geom_validation_math_test PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
+)
+
+add_test(NAME mfree_geom_validation_math_test COMMAND mfree_geom_validation_math_test)

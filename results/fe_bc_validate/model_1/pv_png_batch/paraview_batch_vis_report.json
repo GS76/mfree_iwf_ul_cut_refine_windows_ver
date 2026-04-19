@@ -1,0 +1,14 @@
+{
+  "errors": [],
+  "inputs": {
+    "fe_vtk": ".\\results\\fe_bc_validate\\model_1\\fe_tool_000000.vtk",
+    "rear_csv": ".\\results\\fe_bc_validate\\model_1\\fe_bc_rear_edge.csv",
+    "top_csv": ".\\results\\fe_bc_validate\\model_1\\fe_bc_top_edge.csv"
+  },
+  "outputs": {
+    "edge_nodes_png": ".\\results\\fe_bc_validate\\model_1\\pv_png_batch\\edge_nodes.png",
+    "velocity_glyphs_png": ".\\results\\fe_bc_validate\\model_1\\pv_png_batch\\velocity_glyphs.png"
+  },
+  "status": "success",
+  "timestamp": "2026-04-19T09:08:25.891343+00:00"
+}

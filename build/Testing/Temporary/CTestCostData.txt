@@ -1,4 +1,6 @@
-mfree_iwf_validate 35 0.00386903
-mfree_iwf_preprocess_model1_rigid 1 0.121089
-mfree_iwf_preprocess_model1_fe_only 1 0.142149
+mfree_iwf_validate 41 0.00284149
+mfree_iwf_preprocess_model1_rigid 7 0.0389782
+mfree_iwf_preprocess_model1_fe_only 7 0.0460162
+mfree_iwf_geom_validate_model1_fe_only 6 0.0503719
+mfree_geom_validation_math_test 1 0.0546422
 ---

@@ -1,0 +1,36 @@
+{
+  "particles": {
+    "count": 9527,
+    "bbox": {"xmin": 0.000000000000000e+00, "xmax": 2.000000000000000e-03, "ymin": 9.999999999999994e-05, "ymax": 5.999999999999999e-04},
+    "density": {"min": 4.430000000000000e+03, "max": 4.430000000000000e+03},
+    "fixed_count": 167,
+    "num_neighbors": {"min": 11, "max": 66, "avg": 26.442742}
+  },
+  "tool": {
+    "segments": 0,
+    "fillet": null,
+    "overlap": {"count": 0, "max_depth": 0.0}
+  },
+  "tool_contact": {
+    "bbox": {"xmin": -9.234587773504045e-04, "xmax": 7.654122264959624e-05, "ymin": 3.999999999999938e-04, "ymax": 1.474870178202187e-03},
+    "polygon": {"nodes": 161, "centroid_inside": 3.157027329753921e-04},
+    "overlap": {"count": 1, "max_depth": 5.124826771513987e-18}
+  },
+  "fe_tool": {
+    "nodes": 2565,
+    "triangles": 4965,
+    "min_triangle_angle_deg": 37.048343,
+    "temperature": {"min": 2.999999982123746e+02, "max": 3.000000000000000e+02},
+    "thermal_material": {"rho": 1.450000000000000e+04, "cp": 2.000000000000000e+02, "k": 8.000000000000000e+01},
+    "mechanical_material": {"E": 6.000000000000000e+11, "nu": 2.200000000000000e-01, "alpha": 4.500000000000000e-06},
+    "max_displacement": 9.050506046409081e-18,
+    "contact_convergence": {"iters": 1, "rel_force": 0.000000000000000e+00, "rel_power": 0.000000000000000e+00, "max_rel_force_node": 0.000000000000000e+00, "max_rel_power_node": 0.000000000000000e+00, "nodes_force_over_tol": 0, "nodes_power_over_tol": 0},
+    "contact_energy": {"P_fric": 0.000000000000000e+00, "P_cond": 0.000000000000000e+00, "scale": 1.000000000000000e+00, "frac_workpiece": 8.000000000000000e-01, "frac_tool": 2.000000000000000e-01},
+    "mapped_balance": {
+      "sum_force_workpiece": {"fx": 0.000000000000000e+00, "fy": 0.000000000000000e+00},
+      "sum_force_fe": {"fx": 0.000000000000000e+00, "fy": 0.000000000000000e+00},
+      "sum_power_workpiece": 0.000000000000000e+00,
+      "sum_power_fe": 0.000000000000000e+00
+    }
+  }
+}

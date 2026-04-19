@@ -1,0 +1,19 @@
+{
+  "model": 2,
+  "particles": {
+    "count": 9527,
+    "temperature": {"min": 3.000000000000000e+02, "max": 3.286990241197639e+02},
+    "max_displacement": 3.947292213512046e-06,
+    "max_von_mises": 1.223937342239112e+09,
+    "max_equiv_plastic_strain": 7.249983639874355e-02,
+    "contact_pressure": {"count": 3, "avg": 1.220488537733553e+14, "max": 1.813127259747500e+14}
+  },
+  "fe_tool": {
+    "attached": 1,
+    "nodes": 2565,
+    "triangles": 4965,
+    "min_triangle_angle_deg": 37.048343,
+    "temperature": {"min": 2.999930744316188e+02, "max": 3.001261846133243e+02},
+    "max_nodal_force": 1.206743752432775e+04
+  }
+}

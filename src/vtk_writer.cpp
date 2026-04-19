@@ -342,5 +342,14 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	}
 	fprintf(fp, "\n");
 
+	fprintf(fp, "VECTORS pose_velocity double\n");
+	{
+		glm::dvec2 v = tool->get_vel();
+		for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+			fprintf(fp, "%e %e %e\n", v.x, v.y, 0.);
+		}
+	}
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }

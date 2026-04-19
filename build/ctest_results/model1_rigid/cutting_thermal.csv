@@ -1,0 +1,1 @@
+time,step,P_cond_W,P_fric_W,scale,frac_wp,frac_tool,tool_pos_x,tool_pos_y,tool_vel_x,tool_vel_y,tool_Tmin,tool_Tmax,wp_Tmin,wp_Tmax,wp_Tavg,contact_iters,rel_force,rel_power

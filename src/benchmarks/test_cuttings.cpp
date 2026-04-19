@@ -67,6 +67,21 @@ static bool try_read_env_double(const char *key, double &out) {
 	return true;
 }
 
+static bool try_read_env_int(const char *key, int &out) {
+	const char *s = getenv(key);
+	if (!s || s[0] == '\0') return false;
+	while (*s && std::isspace(static_cast<unsigned char>(*s))) ++s;
+	if (!*s) return false;
+	char *end = nullptr;
+	long v = std::strtol(s, &end, 10);
+	if (end == s) return false;
+	while (*end && std::isspace(static_cast<unsigned char>(*end))) ++end;
+	if (*end != '\0') return false;
+	if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) return false;
+	out = static_cast<int>(v);
+	return true;
+}
+
 static bool try_read_env_table(const char *key, std::vector<double> &T_out, std::vector<double> &v_out) {
 	const char *s = getenv(key);
 	if (!s || s[0] == '\0') return false;
@@ -279,7 +294,65 @@ static glm::dvec2 compute_nominal_tool_center(glm::dvec2 tl, double length, doub
 	return 0.25 * (tl + tr + br + bl);
 }
 
-static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 desired_center, glm::dvec2 desired_vel, double desired_edge_y) {
+static glm::dvec2 closest_point_on_segment(glm::dvec2 p, glm::dvec2 a, glm::dvec2 b) {
+	glm::dvec2 ab = b - a;
+	double ab2 = ab.x * ab.x + ab.y * ab.y;
+	if (!(ab2 > 0.0) || !std::isfinite(ab2)) return a;
+	double t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / ab2;
+	if (!std::isfinite(t)) t = 0.0;
+	t = std::max(0.0, std::min(1.0, t));
+	return a + t * ab;
+}
+
+static glm::dvec2 closest_point_on_polyline(glm::dvec2 p, const std::vector<glm::dvec2> &poly) {
+	glm::dvec2 best(0.);
+	double best_d2 = std::numeric_limits<double>::infinity();
+	if (poly.size() < 2) return best;
+	for (std::size_t i = 0; i < poly.size(); i++) {
+		glm::dvec2 a = poly[i];
+		glm::dvec2 b = poly[(i + 1) % poly.size()];
+		glm::dvec2 cp = closest_point_on_segment(p, a, b);
+		glm::dvec2 d = p - cp;
+		double d2 = d.x * d.x + d.y * d.y;
+		if (std::isfinite(d2) && d2 < best_d2) {
+			best_d2 = d2;
+			best = cp;
+		}
+	}
+	return best;
+}
+
+static double poly_min_y(const std::vector<glm::dvec2> &poly) {
+	double low = std::numeric_limits<double>::infinity();
+	for (const auto &p : poly) low = std::min(low, p.y);
+	if (!std::isfinite(low)) return 0.0;
+	return low;
+}
+
+static void enforce_fe_tool_corner_clearance(fe_tool &ft, glm::dvec2 wp_corner, double clearance_target_m, unsigned int iters) {
+	for (unsigned int it = 0; it < iters; it++) {
+		std::vector<glm::dvec2> poly = ft.boundary_loop_world();
+		if (poly.size() < 3) return;
+
+		double y_bottom = poly_min_y(poly);
+		double dy = (wp_corner.y - clearance_target_m) - y_bottom;
+
+		glm::dvec2 pos = ft.get_pos();
+		pos.y += dy;
+		ft.set_pose(pos, ft.get_vel());
+
+		poly = ft.boundary_loop_world();
+		if (poly.size() < 3) return;
+		glm::dvec2 cp = closest_point_on_polyline(wp_corner, poly);
+		double dx = wp_corner.x - cp.x;
+		pos = ft.get_pos();
+		pos.x += dx;
+		ft.set_pose(pos, ft.get_vel());
+	}
+}
+
+static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 desired_center, glm::dvec2 desired_vel, double desired_edge_y,
+                                     glm::dvec2 wp_corner, double clearance_target_m) {
 	const char *msh_env = getenv("MFREE_FE_TOOL_MSH");
 	std::string msh;
 	if (msh_env && msh_env[0] != '\0') {
@@ -330,7 +403,14 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 		if (try_read_env_table("MFREE_FE_TOOL_ALPHA_TABLE", T, v)) ft->set_mechanical_table_alpha(std::move(T), std::move(v));
 	}
 	ft->set_reference_temperature(T0);
-	apply_mech_fix_tags_from_env(*ft);
+	bool bc_validate = false;
+	{
+		int v = 0;
+		if (try_read_env_int("MFREE_FE_BC_VALIDATE", v) && v != 0) bc_validate = true;
+	}
+	if (!bc_validate) {
+		apply_mech_fix_tags_from_env(*ft);
+	}
 
 	ft->set_initial_temperature(T0);
 	glm::dvec2 pos(0.);
@@ -361,6 +441,66 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	const char *y_env = getenv("MFREE_COOLANT_Y_THRESHOLD");
 	if (y_env) y_thresh = atof(y_env);
 	ft->set_convection_flooded_by_y(air, water, y_thresh);
+
+	enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target_m, 5);
+
+	if (bc_validate) {
+		int top_tag = 110;
+		int rear_tag = 114;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_BC_TOP_TAG", v)) top_tag = v;
+			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v)) rear_tag = v;
+		}
+		double Tamb_C = 25.0;
+		try_read_env_double("MFREE_FE_BC_AMBIENT_C", Tamb_C);
+		double Tamb_K = Tamb_C + 273.15;
+
+		ft->clear_mechanics_fixed();
+		ft->clear_mechanics_fixed_nodes();
+		bool top_found = false;
+		bool rear_found = false;
+		for (const auto &e : ft->boundary_edges()) {
+			if (e.physical_tag == top_tag) top_found = true;
+			if (e.physical_tag == rear_tag) rear_found = true;
+		}
+		if (top_found) ft->set_mechanics_fixed_y_on_physical(top_tag);
+		else std::fprintf(stderr, "warning: FE BC validation top_tag=%d not found in FE tool boundary edges\n", top_tag);
+		if (rear_found) ft->set_mechanics_fixed_y_on_physical(rear_tag);
+		else std::fprintf(stderr, "warning: FE BC validation rear_tag=%d not found in FE tool boundary edges\n", rear_tag);
+
+		bool anchor_ux = true;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_BC_ANCHOR_UX", v)) anchor_ux = (v != 0);
+		}
+		if (anchor_ux && rear_found) {
+			std::unordered_set<unsigned int> rear_nodes;
+			for (const auto &e : ft->boundary_edges()) {
+				if (e.physical_tag != rear_tag) continue;
+				rear_nodes.insert(e.n0);
+				rear_nodes.insert(e.n1);
+			}
+			if (rear_nodes.empty()) {
+				std::fprintf(stderr, "warning: FE BC validation rear_tag=%d has no nodes; skipping UX anchor\n", rear_tag);
+			} else {
+			unsigned int anchor = 0;
+			double best_x = -std::numeric_limits<double>::infinity();
+			for (unsigned int n : rear_nodes) {
+				glm::dvec2 pw = ft->node_world(n);
+				if (!std::isfinite(pw.x)) continue;
+				if (pw.x > best_x) {
+					best_x = pw.x;
+					anchor = n;
+				}
+			}
+			ft->set_mechanics_fixed_x_nodes({anchor});
+			}
+		}
+
+		if (top_found) ft->set_dirichlet_on_physical(top_tag, Tamb_K);
+		if (rear_found) ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
+	}
 
 	b->set_fe_tool(ft);
 
@@ -415,14 +555,20 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	double rho0 = physical_constants.rho0();
 	double T0 = physical_constants.jc().Tref();
+	double wp_T0 = T0;
+	double tool_T0 = T0;
+	try_read_env_double("MFREE_WP_T0", wp_T0);
+	try_read_env_double("MFREE_TOOL_T0", tool_T0);
+	if (!std::isfinite(wp_T0)) wp_T0 = T0;
+	if (!std::isfinite(tool_T0)) tool_T0 = T0;
 
 	unsigned int n = nx*ny;
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
 		particles[i].h = hdx*dx;
 		particles[i].m = dx*dx*rho0;
-		particles[i].T = T0;
-		particles[i].T_init = T0;
+		particles[i].T = wp_T0;
+		particles[i].T_init = wp_T0;
 
 		// fix bottom
 		particles[i].fixed = (particles[i].y < lo_y + 0.5*dy) ? true : false;
@@ -465,7 +611,12 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	tool *t = new tool(tl, tr, br, bl, 20e-6*100, mu_fric);
 	t->set_vel(glm::dvec2(speed,0.));
 	b->set_tool(t);
-	t = attach_fe_tool_from_env(b, t, T0, t->center(), t->get_vel(), t->get_edge_coord().y);
+	double feed_per_rev_mm = 0.2;
+	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
+	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm <= 0.) feed_per_rev_mm = 0.2;
+	double clearance_target = feed_per_rev_mm * 1e-3;
+	glm::dvec2 wp_corner(0.0, 0.060);
+	t = attach_fe_tool_from_env(b, t, tool_T0, t->center(), t->get_vel(), t->get_edge_coord().y, wp_corner, clearance_target);
 	b->set_tool(t);
 
 	global_logger = new logger("cutting");
@@ -493,6 +644,12 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
+	double wp_T0 = T0;
+	double tool_T0 = T0;
+	try_read_env_double("MFREE_WP_T0", wp_T0);
+	try_read_env_double("MFREE_TOOL_T0", tool_T0);
+	if (!std::isfinite(wp_T0)) wp_T0 = T0;
+	if (!std::isfinite(tool_T0)) tool_T0 = T0;
 	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
@@ -520,7 +677,10 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	adjust_workpiece_y_bounds_for_feed(base_lo_y, base_hi_y, nbox, target_feed, 5, lo_y, hi_y, ny, dy);
 	double dx = dy;
 	unsigned int nx = (hi_x-lo_x)/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double v_m_min = 500.;
+	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
+	double vc = v_m_min / 60.;		// m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -565,8 +725,8 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 		particles[i].rho = rho0;
 		particles[i].h = hdx*dx;
 		particles[i].m = dx*dx*rho0;
-		particles[i].T = T0;
-		particles[i].T_init = T0;
+		particles[i].T = wp_T0;
+		particles[i].T_init = wp_T0;
 		particles[i].vx = wp_vx;
 		particles[i].vy = 0.;
 
@@ -667,7 +827,9 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
-	t = attach_fe_tool_from_env(b, t, T0, desired_center, desired_vel, desired_edge_y);
+	glm::dvec2 wp_corner(lo_x, hi_y);
+	double clearance_target = feed_per_rev_mm * 1e-3;
+	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
 	b->set_tool(t);
 
 	if (no_rigid_tool) {
@@ -700,6 +862,7 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 			}
 
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
 	}
 
@@ -741,6 +904,12 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
+	double wp_T0 = T0;
+	double tool_T0 = T0;
+	try_read_env_double("MFREE_WP_T0", wp_T0);
+	try_read_env_double("MFREE_TOOL_T0", tool_T0);
+	if (!std::isfinite(wp_T0)) wp_T0 = T0;
+	if (!std::isfinite(tool_T0)) tool_T0 = T0;
 	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
@@ -770,7 +939,10 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	double dx = dy;
 	unsigned int nx = lx/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double v_m_min = 500.;
+	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
+	double vc = v_m_min / 60.;		// m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -876,8 +1048,8 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].T = T0;
-		particles[i].T_init = T0;
+		particles[i].T = wp_T0;
+		particles[i].T_init = wp_T0;
 		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
 		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
 		particles[i].split = false;
@@ -980,7 +1152,9 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
-	t = attach_fe_tool_from_env(b, t, T0, desired_center, desired_vel, desired_edge_y);
+	glm::dvec2 wp_corner(lo_x, hi_y);
+	double clearance_target = feed_per_rev_mm * 1e-3;
+	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
 	b->set_tool(t);
 
 	if (no_rigid_tool) {
@@ -1012,6 +1186,7 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 			}
 
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
 	}
 
@@ -1053,6 +1228,12 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
+	double wp_T0 = T0;
+	double tool_T0 = T0;
+	try_read_env_double("MFREE_WP_T0", wp_T0);
+	try_read_env_double("MFREE_TOOL_T0", tool_T0);
+	if (!std::isfinite(wp_T0)) wp_T0 = T0;
+	if (!std::isfinite(tool_T0)) tool_T0 = T0;
 	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
@@ -1082,7 +1263,10 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	double dx = dy;
 	unsigned int nx = lx/dx + 1;
-	double vc = 500./60.;		// m/min -> m/s
+	double v_m_min = 500.;
+	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
+	double vc = v_m_min / 60.;		// m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -1185,8 +1369,8 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].T = T0;
-		particles[i].T_init = T0;
+		particles[i].T = wp_T0;
+		particles[i].T_init = wp_T0;
 		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
 		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
 		particles[i].split = false;
@@ -1315,7 +1499,9 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
-	t = attach_fe_tool_from_env(b, t, T0, desired_center, desired_vel, desired_edge_y);
+	glm::dvec2 wp_corner(lo_x, hi_y);
+	double clearance_target = feed_per_rev_mm * 1e-3;
+	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
 	b->set_tool(t);
 	b->set_adaptivity(adapt);
 
@@ -1348,6 +1534,7 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 			}
 
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
 	}
 

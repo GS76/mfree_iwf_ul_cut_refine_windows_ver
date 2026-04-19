@@ -250,16 +250,99 @@ void fe_tool::set_reference_temperature(double T_ref) { m_T_ref = T_ref; }
 
 double fe_tool::reference_temperature() const { return m_T_ref; }
 
-void fe_tool::set_mechanics_fixed_on_physical(int physical_tag) { m_mech_fix_tags.insert(physical_tag); }
+void fe_tool::set_mechanics_fixed_on_physical(int physical_tag) {
+	m_mech_fix_tags.insert(physical_tag);
+	m_mech_fix_cache_valid = false;
+}
 
-void fe_tool::clear_mechanics_fixed() { m_mech_fix_tags.clear(); }
+void fe_tool::set_mechanics_fixed_x_on_physical(int physical_tag) {
+	m_mech_fix_x_tags.insert(physical_tag);
+	m_mech_fix_cache_valid = false;
+}
+
+void fe_tool::set_mechanics_fixed_y_on_physical(int physical_tag) {
+	m_mech_fix_y_tags.insert(physical_tag);
+	m_mech_fix_cache_valid = false;
+}
+
+void fe_tool::clear_mechanics_fixed() {
+	m_mech_fix_tags.clear();
+	m_mech_fix_x_tags.clear();
+	m_mech_fix_y_tags.clear();
+	m_mech_fix_cache_valid = false;
+}
 
 void fe_tool::set_mechanics_fixed_nodes(const std::vector<unsigned int> &nodes) {
 	m_mech_fix_nodes.clear();
 	m_mech_fix_nodes.insert(nodes.begin(), nodes.end());
+	m_mech_fix_cache_valid = false;
 }
 
-void fe_tool::clear_mechanics_fixed_nodes() { m_mech_fix_nodes.clear(); }
+void fe_tool::set_mechanics_fixed_x_nodes(const std::vector<unsigned int> &nodes) {
+	m_mech_fix_x_nodes.clear();
+	m_mech_fix_x_nodes.insert(nodes.begin(), nodes.end());
+	m_mech_fix_cache_valid = false;
+}
+
+void fe_tool::set_mechanics_fixed_y_nodes(const std::vector<unsigned int> &nodes) {
+	m_mech_fix_y_nodes.clear();
+	m_mech_fix_y_nodes.insert(nodes.begin(), nodes.end());
+	m_mech_fix_cache_valid = false;
+}
+
+void fe_tool::clear_mechanics_fixed_nodes() {
+	m_mech_fix_nodes.clear();
+	m_mech_fix_x_nodes.clear();
+	m_mech_fix_y_nodes.clear();
+	m_mech_fix_cache_valid = false;
+}
+
+void fe_tool::ensure_mech_fix_cache() const {
+	if (m_mech_fix_cache_valid) return;
+
+	m_mech_fix_cache_x_nodes.clear();
+	m_mech_fix_cache_y_nodes.clear();
+
+	for (unsigned int n : m_mech_fix_nodes) {
+		m_mech_fix_cache_x_nodes.insert(n);
+		m_mech_fix_cache_y_nodes.insert(n);
+	}
+	for (unsigned int n : m_mech_fix_x_nodes) {
+		m_mech_fix_cache_x_nodes.insert(n);
+	}
+	for (unsigned int n : m_mech_fix_y_nodes) {
+		m_mech_fix_cache_y_nodes.insert(n);
+	}
+
+	if (!m_bnd.empty()) {
+		for (const boundary_edge &e : m_bnd) {
+			bool fix_xy = (!m_mech_fix_tags.empty() && m_mech_fix_tags.find(e.physical_tag) != m_mech_fix_tags.end());
+			bool fix_x = (!m_mech_fix_x_tags.empty() && m_mech_fix_x_tags.find(e.physical_tag) != m_mech_fix_x_tags.end());
+			bool fix_y = (!m_mech_fix_y_tags.empty() && m_mech_fix_y_tags.find(e.physical_tag) != m_mech_fix_y_tags.end());
+			if (!(fix_xy || fix_x || fix_y)) continue;
+			if (fix_xy || fix_x) {
+				m_mech_fix_cache_x_nodes.insert(e.n0);
+				m_mech_fix_cache_x_nodes.insert(e.n1);
+			}
+			if (fix_xy || fix_y) {
+				m_mech_fix_cache_y_nodes.insert(e.n0);
+				m_mech_fix_cache_y_nodes.insert(e.n1);
+			}
+		}
+	}
+
+	m_mech_fix_cache_valid = true;
+}
+
+bool fe_tool::is_mechanics_fixed_x(unsigned int node) const {
+	ensure_mech_fix_cache();
+	return m_mech_fix_cache_x_nodes.find(node) != m_mech_fix_cache_x_nodes.end();
+}
+
+bool fe_tool::is_mechanics_fixed_y(unsigned int node) const {
+	ensure_mech_fix_cache();
+	return m_mech_fix_cache_y_nodes.find(node) != m_mech_fix_cache_y_nodes.end();
+}
 
 void fe_tool::set_initial_temperature(double T0) {
 	for (std::size_t i = 0; i < m_T.size(); i++) m_T[i] = T0;
@@ -275,6 +358,80 @@ glm::dvec2 fe_tool::get_pos() const { return m_pos; }
 glm::dvec2 fe_tool::get_vel() const { return m_vel; }
 
 void fe_tool::update_pose(double dt) { m_pos += dt * m_vel; }
+
+double fe_tool::thermal_dt_crit() const {
+	if (m_T.empty()) return std::numeric_limits<double>::infinity();
+	if (m_capacity.size() != m_T.size()) return std::numeric_limits<double>::infinity();
+	if (m_K_rows.size() != m_T.size()) return std::numeric_limits<double>::infinity();
+
+	std::vector<char> is_fixed(m_T.size(), 0);
+	if (!m_bnd.empty() && !m_dirichlet_by_tag.empty()) {
+		for (const boundary_edge &e : m_bnd) {
+			if (m_dirichlet_by_tag.find(e.physical_tag) == m_dirichlet_by_tag.end()) continue;
+			if (e.n0 < is_fixed.size()) is_fixed[e.n0] = 1;
+			if (e.n1 < is_fixed.size()) is_fixed[e.n1] = 1;
+		}
+	}
+
+	std::vector<double> row_sum_abs(m_T.size(), 0.0);
+	for (std::size_t i = 0; i < m_K_rows.size(); i++) {
+		double s = 0.0;
+		for (const auto &kv : m_K_rows[i]) {
+			double w = kv.second;
+			if (!std::isfinite(w)) continue;
+			s += std::abs(w);
+		}
+		row_sum_abs[i] = s;
+	}
+
+	if (!m_bnd.empty()) {
+		for (const boundary_edge &e : m_bnd) {
+			convection_bc bc;
+			bool active = false;
+
+			auto it = m_conv_by_tag.find(e.physical_tag);
+			if (it != m_conv_by_tag.end()) {
+				bc = it->second;
+				active = bc.h > 0.;
+			} else if (m_use_air_all) {
+				bc = m_air_all;
+				active = bc.h > 0.;
+			} else if (m_use_flooded_by_y) {
+				glm::dvec2 p0 = to_world_frame(m_nodes_tool[e.n0]);
+				glm::dvec2 p1 = to_world_frame(m_nodes_tool[e.n1]);
+				double ym = 0.5 * (p0.y + p1.y);
+				bc = (ym >= m_flood_y_threshold_world) ? m_flood_water : m_flood_air;
+				active = bc.h > 0.;
+			}
+
+			if (!active) continue;
+
+			glm::dvec2 x0 = m_nodes_tool[e.n0];
+			glm::dvec2 x1 = m_nodes_tool[e.n1];
+			double L = glm::length(x1 - x0);
+			if (!(L > 0.0) || !std::isfinite(L)) continue;
+
+			double k_diag = bc.h * L / 3.0;
+			double k_off = bc.h * L / 6.0;
+			if (!std::isfinite(k_diag) || !std::isfinite(k_off)) continue;
+			if (e.n0 < row_sum_abs.size()) row_sum_abs[e.n0] += std::abs(k_diag) + std::abs(k_off);
+			if (e.n1 < row_sum_abs.size()) row_sum_abs[e.n1] += std::abs(k_diag) + std::abs(k_off);
+		}
+	}
+
+	double dt_min = std::numeric_limits<double>::infinity();
+	for (std::size_t i = 0; i < row_sum_abs.size(); i++) {
+		if (is_fixed[i]) continue;
+		double cap = m_capacity[i];
+		if (!(cap > 0.0) || !std::isfinite(cap)) continue;
+		double s = row_sum_abs[i];
+		if (!std::isfinite(s) || s <= 0.0) continue;
+		double dt_i = 2.0 * cap / s;
+		if (std::isfinite(dt_i) && dt_i > 0.0) dt_min = std::min(dt_min, dt_i);
+	}
+	if (!std::isfinite(dt_min)) return std::numeric_limits<double>::infinity();
+	return 0.9 * dt_min;
+}
 
 glm::dvec2 fe_tool::to_tool_frame(glm::dvec2 x_world) const { return x_world - m_pos; }
 glm::dvec2 fe_tool::to_world_frame(glm::dvec2 x_tool) const { return x_tool + m_pos; }
@@ -1045,20 +1202,15 @@ void fe_tool::build_mechanics_operator_from_temperature() {
 
 void fe_tool::build_mech_constrained(std::vector<char> &constrained) const {
 	constrained.assign(2 * m_nodes_tool.size(), 0);
-	if ((m_mech_fix_tags.empty() && m_mech_fix_nodes.empty()) || m_bnd.empty()) return;
-	for (const boundary_edge &e : m_bnd) {
-		bool fix = false;
-		if (!m_mech_fix_tags.empty() && m_mech_fix_tags.find(e.physical_tag) != m_mech_fix_tags.end()) fix = true;
-		if (!fix && !m_mech_fix_nodes.empty() && (m_mech_fix_nodes.find(e.n0) != m_mech_fix_nodes.end() || m_mech_fix_nodes.find(e.n1) != m_mech_fix_nodes.end())) fix = true;
-		if (!fix) continue;
-		if (e.n0 < m_nodes_tool.size()) {
-			constrained[2 * e.n0 + 0] = 1;
-			constrained[2 * e.n0 + 1] = 1;
-		}
-		if (e.n1 < m_nodes_tool.size()) {
-			constrained[2 * e.n1 + 0] = 1;
-			constrained[2 * e.n1 + 1] = 1;
-		}
+	if (m_mech_fix_tags.empty() && m_mech_fix_nodes.empty() && m_mech_fix_x_tags.empty() && m_mech_fix_y_tags.empty() && m_mech_fix_x_nodes.empty() && m_mech_fix_y_nodes.empty()) return;
+
+	ensure_mech_fix_cache();
+
+	for (unsigned int n : m_mech_fix_cache_x_nodes) {
+		if (n < m_nodes_tool.size()) constrained[2 * n + 0] = 1;
+	}
+	for (unsigned int n : m_mech_fix_cache_y_nodes) {
+		if (n < m_nodes_tool.size()) constrained[2 * n + 1] = 1;
 	}
 }
 

@@ -104,9 +104,42 @@ public:
 	void set_reference_temperature(double T_ref);
 	double reference_temperature() const;
 	void set_mechanics_fixed_on_physical(int physical_tag);
+	/**
+	 * @brief Constrain the X displacement DOF (UX) of all boundary nodes that belong to a given physical tag.
+	 * @param physical_tag Gmsh physical tag of boundary line elements.
+	 */
+	void set_mechanics_fixed_x_on_physical(int physical_tag);
+	/**
+	 * @brief Constrain the Y displacement DOF (UY) of all boundary nodes that belong to a given physical tag.
+	 * @param physical_tag Gmsh physical tag of boundary line elements.
+	 */
+	void set_mechanics_fixed_y_on_physical(int physical_tag);
 	void clear_mechanics_fixed();
 	void set_mechanics_fixed_nodes(const std::vector<unsigned int> &nodes);
+	/**
+	 * @brief Constrain the X displacement DOF (UX) for an explicit list of node indices (0-based).
+	 * @param nodes Node indices in the tool mesh (0-based).
+	 */
+	void set_mechanics_fixed_x_nodes(const std::vector<unsigned int> &nodes);
+	/**
+	 * @brief Constrain the Y displacement DOF (UY) for an explicit list of node indices (0-based).
+	 * @param nodes Node indices in the tool mesh (0-based).
+	 */
+	void set_mechanics_fixed_y_nodes(const std::vector<unsigned int> &nodes);
 	void clear_mechanics_fixed_nodes();
+
+	/**
+	 * @brief Query whether a node has its X displacement DOF (UX) constrained by the current mechanics constraints.
+	 * @param node Node index in the tool mesh (0-based).
+	 * @return true if UX is fixed, otherwise false.
+	 */
+	bool is_mechanics_fixed_x(unsigned int node) const;
+	/**
+	 * @brief Query whether a node has its Y displacement DOF (UY) constrained by the current mechanics constraints.
+	 * @param node Node index in the tool mesh (0-based).
+	 * @return true if UY is fixed, otherwise false.
+	 */
+	bool is_mechanics_fixed_y(unsigned int node) const;
 
 	void set_initial_temperature(double T0);
 
@@ -179,6 +212,9 @@ public:
 	contact_energy_balance get_contact_energy_balance() const;
 
 	fe_tool();
+	virtual ~fe_tool() = default;
+
+	double thermal_dt_crit() const;
 
 private:
 	struct edge_key {
@@ -202,6 +238,7 @@ private:
 	void build_mechanics_operator_from_temperature();
 	void apply_dirichlet_bc(std::vector<char> &is_fixed);
 	void build_mech_constrained(std::vector<char> &constrained) const;
+	void ensure_mech_fix_cache() const;
 	void add_thermoelastic_rhs(std::vector<double> &rhs) const;
 	void matvec_mechanics(const std::vector<char> &constrained, const std::vector<double> &x, std::vector<double> &y) const;
 	void ensure_mechanics_lumped_mass();
@@ -262,6 +299,13 @@ private:
 	std::vector<std::vector<std::pair<unsigned int, double>>> m_Km_rows;
 	std::unordered_set<int> m_mech_fix_tags;
 	std::unordered_set<unsigned int> m_mech_fix_nodes;
+	std::unordered_set<int> m_mech_fix_x_tags;
+	std::unordered_set<int> m_mech_fix_y_tags;
+	std::unordered_set<unsigned int> m_mech_fix_x_nodes;
+	std::unordered_set<unsigned int> m_mech_fix_y_nodes;
+	mutable bool m_mech_fix_cache_valid = false;
+	mutable std::unordered_set<unsigned int> m_mech_fix_cache_x_nodes;
+	mutable std::unordered_set<unsigned int> m_mech_fix_cache_y_nodes;
 	std::vector<unsigned int> m_boundary_loop;
 	contact_convergence m_contact_conv;
 	contact_energy_balance m_contact_energy;

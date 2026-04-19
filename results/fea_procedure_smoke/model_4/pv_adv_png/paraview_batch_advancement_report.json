@@ -1,0 +1,16 @@
+{
+  "errors": [
+    "invalid association string 'NONE'"
+  ],
+  "inputs": {
+    "fe_vtk_pattern": "results\\\\fea_procedure_smoke\\model_4\\fe_tool_%06d.vtk",
+    "field": "displacement",
+    "steps": "0,1,2",
+    "wp_vtk_pattern": "results\\\\fea_procedure_smoke\\model_4\\out_%06d.vtk"
+  },
+  "outputs": [
+    "results\\\\fea_procedure_smoke\\model_4\\pv_adv_png\\adv_displacement_000000.png"
+  ],
+  "status": "failed",
+  "timestamp": "2026-04-19T09:29:21.619088+00:00"
+}
