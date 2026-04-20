@@ -1,6 +1,0 @@
-2026-04-19 11:08:38,547 INFO fe_vtk: .\results\fe_bc_validate\model_4\fe_tool_000000.vtk
-2026-04-19 11:08:38,547 INFO top_csv: .\results\fe_bc_validate\model_4\fe_bc_top_edge.csv
-2026-04-19 11:08:38,547 INFO rear_csv: .\results\fe_bc_validate\model_4\fe_bc_rear_edge.csv
-2026-04-19 11:08:41,089 INFO writing .\results\fe_bc_validate\model_4\pv_png_batch\edge_nodes.png
-2026-04-19 11:08:41,722 INFO writing .\results\fe_bc_validate\model_4\pv_png_batch\velocity_glyphs.png
-2026-04-19 11:08:42,119 INFO success

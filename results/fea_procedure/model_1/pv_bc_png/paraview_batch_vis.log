@@ -1,6 +1,0 @@
-2026-04-19 12:07:40,650 INFO fe_vtk: results\fea_procedure\model_1\fe_tool_000000.vtk
-2026-04-19 12:07:40,650 INFO top_csv: results\fea_procedure\model_1\fe_bc_top_edge.csv
-2026-04-19 12:07:40,650 INFO rear_csv: results\fea_procedure\model_1\fe_bc_rear_edge.csv
-2026-04-19 12:07:43,125 INFO writing results\fea_procedure\model_1\pv_bc_png\edge_nodes.png
-2026-04-19 12:07:43,769 INFO writing results\fea_procedure\model_1\pv_bc_png\velocity_glyphs.png
-2026-04-19 12:07:44,133 INFO success

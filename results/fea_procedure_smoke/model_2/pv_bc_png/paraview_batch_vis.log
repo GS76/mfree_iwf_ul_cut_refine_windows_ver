@@ -1,6 +1,0 @@
-2026-04-19 11:28:47,503 INFO fe_vtk: results\\fea_procedure_smoke\model_2\fe_tool_000000.vtk
-2026-04-19 11:28:47,503 INFO top_csv: results\\fea_procedure_smoke\model_2\fe_bc_top_edge.csv
-2026-04-19 11:28:47,503 INFO rear_csv: results\\fea_procedure_smoke\model_2\fe_bc_rear_edge.csv
-2026-04-19 11:28:50,129 INFO writing results\\fea_procedure_smoke\model_2\pv_bc_png\edge_nodes.png
-2026-04-19 11:28:50,843 INFO writing results\\fea_procedure_smoke\model_2\pv_bc_png\velocity_glyphs.png
-2026-04-19 11:28:51,239 INFO success

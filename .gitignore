@@ -1,2 +1,8 @@
-build/**/*.exe
-results/**/*.vtk
+build/
+build*/
+cmake-build*/
+out/
+.vs/
+.vscode/ipch/
+**/*.exe
+results/**
