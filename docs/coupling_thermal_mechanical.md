@@ -12,12 +12,12 @@ Per step (simplified), the order is:
 2. SPH predictor (`init`, `predict`)
 3. Reset SPH derivatives (per-particle `reset`)
 4. Contact + coupling (`body.apply_contact`)
-5. (Optional) FE tool explicit mechanics update (`body.advance_fe_tool_mechanics_explicit`)  
+5. (Optional) FE tool explicit mechanics update (`body.advance_fe_tool_mechanics_explicit`)
    - This is a no-op when explicit coupled mode is active.
 6. Tool kinematic update (`body.move_tool`)
 7. SPH mechanical derivatives (EOS, stress, momentum, etc.)
 8. SPH thermal conduction (`body.apply_thermal_conduction`)
-9. (Optional) FE tool thermal update (`body.advance_fe_tool_thermal`)  
+9. (Optional) FE tool thermal update (`body.advance_fe_tool_thermal`)
    - This is a no-op when explicit coupled mode is active.
 10. SPH corrector (`correct`)
 11. Plasticity, BCs, adaptivity
@@ -65,16 +65,16 @@ Code references:
 
 Two mechanics solvers exist:
 
-- **Explicit mechanics** (`advance_mechanics_explicit(dt)`): lumped-mass explicit update with optional Rayleigh damping.  
+- **Explicit mechanics** (`advance_mechanics_explicit(dt)`): lumped-mass explicit update with optional Rayleigh damping.
   Code reference: [fe_tool::advance_mechanics_explicit](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/fe_tool.cpp#L1237-L1353)
-- **Quasi-static mechanics** (`solve_mechanics_quasistatic(...)`): iterative solve to equilibrium under applied nodal forces.  
+- **Quasi-static mechanics** (`solve_mechanics_quasistatic(...)`): iterative solve to equilibrium under applied nodal forces.
   Code reference: [fe_tool::solve_mechanics_quasistatic](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/fe_tool.cpp#L1355)
 
 In deformable-tool mode, `body.apply_contact()` selects:
 
-- **Explicit coupled mode**: advances FE mechanics in substeps inside the contact/coupling loop.  
+- **Explicit coupled mode**: advances FE mechanics in substeps inside the contact/coupling loop.
   Code reference: [body.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/body.cpp#L234-L307)
-- **Quasi-static coupled mode**: advances FE mechanics each iteration via `solve_mechanics_quasistatic`, optionally relaxes displacements, and checks convergence based on nodal force/power changes.  
+- **Quasi-static coupled mode**: advances FE mechanics each iteration via `solve_mechanics_quasistatic`, optionally relaxes displacements, and checks convergence based on nodal force/power changes.
   Code reference: [body.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/body.cpp#L309-L399)
 
 ## Thermal Coupling Details
@@ -188,4 +188,3 @@ Code reference: [body.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/bo
 | `MFREE_DEFORMABLE_TOOL_EXPLICIT_MAX_SUBSTEPS` | Caps substeps when auto-computed from `mechanics_dt_crit()`. |
 | `MFREE_FE_TOOL_RAYLEIGH_A0`, `MFREE_FE_TOOL_RAYLEIGH_A1` | Rayleigh damping in FE explicit mechanics. |
 | `MFREE_THERMAL_*` | Interfacial thermal coupling coefficients and friction heat split (see table above). |
-

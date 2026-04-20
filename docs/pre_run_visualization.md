@@ -141,8 +141,8 @@ To generate PNGs for models 1–4 in one go:
 
 This procedure runs:
 
-1) preprocess-only BC validation (exports node sets + checks 25 C Dirichlet on top/rear tags),  
-2) FE-only deformable explicit coupled cutting run,  
+1) preprocess-only BC validation (exports node sets + checks 25 C Dirichlet on top/rear tags)
+2) FE-only deformable explicit coupled cutting run
 3) optional ParaView PNG generation (BC overlays + deformation progression).
 
 ```powershell

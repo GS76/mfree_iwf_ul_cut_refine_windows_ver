@@ -23,35 +23,35 @@ Nothing in this document is implemented by itself; it is a design blueprint to i
 
 ### 2.2 Proposed Environment Variables
 
-- `MFREE_DT_ADAPTIVE=0/1`  
+- `MFREE_DT_ADAPTIVE=0/1`
   Default `0` keeps fixed dt behavior.
 
-- `MFREE_DT_SAFETY=0.9`  
+- `MFREE_DT_SAFETY=0.9`
   A global multiplier applied to the minimum of all dt limits.
 
-- `MFREE_DT_MIN` (seconds)  
+- `MFREE_DT_MIN` (seconds)
   Hard floor to prevent dt collapse (optional; if not set, no floor).
 
-- `MFREE_DT_MAX` (seconds)  
+- `MFREE_DT_MAX` (seconds)
   Hard cap (optional).
 
 **SPH mechanics limiter**
-- `MFREE_DT_CFL=0.25`  
+- `MFREE_DT_CFL=0.25`
   CFL coefficient for SPH (definition depends on how you compute it; typical form `dt <= CFL * h / (c0 + |v|)`).
 
 **Contact limiter (optional)**
-- `MFREE_DT_CONTACT_ENABLE=0/1` (default `0`)  
+- `MFREE_DT_CONTACT_ENABLE=0/1` (default `0`)
   Enables a contact-specific limiter based on penalty stiffness or observed penetration/impulse.
 - `MFREE_DT_CONTACT_SAFETY=0.9`
 
 **Thermal limiter (optional)**
-- `MFREE_DT_THERMAL_ENABLE=0/1` (default `0`)  
+- `MFREE_DT_THERMAL_ENABLE=0/1` (default `0`)
   Enables an explicit thermal stability limiter for the FE tool and/or SPH thermal conduction.
 - `MFREE_DT_THERMAL_SAFETY=0.5`
 
 ### 2.3 Where to Slot It
 
-**Primary slot:** `simulation_time`  
+**Primary slot:** `simulation_time`
 - Add a method like `update_dt(body&)` that computes dt limits and calls `set_dt(new_dt)` internally when adaptive mode is enabled.
 
 **Call site options:**
@@ -79,17 +79,17 @@ Nothing in this document is implemented by itself; it is a design blueprint to i
 ### 3.2 Proposed Environment Variables
 
 - `MFREE_FE_TOOL_MASS_SCALING_ENABLE=0/1` (default `0`)
-- `MFREE_FE_TOOL_MASS_SCALING_MAX_FRAC=0.05`  
+- `MFREE_FE_TOOL_MASS_SCALING_MAX_FRAC=0.05`
   Maximum allowed added mass fraction relative to original lumped mass.
-- `MFREE_FE_TOOL_DT_TARGET` (seconds, optional)  
+- `MFREE_FE_TOOL_DT_TARGET` (seconds, optional)
   If set, scale mass so that `0.9*dtcrit >= dt_target` if possible within the max mass fraction.
 - `MFREE_FE_TOOL_MASS_SCALING_MODE=dt_target|substeps_target` (default `dt_target`)
-- `MFREE_FE_TOOL_SUBSTEPS_TARGET` (optional)  
+- `MFREE_FE_TOOL_SUBSTEPS_TARGET` (optional)
   Alternative target: choose mass scaling to keep FE substeps ≤ this number for the current global dt.
 
 ### 3.3 Where to Slot It
 
-**Primary slot:** FE tool mechanical mass assembly  
+**Primary slot:** FE tool mechanical mass assembly
 - Implement scaling inside [fe_tool::ensure_mechanics_lumped_mass](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/fe_tool.cpp#L1143-L1174) immediately after computing the baseline lumped mass vector.
 
 **Control logic input:**
@@ -146,4 +146,3 @@ Clamp the scaling so that added mass fraction ≤ `MFREE_FE_TOOL_MASS_SCALING_MA
 1) Add global adaptive dt plumbing in `simulation_time` behind `MFREE_DT_ADAPTIVE=1`.
 2) Add FE tool mass scaling in `fe_tool::ensure_mechanics_lumped_mass` behind `MFREE_FE_TOOL_MASS_SCALING_ENABLE=1`.
 3) Add FE thermal subcycling option (least invasive multi-rate extension).
-
