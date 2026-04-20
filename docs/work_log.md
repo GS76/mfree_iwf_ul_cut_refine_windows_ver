@@ -24,6 +24,17 @@
       - CI/CD gates overview (GitHub Actions quality workflow and local reproduction)
       - release tagging conventions (release tags vs milestone/baseline tags)
       - embedded table-of-contents and a “how to update this doc” roadmap (requirements → drafting → VC workflow → validation → publication)
+  - Completed (CI incident response / debugging workflow)
+    - Identified failing GitHub Actions runs (quality workflow) for commits 277838a / 78a9dbc / c6f6ed6.
+    - Root cause: CI was enforcing a repo-wide `clang-format` sweep, which failed due to formatting drift and vendored third-party sources (notably `Meshing/gmsh-*/**`).
+    - Implemented fix: update CI to compute a changed-file list and run formatting gates only on changed files; updated local scripts to accept `--file-list`.
+    - Established a repeatable incident protocol:
+      - authenticate to GitHub and download workflow logs via GitHub CLI
+      - extract per-run / per-file failure mappings into structured artifacts
+    - Delivered structured CI failure reports:
+      - `docs/ci_failure_report_runs_1_3.md` (summary counts and run links)
+      - `docs/ci_failure_report_runs_1_3.csv` (full run → step → file → timestamp → error mapping)
+      - `scripts/extract_ci_failures.py` (log parser; handles UTF-16 log encoding)
   - Completed (solver/analysis visibility improvements)
     - Added env parsing to accept tag lists for FE tool boundary fix constraints (comma/semicolon/whitespace-separated); optional anchoring of a single UX node on an anchor physical tag to prevent rigid-mode singularity.
     - Added VTK scalar outputs for FE tool nodes: `fixed_ux` and `fixed_uy` to make boundary conditions visible in ParaView.
@@ -34,7 +45,10 @@
     - Link-target verification for `docs/development_workflow.md` passed (relative links).
   - Current state
     - Working tree clean.
-    - Branch `1-thermal-mechanical-solver-fea-tool-and-sph-workpiece-should-be-coupled` pushed with linear commit history; latest includes the expanded dev workflow doc.
+    - Branch `1-thermal-mechanical-solver-fea-tool-and-sph-workpiece-should-be-coupled` pushed with linear commit history; latest includes:
+      - CI gating fix (changed-files formatting checks)
+      - CI incident playbook and lessons learned in `docs/development_workflow.md`
+      - CI failure reports and extraction tooling
   - Ongoing work
     - Open a PR into `main` for the branch and ensure GitHub Actions checks run and pass on the PR.
     - Confirm (or configure) branch protection on `main` to require:
@@ -45,3 +59,6 @@
     - After merge, create an annotated release tag on `main` using the documented convention (`release-<YYYYMMDD>-v<N>`).
     - Announce the workflow changes in team chat with a short summary of new gates and the “how to run locally” commands.
     - Schedule a 30-day follow-up review (issue or calendar) to adjust the workflow doc based on real friction points (clang-format availability on Windows, markdownlint adoption, required checks coverage).
+    - Decide whether to keep `Meshing/gmsh-*/**` in formatting scope long-term:
+      - Option A: treat as vendored and exclude from formatting enforcement
+      - Option B: run a one-time “format-the-world” PR and then enable full-repo enforcement
