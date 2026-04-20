@@ -19,17 +19,17 @@
 	ProcessorCacheSize="-1"
 	NumberOfLogicalCPU="12"
 	NumberOfPhysicalCPU="6"
-	TotalVirtualMemory="21653"
+	TotalVirtualMemory="20373"
 	TotalPhysicalMemory="16021"
 	LogicalProcessorsPerPhysical="2"
 	ProcessorClockFrequency="2688"
 	>
 	<Testing>
-		<StartDateTime>Apr 19 22:17 South Africa Standard Time</StartDateTime>
-		<StartTestTime>1776629845</StartTestTime>
+		<StartDateTime>Apr 20 18:25 South Africa Standard Time</StartDateTime>
+		<StartTestTime>1776702312</StartTestTime>
 		<TestList/>
-		<EndDateTime>Apr 19 22:17 South Africa Standard Time</EndDateTime>
-		<EndTestTime>1776629845</EndTestTime>
+		<EndDateTime>Apr 20 18:25 South Africa Standard Time</EndDateTime>
+		<EndTestTime>1776702312</EndTestTime>
 		<ElapsedMinutes>0</ElapsedMinutes>
 	</Testing>
 </Site>
