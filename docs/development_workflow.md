@@ -9,6 +9,7 @@ This document defines a repeatable workflow for developing, reviewing, and relea
 - [Code Review Checklist](#code-review-checklist)
 - [Local Build and Test Gates](#local-build-and-test-gates)
 - [CI/CD Gates](#cicd-gates)
+  - [CI Incident Playbook (Quality Workflow)](#ci-incident-playbook-quality-workflow)
 - [One-Time Repo Hygiene](#one-time-repo-hygiene)
 - [Mandatory Milestone Checkpoint Protocol](#mandatory-milestone-checkpoint-protocol)
 - [Release Tagging Conventions](#release-tagging-conventions)
@@ -16,6 +17,7 @@ This document defines a repeatable workflow for developing, reviewing, and relea
 - [Formatter / Auto-Format Policy](#formatter--auto-format-policy)
 - [Git Hooks](#git-hooks)
 - [Updating This Document](#updating-this-document)
+  - [Lessons Learned](#lessons-learned)
 
 ## Canonical Working Directory
 
@@ -125,11 +127,20 @@ This repo uses GitHub Actions for automated checks.
 Workflow: `.github/workflows/quality.yml`
 
 - Runs a basic `.editorconfig`-style gate and a `clang-format` gate.
+- The gate is enforced on the set of files changed by the push/PR (not the entire repository) to avoid unrelated legacy formatting issues blocking unrelated work.
 - If you need to reproduce it locally:
 
 ```powershell
 python scripts/check_editorconfig_basic.py
 python scripts/check_clang_format.py
+```
+
+If you want to mirror CI behavior (changed files only), first build a file list (one path per line), then pass it to the scripts:
+
+```powershell
+git diff --name-only HEAD~1..HEAD > changed_files.txt
+python scripts/check_editorconfig_basic.py --file-list changed_files.txt
+python scripts/check_clang_format.py --file-list changed_files.txt
 ```
 
 ### Optional Local Pre-Commit Test Gate
@@ -139,6 +150,69 @@ If hooks are installed and you want tests to run automatically during commit:
 ```powershell
 $env:MFREE_PRECOMMIT_RUN_TESTS = "1"
 ```
+
+### CI Incident Playbook (Quality Workflow)
+
+This section documents a previously observed failure mode and the current recommended debugging procedure.
+
+#### Known Issue: Full-Repo clang-format Failures
+
+Symptom:
+- The `quality` workflow fails on commits that do not touch C/C++ formatting (for example, docs-only changes).
+
+Root cause:
+- A repo-wide `clang-format` sweep was executed in CI, which caused failures due to existing formatting drift and bundled third-party code (for example, Gmsh SDK sources under `Meshing/gmsh-*/**`).
+
+Implemented solution:
+- The CI workflow computes a changed-file list and runs gates against that list only.
+- The local check scripts accept `--file-list` so CI and local reproduction use the same file selection.
+
+Evidence and postmortem:
+- A per-run, per-file mapping for the original failing runs is stored in:
+  - `docs/ci_failure_report_runs_1_3.md`
+  - `docs/ci_failure_report_runs_1_3.csv`
+- The extraction helper used to generate those reports is `scripts/extract_ci_failures.py`.
+
+#### Debugging Procedure: Extract Failing Files from Actions Logs
+
+Prerequisites:
+- GitHub account access to the repository
+- GitHub CLI (`gh`) authenticated with `workflow` scope
+
+1) Authenticate:
+
+```powershell
+& \"C:\\Program Files\\GitHub CLI\\gh.exe\" auth login --hostname github.com --git-protocol https --web
+& \"C:\\Program Files\\GitHub CLI\\gh.exe\" auth status
+```
+
+2) List runs for the `quality` workflow:
+
+```powershell
+& \"C:\\Program Files\\GitHub CLI\\gh.exe\" run list --repo GS76/mfree_iwf_ul_cut_refine_windows_ver --workflow quality --limit 20
+```
+
+3) Download logs for the run IDs you care about:
+
+```powershell
+$runIds = @(24688328553,24684121470,24683852166)
+foreach ($id in $runIds) {
+  & \"C:\\Program Files\\GitHub CLI\\gh.exe\" run view $id --repo GS76/mfree_iwf_ul_cut_refine_windows_ver --log > \"ci_run_$id.log\"
+}
+```
+
+PowerShell note:
+- Do not use placeholders like `<RUN_ID>` in commands. The `<` character is parsed as an operator in PowerShell. Use real numeric IDs or variables as shown above.
+
+4) Generate a structured failure report (CSV + summary Markdown) from the downloaded logs:
+
+```powershell
+& \"C:\\Program Files\\GitHub CLI\\gh.exe\" run list --repo GS76/mfree_iwf_ul_cut_refine_windows_ver --workflow quality --limit 10 --json databaseId,displayTitle,headSha,conclusion,createdAt,url,event | Out-File runs_quality.json -Encoding utf8
+python scripts/extract_ci_failures.py --runs-json runs_quality.json --log-dir .
+```
+
+Implementation note:
+- Some `gh run view --log` outputs may be UTF-16 encoded on Windows; the extraction script detects and decodes this automatically.
 
 ## One-Time Repo Hygiene
 
@@ -369,3 +443,10 @@ cd mfree_clean
    - highlight any new required gates or policy changes
 4) Schedule a follow-up review in 30 days:
    - add a calendar reminder or create an issue titled: `docs: review development workflow`
+
+### Lessons Learned
+
+- Incremental enforcement beats “format-the-world” gates: repository-wide formatting checks can cause unrelated work to fail due to historical drift or vendored third-party sources.
+- CI and local reproduction must align: scripts and workflows should share the same file selection behavior (changed-file list), so failures can be reproduced deterministically.
+- Prefer structured incident artifacts: saving a per-run/per-file CSV makes future root-cause analysis faster than re-reading raw logs.
+- PowerShell ergonomics matter: avoid placeholder syntax that conflicts with PowerShell parsing rules; prefer variables and arrays.
