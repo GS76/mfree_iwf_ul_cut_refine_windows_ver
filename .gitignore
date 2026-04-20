@@ -4,5 +4,7 @@ cmake-build*/
 out/
 .vs/
 .vscode/ipch/
+.vscode/settings.json
 **/*.exe
 results/**
+s\ -File\ .scriptsgit_checkpoint.ps1*
