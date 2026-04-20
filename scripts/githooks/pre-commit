@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "pre-commit: not in a git work tree" >&2
+  exit 1
+fi
+
+if git diff --cached --quiet; then
+  echo "pre-commit: blocked (no staged changes)." >&2
+  echo "pre-commit: stage changes first (recommended: git add -p), then commit." >&2
+  exit 1
+fi
+
+if [ "${MFREE_PRECOMMIT_RUN_TESTS:-0}" = "1" ]; then
+  if [ -f "./build/CTestTestfile.cmake" ]; then
+    ctest -C Release --output-on-failure
+  else
+    echo "pre-commit: tests requested but ./build is not configured (missing build/CTestTestfile.cmake)" >&2
+    echo "pre-commit: run: cmake -S . -B build" >&2
+    exit 1
+  fi
+fi
+
+exit 0
+
