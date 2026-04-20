@@ -351,5 +351,19 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	}
 	fprintf(fp, "\n");
 
+	fprintf(fp, "SCALARS fixed_ux int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		fprintf(fp, "%d\n", tool->is_mechanics_fixed_x(static_cast<unsigned int>(i)) ? 1 : 0);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS fixed_uy int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
+		fprintf(fp, "%d\n", tool->is_mechanics_fixed_y(static_cast<unsigned int>(i)) ? 1 : 0);
+	}
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }
