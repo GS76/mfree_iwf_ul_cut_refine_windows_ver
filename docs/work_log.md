@@ -1,3 +1,47 @@
 # Work Log
 
-- YYYY-MM-DD: <file>: <what> <why>
+- 2026-04-20: repo hygiene + workflow docs: establish repeatable commit/PR/CI gates and document them so future work can continue without ambiguity
+  - Completed (repo policy / hygiene)
+    - Stopped tracking build/results artifacts and ensured they remain ignored (`build/`, `results/**`).
+    - Removed `.vscode/settings.json` from version control; added repo-wide example at `.vscode/settings.example.json`.
+    - Added `CONTRIBUTING.md` policy clarifying what belongs in Git (IDE config local by default; formatting configs versioned; scripts/docs committed when intentional).
+    - Added `.gitattributes` enforcing LF normalization (`* text=auto eol=lf`) to reduce CRLF/LF churn on Windows.
+    - Deleted an accidentally created file containing pager/help output and added an ignore pattern to prevent recurrence.
+  - Completed (formatting + automation gates)
+    - Added `.clang-format` and `.editorconfig` as versioned formatting policy.
+    - Added GitHub Actions workflow `.github/workflows/quality.yml` enforcing:
+      - basic EditorConfig-style checks (no CR, final newline, no trailing whitespace for tracked files)
+      - `clang-format` check against tracked C/C++ sources
+    - Added local/CI scripts:
+      - `scripts/check_editorconfig_basic.py` (reads files from git index; skips bundled gmsh SDK)
+      - `scripts/check_clang_format.py` (reads files from git index; fails cleanly when clang-format not on PATH)
+    - Normalized trailing whitespace / final newlines in tracked text assets so the basic EditorConfig gate is green.
+  - Completed (developer workflow documentation)
+    - Added and expanded `docs/development_workflow.md` with:
+      - branching strategy (branch types + naming)
+      - code review checklist (author + reviewer) with GitHub UI click-path
+      - local build/test gates (CMake + CTest commands)
+      - CI/CD gates overview (GitHub Actions quality workflow and local reproduction)
+      - release tagging conventions (release tags vs milestone/baseline tags)
+      - embedded table-of-contents and a “how to update this doc” roadmap (requirements → drafting → VC workflow → validation → publication)
+  - Completed (solver/analysis visibility improvements)
+    - Added env parsing to accept tag lists for FE tool boundary fix constraints (comma/semicolon/whitespace-separated); optional anchoring of a single UX node on an anchor physical tag to prevent rigid-mode singularity.
+    - Added VTK scalar outputs for FE tool nodes: `fixed_ux` and `fixed_uy` to make boundary conditions visible in ParaView.
+  - Validation performed
+    - `cmake --build build --config Release` succeeded.
+    - `ctest -C Release --test-dir build --output-on-failure` passed (5/5 tests).
+    - `python scripts/check_editorconfig_basic.py` passed.
+    - Link-target verification for `docs/development_workflow.md` passed (relative links).
+  - Current state
+    - Working tree clean.
+    - Branch `1-thermal-mechanical-solver-fea-tool-and-sph-workpiece-should-be-coupled` pushed with linear commit history; latest includes the expanded dev workflow doc.
+  - Ongoing work
+    - Open a PR into `main` for the branch and ensure GitHub Actions checks run and pass on the PR.
+    - Confirm (or configure) branch protection on `main` to require:
+      - at least 2 approvals
+      - required status checks (quality workflow) before merge
+  - Next steps (action items)
+    - Create PR and request two reviewers; include reproduction commands and note which commits are policy/docs vs solver changes.
+    - After merge, create an annotated release tag on `main` using the documented convention (`release-<YYYYMMDD>-v<N>`).
+    - Announce the workflow changes in team chat with a short summary of new gates and the “how to run locally” commands.
+    - Schedule a 30-day follow-up review (issue or calendar) to adjust the workflow doc based on real friction points (clang-format availability on Windows, markdownlint adoption, required checks coverage).
