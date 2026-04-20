@@ -1,12 +1,148 @@
 # Development Workflow (Git + Reproducible Runs)
 
+This document defines a repeatable workflow for developing, reviewing, and releasing changes in this repository, while keeping runs reproducible and diffs reviewable.
+
+## Table of Contents
+
+- [Canonical Working Directory](#canonical-working-directory)
+- [Branching Strategy](#branching-strategy)
+- [Code Review Checklist](#code-review-checklist)
+- [Local Build and Test Gates](#local-build-and-test-gates)
+- [CI/CD Gates](#cicd-gates)
+- [One-Time Repo Hygiene](#one-time-repo-hygiene)
+- [Mandatory Milestone Checkpoint Protocol](#mandatory-milestone-checkpoint-protocol)
+- [Release Tagging Conventions](#release-tagging-conventions)
+- [Versioned Results Convention](#versioned-results-convention)
+- [Formatter / Auto-Format Policy](#formatter--auto-format-policy)
+- [Git Hooks](#git-hooks)
+- [Updating This Document](#updating-this-document)
+
 ## Canonical Working Directory
 
 - Always run from the repository root.
 - Always invoke the executable via `.\build\Release\mfree_iwf.exe`.
 - Do not create or use secondary build folders (`build2`, `cmake-build-*`, etc.).
 
-## One-Time Repo Hygiene (Stop Tracking Build/Results Artifacts)
+## Branching Strategy
+
+### Branch Types
+
+- `main`: release-ready, protected.
+- `feature/*`: normal development branches.
+- `fix/*`: bug-fix branches (production-impacting or correctness fixes).
+- `docs/*`: documentation-only branches.
+- `chore/*`: maintenance, formatting-only, automation-only changes.
+
+### Branch Naming Rules
+
+- Use lowercase and hyphens.
+- Include a short scope: `feature/fe-tool-thermal-map`, `fix/contact-penetration-clamp`, `docs/dev-workflow-pr`.
+
+### Create a Feature Branch
+
+```powershell
+git fetch --prune
+git switch -c docs/development-workflow-update
+```
+
+## Code Review Checklist
+
+### Before Opening a PR (Author Checklist)
+
+- Verify `git status` is clean except for intended changes.
+- Review the diff locally:
+
+```powershell
+git diff
+git diff --stat
+```
+
+- Run local tests relevant to the change (see [Local Build and Test Gates](#local-build-and-test-gates)).
+- Split changes into atomic commits (docs/tooling vs solver changes).
+- Ensure no local-only files are being committed (example: `.vscode/settings.json` must remain local; see `CONTRIBUTING.md`).
+
+### PR Requirements (Reviewer Checklist)
+
+- Scope is clear and small enough to review.
+- Commit messages are descriptive and scoped.
+- Formatting-only changes are isolated to their own commit(s).
+- Tests are added or updated where appropriate.
+- Reproducibility: the PR description includes exact commands to reproduce or validate.
+
+### GitHub UI Procedure (Open and Review a PR)
+
+1) Push your branch:
+
+```powershell
+git push -u origin HEAD
+```
+
+2) In GitHub:
+   - Navigate to the repository page.
+   - Click the **Pull requests** tab.
+   - Click **New pull request**.
+   - Set base to `main` and compare to your branch.
+   - Click **Create pull request**.
+3) Require approvals:
+   - At least two reviewers approve before merge.
+   - Use **Request reviewers** in the PR sidebar.
+
+Branch protection (recommended, one-time):
+1) GitHub → **Settings** → **Branches**
+2) Add a branch protection rule for `main`
+3) Enable:
+   - **Require a pull request before merging**
+   - **Require approvals** (set to 2)
+   - **Dismiss stale approvals when new commits are pushed**
+   - **Require status checks to pass before merging**
+
+## Local Build and Test Gates
+
+### Configure (One Time Per Machine or After Major Changes)
+
+```powershell
+cmake -S . -B build
+```
+
+### Build (Release)
+
+```powershell
+cmake --build build --config Release
+```
+
+### Run Tests (Release)
+
+```powershell
+ctest -C Release --test-dir build --output-on-failure
+```
+
+## CI/CD Gates
+
+This repo uses GitHub Actions for automated checks.
+
+### Formatting Gate
+
+Workflow: `.github/workflows/quality.yml`
+
+- Runs a basic `.editorconfig`-style gate and a `clang-format` gate.
+- If you need to reproduce it locally:
+
+```powershell
+python scripts/check_editorconfig_basic.py
+python scripts/check_clang_format.py
+```
+
+### Optional Local Pre-Commit Test Gate
+
+If hooks are installed and you want tests to run automatically during commit:
+
+```powershell
+$env:MFREE_PRECOMMIT_RUN_TESTS = "1"
+```
+
+## One-Time Repo Hygiene
+
+### Stop Tracking Build/Results Artifacts
 
 If `git status` shows `build/` or `results/` files as modified/untracked, clean the index once:
 
@@ -20,19 +156,19 @@ git commit -m "repo: ignore build/results artifacts"
 
 Run this after any completed milestone (examples: FE BC validation verified, ParaView batch scripts verified, regression tests green).
 
-1) Enumerate changes
+1) Enumerate changes:
 
 ```powershell
 git status
 ```
 
-2) Review changes line-by-line
+2) Review changes line-by-line:
 
 ```powershell
 git diff
 ```
 
-3) Commit with a descriptive message
+3) Commit with a descriptive message:
 
 Option A (simple, all tracked changes):
 
@@ -53,29 +189,43 @@ git add -p
 git commit -m "<milestone>: <what> <why>"
 ```
 
-4) Tag the baseline so it is always recoverable
+4) Tag the baseline so it is always recoverable:
 
 ```powershell
-git tag <milestone>-<YYYYMMDD>-<vN>
+git tag <milestone>-<YYYYMMDD>-v<N>
+git push origin --tags
 ```
 
 Example:
 
 ```powershell
 git tag fe-bc-validate-20260420-v1
+git push origin --tags
 ```
 
-## Pre-Edit Checklist (Context Drift Prevention)
+## Release Tagging Conventions
 
-Before modifying code:
+Use lightweight, searchable tags that encode the date and a monotonic counter.
 
-- Re-open and skim:
-  - `src/fe_tool.cpp`
-  - `src/benchmarks/test_cuttings.cpp`
-  - `src/refine_cut_main.cpp`
-- Append one bullet to `docs/work_log.md` describing the intent (file + purpose).
+### Release Tags
 
-## Versioned Results Convention (No Overwrites)
+- `release-<YYYYMMDD>-v<N>` for repository releases.
+- Create an annotated tag from the merge commit on `main`:
+
+```powershell
+git switch main
+git pull --ff-only
+git tag -a release-20260420-v1 -m "release: 20260420 v1"
+git push origin --tags
+```
+
+### Milestone/Baseline Tags
+
+- Use milestone tags for experimental checkpoints that are not releases:
+  - `fe-bc-validate-<YYYYMMDD>-v<N>`
+  - `thermal-coupling-<YYYYMMDD>-v<N>`
+
+## Versioned Results Convention
 
 Every run writes into a timestamped folder:
 
@@ -91,28 +241,13 @@ Store together:
 
 Never reuse or overwrite an existing baseline directory.
 
-## Daily Checkpoint Routine
-
-```powershell
-git fetch --prune
-git status --short --branch
-git diff --stat
-```
-
-- Commit or stash within 30 minutes of any green test.
-- Push at end-of-day:
-
-```powershell
-git push origin <branch>
-```
-
 ## Formatter / Auto-Format Policy
 
 - Disable format-on-save for C++, PowerShell, and Python to prevent unreviewed rewrites.
 - Keep formatting changes in dedicated commits only.
 - Store formatter configuration in-repo (e.g., `.editorconfig`, `.clang-format`) and update via explicit milestone commits.
 
-## Git Hooks (Auto-Enforced Guards)
+## Git Hooks
 
 Git does not version `.git/hooks/*`, so this repo stores hook templates under `scripts/githooks/` and provides install scripts.
 
@@ -133,12 +268,104 @@ What is enforced:
 - `pre-commit`: blocks commits when there are no staged changes (prevents empty commits and untracked-only commits).
 - `commit-msg`: requires a subject containing `:` and a minimum length (allows `Merge ...` and `Revert ...`).
 
-Optional tests in hook:
-
-- Set `MFREE_PRECOMMIT_RUN_TESTS=1` to run `ctest -C Release --output-on-failure` inside `pre-commit`.
-
 Hook tests (creates a temp repo and confirms commits are blocked/allowed appropriately):
 
 ```powershell
 python .\scripts\test_githooks.py
 ```
+
+## Updating This Document
+
+This section defines the roadmap and procedure for changing `docs/development_workflow.md`.
+
+### 1) Requirements Gathering
+
+1) Interview stakeholders:
+   - Solver developers (SPH/FE coupling)
+   - CI/CD owner (GitHub Actions, build agents)
+   - Reviewers/maintainers (merge policy, releases)
+2) Audit current automation:
+   - Open `.github/workflows/quality.yml` and list every enforced gate.
+   - Confirm whether `main` has branch protection and required approvals.
+3) Identify outdated/missing content:
+   - Compare this document against `CONTRIBUTING.md`, `scripts/githooks/*`, and current workflows.
+   - Record gaps as a checklist in your PR description (or a tracking issue if large).
+
+### 2) Content Drafting
+
+Draft updates as actionable procedures:
+
+- Add missing sections (branching strategy, code review checklist, CI gates, release tags).
+- For each procedure, include:
+  - exact CLI commands, or
+  - explicit GitHub UI navigation and button names
+
+### 3) Version-Control Workflow (Docs Update)
+
+1) Create a branch:
+
+```powershell
+git fetch --prune
+git switch -c docs/development-workflow-update
+```
+
+2) Make atomic commits:
+
+```powershell
+git add docs/development_workflow.md
+git commit -m "docs: update development workflow (branching/review/release)"
+```
+
+3) Open a PR and require at least two approvals (see [Code Review Checklist](#code-review-checklist)).
+
+### 4) Validation
+
+Minimum required (repo-native):
+
+```powershell
+python scripts/check_editorconfig_basic.py
+```
+
+Optional markdown lint (if Node + npm are available):
+
+```powershell
+npm install -g markdownlint-cli2
+markdownlint-cli2 docs/development_workflow.md
+```
+
+Verify every markdown link target exists (relative links only):
+
+```powershell
+python -c "import os,re,sys; p='docs/development_workflow.md'; s=open(p,'r',encoding='utf-8').read(); ok=True; \
+ import pathlib; base=pathlib.Path(p).parent; \
+ for m in re.finditer(r'\\[[^\\]]*\\]\\(([^)]+)\\)', s): \
+  u=m.group(1).split('#',1)[0].strip(); \
+  if not u or '://' in u or u.startswith('mailto:'): continue; \
+  q=(base/u).resolve(); \
+  if not q.exists(): print('missing:',u); ok=False; \
+ sys.exit(0 if ok else 1)"
+```
+
+Dry-run every documented command in a clean environment:
+
+1) Create a fresh clone:
+
+```powershell
+cd $env:TEMP
+git clone <repo-url> mfree_clean
+cd mfree_clean
+```
+
+2) Run every CLI block in this document in order and confirm it succeeds.
+
+### 5) Publication
+
+1) Merge to `main` after:
+   - CI passes
+   - at least two approvals are recorded
+2) Tag the release (see [Release Tagging Conventions](#release-tagging-conventions)).
+3) Announce in team chat:
+   - link to the PR
+   - highlight any new required gates or policy changes
+4) Schedule a follow-up review in 30 days:
+   - add a calendar reminder or create an issue titled: `docs: review development workflow`
