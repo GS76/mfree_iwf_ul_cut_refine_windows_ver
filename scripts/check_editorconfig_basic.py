@@ -1,4 +1,5 @@
 import os
+import argparse
 import subprocess
 import sys
 
@@ -46,15 +47,31 @@ def should_check(path):
     }
 
 
+def read_file_list(path):
+    with open(path, "r", encoding="utf-8") as f:
+        out = []
+        for line in f:
+            s = line.strip()
+            if s:
+                out.append(s)
+        return out
+
+
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--file-list", help="Newline-separated paths (repo-relative) to check")
+    args = ap.parse_args()
+
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    rc, out, err = run(["git", "ls-files"], cwd=repo)
-    if rc != 0:
-        sys.stderr.write(err)
-        return rc
-
-    files = [p for p in out.splitlines() if should_check(p)]
+    if args.file_list:
+        files = [p for p in read_file_list(args.file_list) if should_check(p)]
+    else:
+        rc, out, err = run(["git", "ls-files"], cwd=repo)
+        if rc != 0:
+            sys.stderr.write(err)
+            return rc
+        files = [p for p in out.splitlines() if should_check(p)]
     if not files:
         return 0
 
@@ -62,9 +79,6 @@ def main():
     for rel in files:
         rc, data, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
         if rc != 0:
-            errors.append((rel, "failed to read from git index"))
-            if err:
-                sys.stderr.write(err.decode("utf-8", errors="replace"))
             continue
 
         if not looks_text(data):

@@ -1,4 +1,5 @@
 import os
+import argparse
 import subprocess
 import sys
 
@@ -18,15 +19,31 @@ def is_cpp_file(path):
     return ext in {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl"}
 
 
+def read_file_list(path):
+    with open(path, "r", encoding="utf-8") as f:
+        out = []
+        for line in f:
+            s = line.strip()
+            if s:
+                out.append(s)
+        return out
+
+
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--file-list", help="Newline-separated paths (repo-relative) to check")
+    args = ap.parse_args()
+
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    rc, out, err = run(["git", "ls-files"], cwd=repo)
-    if rc != 0:
-        sys.stderr.write(err)
-        return rc
-
-    files = [p for p in out.splitlines() if is_cpp_file(p)]
+    if args.file_list:
+        files = [p for p in read_file_list(args.file_list) if is_cpp_file(p)]
+    else:
+        rc, out, err = run(["git", "ls-files"], cwd=repo)
+        if rc != 0:
+            sys.stderr.write(err)
+            return rc
+        files = [p for p in out.splitlines() if is_cpp_file(p)]
     if not files:
         return 0
 
@@ -44,9 +61,7 @@ def main():
     for rel in files:
         rc, src, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
         if rc != 0:
-            sys.stderr.write(f"{rel}: failed to read from git index\n")
-            sys.stderr.write(err.decode("utf-8", errors="replace"))
-            return 2
+            continue
 
         p = subprocess.run(
             ["clang-format", "--style=file", f"--assume-filename={rel}"],

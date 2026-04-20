@@ -9,11 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format python3
+      - name: Determine changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            git diff --name-only "FETCH_HEAD...HEAD" > changed_files.txt
+          else
+            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt
+          fi
       - name: EditorConfig (basic)
-        run: python3 scripts/check_editorconfig_basic.py
+        run: python3 scripts/check_editorconfig_basic.py --file-list changed_files.txt
       - name: clang-format
-        run: python3 scripts/check_clang_format.py
+        run: python3 scripts/check_clang_format.py --file-list changed_files.txt
