@@ -56,6 +56,8 @@
 #include <unordered_map>
 #include <filesystem>
 #include <cctype>
+#include <cstdlib>
+#include <cerrno>
 
 static bool try_read_env_double(const char *key, double &out) {
 	const char *s = getenv(key);
@@ -165,6 +167,71 @@ static double read_coupled_motion_ratio() {
 }
 
 static void apply_mech_fix_tags_from_env(fe_tool &ft) {
+	auto apply_tag_list = [&](const char *env_key, auto apply_tag) -> bool {
+		const char *tags = getenv(env_key);
+		if (!tags || tags[0] == '\0') return false;
+		std::string s(tags);
+		std::size_t i = 0;
+		bool any = false;
+		while (i < s.size()) {
+			while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ',')) i++;
+			if (i >= s.size()) break;
+			std::size_t j = i;
+			while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t') j++;
+			std::string tok = s.substr(i, j - i);
+			errno = 0;
+			char *end = nullptr;
+			long v = std::strtol(tok.c_str(), &end, 10);
+			if (end != tok.c_str() && end != nullptr && *end == '\0' && errno == 0) {
+				if (v >= std::numeric_limits<int>::min() && v <= std::numeric_limits<int>::max() && v != 0) {
+					apply_tag(static_cast<int>(v));
+				any = true;
+				}
+			}
+			i = j;
+		}
+		return any;
+	};
+
+	bool any = false;
+	any = apply_tag_list("MFREE_FE_TOOL_FIX_Y_TAGS", [&](int tag) { ft.set_mechanics_fixed_y_on_physical(tag); }) || any;
+	any = apply_tag_list("MFREE_FE_TOOL_FIX_X_TAGS", [&](int tag) { ft.set_mechanics_fixed_x_on_physical(tag); }) || any;
+	any = apply_tag_list("MFREE_FE_TOOL_FIX_TAGS", [&](int tag) { ft.set_mechanics_fixed_on_physical(tag); }) || any;
+	if (any) {
+		bool anchor_ux = true;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_UX", v)) anchor_ux = (v != 0);
+		}
+		int anchor_tag = 0;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_TAG", v)) anchor_tag = v;
+		}
+		if (anchor_ux && anchor_tag != 0) {
+			std::unordered_set<unsigned int> nodes;
+			for (const auto &e : ft.boundary_edges()) {
+				if (e.physical_tag != anchor_tag) continue;
+				nodes.insert(e.n0);
+				nodes.insert(e.n1);
+			}
+			if (!nodes.empty()) {
+				unsigned int anchor = *nodes.begin();
+				double best_x = -std::numeric_limits<double>::infinity();
+				for (unsigned int n : nodes) {
+					glm::dvec2 pw = ft.node_world(n);
+					if (!std::isfinite(pw.x)) continue;
+					if (pw.x > best_x) {
+						best_x = pw.x;
+						anchor = n;
+					}
+				}
+				ft.set_mechanics_fixed_x_nodes({anchor});
+			}
+		}
+		return;
+	}
+
 	const char *tags = getenv("MFREE_FE_TOOL_FIX_TAGS");
 	if (!tags || tags[0] == '\0') {
 		std::unordered_set<unsigned int> bnodes;
