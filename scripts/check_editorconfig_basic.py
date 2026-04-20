@@ -18,6 +18,8 @@ def looks_text(data):
 
 
 def should_check(path):
+    if path.startswith("Meshing/gmsh-") or path.startswith("Meshing\\gmsh-"):
+        return False
     base = os.path.basename(path)
     if base in {"CMakeLists.txt", ".clang-format", ".editorconfig"}:
         return True

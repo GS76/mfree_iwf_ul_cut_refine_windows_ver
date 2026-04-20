@@ -30,7 +30,11 @@ def main():
     if not files:
         return 0
 
-    rc, _, err = run(["clang-format", "--version"], cwd=repo)
+    try:
+        rc, _, err = run(["clang-format", "--version"], cwd=repo)
+    except FileNotFoundError:
+        sys.stderr.write("clang-format is required on PATH.\n")
+        return 2
     if rc != 0:
         sys.stderr.write("clang-format is required on PATH.\n")
         sys.stderr.write(err)
