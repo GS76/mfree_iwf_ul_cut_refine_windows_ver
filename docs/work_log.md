@@ -62,3 +62,4 @@
     - Decide whether to keep `Meshing/gmsh-*/**` in formatting scope long-term:
       - Option A: treat as vendored and exclude from formatting enforcement
       - Option B: run a one-time “format-the-world” PR and then enable full-repo enforcement
+    - Tighten `.gitignore` policy for generated artifacts and add a pre-commit guard to block accidental commits of excluded paths; validate using `git check-ignore -v` and a staged-file guard test.

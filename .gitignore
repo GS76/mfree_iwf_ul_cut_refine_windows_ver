@@ -1,10 +1,14 @@
 build/
 build*/
 cmake-build*/
+Debug/
+Release/
 out/
+Meshing/out/
 .vs/
 .vscode/ipch/
 .vscode/settings.json
-**/*.exe
 results/**
+docs/*tree*.txt
 s\ -File\ .scriptsgit_checkpoint.ps1*
+**/*.exe

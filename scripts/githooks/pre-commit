@@ -12,6 +12,18 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
+if [ "${MFREE_ALLOW_EXCLUDED_STAGE:-0}" != "1" ]; then
+  staged="$(git diff --cached --name-only --diff-filter=ACMR || true)"
+  if echo "$staged" | grep -Eq '^(build/|results/|Debug/|Release/|Meshing/out/|out/|docs/.*tree.*\.txt$)'; then
+    echo "pre-commit: blocked (staged changes include excluded paths)." >&2
+    echo "pre-commit: remove them from the commit, or untrack them, or set MFREE_ALLOW_EXCLUDED_STAGE=1 to bypass intentionally." >&2
+    echo "" >&2
+    echo "blocked paths (staged):" >&2
+    echo "$staged" | grep -E '^(build/|results/|Debug/|Release/|Meshing/out/|out/|docs/.*tree.*\.txt$)' | sed 's/^/  /' >&2
+    exit 1
+  fi
+fi
+
 if [ "${MFREE_PRECOMMIT_RUN_TESTS:-0}" = "1" ]; then
   if [ -f "./build/CTestTestfile.cmake" ]; then
     ctest -C Release --output-on-failure
@@ -23,4 +35,3 @@ if [ "${MFREE_PRECOMMIT_RUN_TESTS:-0}" = "1" ]; then
 fi
 
 exit 0
-

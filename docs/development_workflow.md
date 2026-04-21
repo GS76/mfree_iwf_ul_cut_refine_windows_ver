@@ -11,6 +11,7 @@ This document defines a repeatable workflow for developing, reviewing, and relea
 - [CI/CD Gates](#cicd-gates)
   - [CI Incident Playbook (Quality Workflow)](#ci-incident-playbook-quality-workflow)
 - [One-Time Repo Hygiene](#one-time-repo-hygiene)
+  - [Generated Artifacts Policy (.gitignore)](#generated-artifacts-policy-gitignore)
 - [Mandatory Milestone Checkpoint Protocol](#mandatory-milestone-checkpoint-protocol)
 - [Release Tagging Conventions](#release-tagging-conventions)
 - [Versioned Results Convention](#versioned-results-convention)
@@ -225,6 +226,107 @@ git rm -r --cached build results
 git add .gitignore
 git commit -m "repo: ignore build/results artifacts"
 ```
+
+### Generated Artifacts Policy (.gitignore)
+
+This repository treats build outputs and generated artifacts as local-only. The exclusion policy is enforced by `.gitignore` and a pre-commit guard.
+
+Excluded (must not be committed):
+- `build/`, `build*/`, `cmake-build*/`
+- `Debug/`, `Release/`
+- `results/**`
+- `Meshing/out/`
+- generated documentation artifacts (example: `docs/*tree*.txt`)
+
+#### Patch Workflow (Creating or Updating .gitignore Rules)
+
+Prerequisites:
+- Working tree clean except for the intended `.gitignore` changes
+- Git hooks installed (recommended): `.\scripts\install_githooks.ps1`
+
+1) Create a branch:
+
+```powershell
+git fetch --prune
+git switch -c chore/gitignore-policy
+```
+
+2) Edit `.gitignore` to add or adjust patterns.
+
+3) If any excluded files are currently tracked, untrack them once:
+
+```powershell
+git rm -r --cached Debug Release Meshing/out
+git add .gitignore
+git status
+```
+
+4) Validate the ignore rules behave as intended:
+
+```powershell
+git check-ignore -v Debug/ Meshing/out/ results/
+git check-ignore -v docs/workspace_tree_git_ls_files.txt
+```
+
+5) Commit atomically:
+
+```powershell
+git add .gitignore
+git commit -m "repo: tighten ignore rules for generated artifacts"
+```
+
+6) Open a PR and require two approvals (see [Code Review Checklist](#code-review-checklist)).
+
+#### Testing Procedure (Verify Exclusions Work)
+
+1) Confirm excluded directories do not appear as untracked changes:
+
+```powershell
+git status
+```
+
+2) Confirm no excluded paths are tracked:
+
+```powershell
+git ls-files Debug Release Meshing/out | Measure-Object -Line
+```
+
+3) Confirm the pre-commit guard blocks accidental staging:
+
+```powershell
+mkdir -Force Debug | Out-Null
+"test" | Out-File Debug\_ignore_guard_test.txt -Encoding ascii
+git add Debug/_ignore_guard_test.txt -f
+git commit -m "test: should be blocked by pre-commit"
+```
+
+If you must bypass intentionally (rare), set:
+
+```powershell
+$env:MFREE_ALLOW_EXCLUDED_STAGE = "1"
+```
+
+#### Edge Cases and Guidelines
+
+- Vendored third-party content should not be reformatted or swept into CI gates by default. Prefer to exclude it from formatting enforcement, or isolate a one-time formatting PR with explicit review.
+- If a file under an excluded directory must be versioned, do not use `git add -f` as a workflow. Instead:
+  - move the file into a versioned location, or
+  - add a narrow exception pattern to `.gitignore`, and document the rationale in the PR description.
+
+#### Review and Maintenance Schedule
+
+- Review `.gitignore` rules:
+  - monthly, and
+  - before each release tag is created.
+- Any `.gitignore` change must be reviewed via PR with:
+  - two approvals,
+  - a note in `docs/work_log.md` describing the change, and
+  - validation evidence (commands run and their outcomes).
+- Requesting changes:
+  - open a tracking issue or PR describing:
+    - what is being added/removed from ignore scope
+    - why the change is needed
+    - how to validate it locally
 
 ## Mandatory Milestone Checkpoint Protocol
 
