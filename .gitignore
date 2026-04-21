@@ -5,6 +5,7 @@ Debug/
 Release/
 out/
 Meshing/out/
+.trae/
 .vs/
 .vscode/ipch/
 .vscode/settings.json
