@@ -49,6 +49,7 @@
  */
 
 #include "test_cuttings.h"
+#include <new>
 
 #include <algorithm>
 #include <limits>
@@ -602,7 +603,10 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 
 	printf("using timestep %e with %d particles\n", dt, nx*ny);
 
-	particle *particles = new particle[nx*ny];
+	particle *particles = new (std::nothrow) particle[nx*ny];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
@@ -768,7 +772,10 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nx*ny];
+	particle *particles  = new (std::nothrow) particle[nx*ny];
+	if (!particles) {
+		return nullptr;
+	}
 
 	srand(0);
 	unsigned int part_iter = 0;

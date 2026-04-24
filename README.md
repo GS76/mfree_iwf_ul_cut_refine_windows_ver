@@ -40,7 +40,21 @@ Runtimes are measured and reported in CPU minutes, implemented in C++14, taken o
 
 Result frames presented above can be viewed using [ParaView](https://www.paraview.org/) using the legacy VTK format.
 
-**mfree_iwf-ul_cut-refine** was tested on various versions of Ubuntu Linux. The only dependency is [GLM](https://glm.g-truc.net/0.9.9/index.html). Make files for both a Release version and a Debug build are provided. **mfree_iwf-ul_cut-refine** was developed at _IWF_ [ETHZ](www.ethz.ch) by the following authors:
+**mfree_iwf-ul_cut-refine** was tested on Ubuntu Linux and Windows. The dependencies are [GLM](https://glm.g-truc.net/0.9.9/index.html) and OpenMP (usually included with compilers).
+
+## Building
+
+This project uses CMake for building. To build:
+
+1. Ensure you have CMake installed.
+2. Install GLM: On Ubuntu, `sudo apt install libglm-dev`. On Windows, use vcpkg or download from GLM website.
+3. Create a build directory: `mkdir build && cd build`
+4. Configure: `cmake ..`
+5. Build: `cmake --build . --config Release` (or Debug)
+
+Make files for both a Release version and a Debug build are provided via CMake.
+
+**mfree_iwf-ul_cut-refine** was developed at _IWF_ [ETHZ](www.ethz.ch) by the following authors:
 
 * Mohamadreza Afrasiabi, afrasiabi@ethz.ch
 * Matthias Röthlin, mroethli@ethz.ch

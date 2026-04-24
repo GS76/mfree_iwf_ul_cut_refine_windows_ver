@@ -309,12 +309,6 @@ void tool::construct_segments(std::vector<glm::dvec2> list_p) {
 		unsigned int cur  = i;
 		unsigned int next = (cur+1 > n-1) ? 0 : i+1;
 		m_segments.push_back(segment(list_p[cur], list_p[next]));
-
-		//		printf("lft: %f %f\n", m_segments[i].left.x, m_segments[i].left.y);
-		//		printf("rgt: %f %f\n", m_segments[i].right.x, m_segments[i].right.y);
-		//		printf("nrm: %f %f\n", m_segments[i].n.x, m_segments[i].n.y);
-		//		printf("ab:  %f %f\n", m_segments[i].l.a, m_segments[i].l.b);
-		//		printf("======================\n");
 	}
 }
 
@@ -352,7 +346,7 @@ std::vector<glm::dvec2> tool::construct_points_and_fillet(glm::dvec2 tl, glm::dv
 glm::dvec2 tool::project(glm::dvec2 qp) const {
 	assert(inside(qp) >= 0.);
 
-		const double nudge = 1e-8;	//TODO: make proportional to dx?
+	const double nudge = 1e-8;	// Small epsilon for numerical stability in projection
 //	const double nudge = 0.0001;
 
 	double min_dist = DBL_MAX;
@@ -361,7 +355,7 @@ glm::dvec2 tool::project(glm::dvec2 qp) const {
 	unsigned int seg_number = 0;
 	for (auto it = m_segments.begin(); it != m_segments.end(); ++it) {
 
-		//TODO
+		// Skip non-chamfer segments in debug mode
 		if (m_chamfer_debug && (seg_number != 2)) {
 			seg_number++;
 			continue;
@@ -437,7 +431,7 @@ bool tool::intersect(glm::dvec2 p1, glm::dvec2 p2, double &r) const {
 	if (!m_chamfer_debug) {
 		for (auto it = m_segments.begin(); it != m_segments.end(); ++it) {
 
-			glm::dvec2 inter = it->l.intersect(ray);			//TODO: is this true?
+			glm::dvec2 inter = it->l.intersect(ray);
 			tool::bbox seg_box(it->left, it->right);
 
 			if (ray_box.in(inter) && seg_box.in(inter)) {
@@ -872,6 +866,13 @@ tool::tool(const std::vector<glm::dvec2> &poly_ccw, double mu_fric) : m_mu(mu_fr
 		if (p.y < br.y || (p.y == br.y && p.x > br.x)) br = p;
 	}
 	m_edge_coord = br;
+}
+
+tool::~tool() {
+	if (m_fillet) {
+		delete m_fillet;
+		m_fillet = nullptr;
+	}
 }
 
 tool::tool() {}

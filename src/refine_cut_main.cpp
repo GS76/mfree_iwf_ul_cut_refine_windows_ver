@@ -76,7 +76,7 @@
 #include "logger.h"
 #include "body.h"
 
-logger *global_logger;
+logger *global_logger = nullptr;
 
 #include <algorithm>
 #include <set>

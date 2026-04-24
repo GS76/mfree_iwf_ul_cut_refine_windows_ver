@@ -49,6 +49,7 @@
  */
 
 #include "test_benches.h"
+#include <new>
 
 body *test_bench_setup_rings(unsigned int nbox) {
 	// material constants (rubber like)
@@ -73,7 +74,10 @@ body *test_bench_setup_rings(unsigned int nbox) {
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new (std::nothrow) particle[nbox*nbox];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
@@ -152,7 +156,10 @@ body *test_bench_setup_ring_contact(unsigned int nbox) {
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new (std::nothrow) particle[nbox*nbox];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
@@ -230,7 +237,10 @@ body *test_bench_setup_disk_impact(unsigned int nbox) {
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new (std::nothrow) particle[nbox*nbox];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
@@ -310,7 +320,10 @@ body *test_bench_setup_thermal(unsigned int nbox) {
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new (std::nothrow) particle[nbox*nbox];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {

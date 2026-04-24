@@ -88,8 +88,7 @@ double johnson_cook_Sima_2010::sigma_yield(double eps_pl, double eps_dot_pl, dou
 
 	assert (eps_pl >= 0.);
 
-	double corr_B = (m_tanh_a > 0.) ? 1.0/exp(pow(eps_pl, m_tanh_a)) : 1;		// slightly dirty hack to fall back to standard JC
-																				// if additional parameters are not defined
+	double corr_B = (m_tanh_a > 0.) ? 1.0/exp(pow(eps_pl, m_tanh_a)) : 1;		// Fallback to standard JC model if additional parameters are not defined
 	double Term_A = m_A + m_B * pow(eps_pl, m_n) * corr_B;
 	double Term_B = 1.0;
 

@@ -264,6 +264,8 @@ public:
 
 	tool(const std::vector<glm::dvec2> &poly_ccw, double mu_fric);
 
+	~tool();
+
 	tool();
 };
 
