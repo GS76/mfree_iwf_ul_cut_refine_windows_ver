@@ -1,4 +1,4 @@
-python .\Meshing\generate_rigid_tool_mesh.py `
+python ..\..\Meshing\generate_rigid_tool_mesh.py `
   --tl-angles `
   --tl-x -0.0009215 --tl-y 0.00155 `
   --length 0.001 --height 0.001 `
@@ -9,5 +9,5 @@ python .\Meshing\generate_rigid_tool_mesh.py `
   --fine-size-mm 0.01 `
   --transition-length-mm 0.8 `
   --max-size-mm 0.05 `
-  --out-msh .\snapshots\tool_plane_strain\meshes\tool_h_0.01mm.msh `
-  --out-report .\snapshots\tool_plane_strain\meshes\tool_h_0.01mm_report.json
+  --out-msh .\meshes\tool_h_0.01mm.msh `
+  --out-report .\meshes\tool_h_0.01mm_report.json

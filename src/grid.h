@@ -60,7 +60,7 @@
 #include <assert.h>
 
 #include "particle.h"
-#include "tool.h"
+#include "fe_tool.h"
 
 /*
  * This is the implementation of the neighboring search algorithm used.

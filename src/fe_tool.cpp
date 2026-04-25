@@ -1641,3 +1641,96 @@ std::pair<unsigned int, double> fe_tool::nearest_boundary_edge_barycentric(glm::
 
 	return {best_e, best_t};
 }
+void fe_tool::set_mu(double mu) { m_mu = mu; }
+double fe_tool::get_mu() const { return m_mu; }
+
+bool fe_tool::bbox::in(glm::dvec2 qp) {
+bool in_x = qp.x >= bbmin_x && qp.x <= bbmax_x;
+bool in_y = qp.y >= bbmin_y && qp.y <= bbmax_y;
+return in_x && in_y;
+}
+
+bool fe_tool::bbox::valid() const {
+bool invalid_x = bbmax_x - bbmin_x  < 1e-12;
+bool invalid_y = bbmax_y - bbmin_y  < 1e-12;
+return !(invalid_x || invalid_y);
+}
+
+fe_tool::bbox::bbox() {}
+
+fe_tool::bbox::bbox(glm::dvec2 p1, glm::dvec2 p2) {
+bbmin_x = std::fmin(p1.x, p2.x);
+bbmax_x = std::fmax(p1.x, p2.x);
+bbmin_y = std::fmin(p1.y, p2.y);
+bbmax_y = std::fmax(p1.y, p2.y);
+}
+
+fe_tool::bbox::bbox(double bbmin_x, double bbmax_x, double bbmin_y, double bbmax_y) :
+bbmin_x(bbmin_x), bbmax_x(bbmax_x), bbmin_y(bbmin_y), bbmax_y(bbmax_y) {}
+
+fe_tool::bbox fe_tool::get_bbox_world() const {
+fe_tool::bbox bb;
+bb.bbmin_x = std::numeric_limits<double>::infinity();
+bb.bbmin_y = std::numeric_limits<double>::infinity();
+bb.bbmax_x = -std::numeric_limits<double>::infinity();
+bb.bbmax_y = -std::numeric_limits<double>::infinity();
+
+for (unsigned int i = 0; i < m_nodes_tool.size(); i++) {
+glm::dvec2 p = to_world_frame(m_nodes_tool[i]);
+if (m_u.size() == m_nodes_tool.size()) {
+p += m_u[i];
+}
+bb.bbmin_x = std::min(bb.bbmin_x, p.x);
+bb.bbmin_y = std::min(bb.bbmin_y, p.y);
+bb.bbmax_x = std::max(bb.bbmax_x, p.x);
+bb.bbmax_y = std::max(bb.bbmax_y, p.y);
+}
+return bb;
+}
+
+glm::dvec2 fe_tool::get_edge_coord() const {
+glm::dvec2 best(0.);
+double min_y = std::numeric_limits<double>::infinity();
+for (unsigned int i = 0; i < m_nodes_tool.size(); i++) {
+glm::dvec2 p = to_world_frame(m_nodes_tool[i]);
+if (m_u.size() == m_nodes_tool.size()) {
+p += m_u[i];
+}
+if (p.y < min_y) {
+min_y = p.y;
+best = p;
+}
+}
+return best;
+}
+
+double fe_tool::inside(glm::dvec2 qp) const {
+std::vector<glm::dvec2> poly = boundary_loop_world();
+if (poly.size() < 3) return -1.0;
+
+bool c = false;
+for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+if (((poly[i].y > qp.y) != (poly[j].y > qp.y)) &&
+(qp.x < (poly[j].x - poly[i].x) * (qp.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x))
+c = !c;
+}
+
+if (!c) return -1.0;
+
+double min_dist = std::numeric_limits<double>::infinity();
+for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
+glm::dvec2 a = poly[j];
+glm::dvec2 b = poly[i];
+glm::dvec2 dir = b - a;
+double len2 = dir.x*dir.x + dir.y*dir.y;
+double t = 0.0;
+if (len2 > 0.0) {
+t = glm::dot(qp - a, dir) / len2;
+t = std::max(0.0, std::min(1.0, t));
+}
+glm::dvec2 proj = a + t * dir;
+double dist = glm::length(qp - proj);
+min_dist = std::min(min_dist, dist);
+}
+return min_dist;
+}

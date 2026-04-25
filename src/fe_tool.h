@@ -62,6 +62,20 @@
 
 class fe_tool {
 public:
+	struct bbox {
+		double bbmin_x = 0.;
+		double bbmax_x = 0.;
+		double bbmin_y = 0.;
+		double bbmax_y = 0.;
+
+		bool in(glm::dvec2 qp);
+		bool valid() const;
+
+		bbox();
+		bbox(glm::dvec2 p1, glm::dvec2 p2);
+		bbox(double bbmin_x, double bbmax_x, double bbmin_y, double bbmax_y);
+	};
+
 	struct thermal_material {
 		double rho = 0.;
 		double cp = 0.;
@@ -182,6 +196,16 @@ public:
 	double max_temperature() const;
 	double min_temperature() const;
 
+	void set_mu(double mu);
+	double get_mu() const;
+
+	fe_tool::bbox get_bbox_world() const;
+	glm::dvec2 get_edge_coord() const;
+	
+	// returns distance from qp to tool if qp is inside tool
+	// returns -1 otherwise
+	double inside(glm::dvec2 qp) const;
+
 	void advance_explicit(double dt);
 	void set_mechanics_rayleigh(double a0, double a1);
 	void advance_mechanics_explicit(double dt);
@@ -217,6 +241,8 @@ public:
 	double thermal_dt_crit() const;
 
 private:
+	double m_mu = 0.0;
+
 	struct edge_key {
 		unsigned int a = 0;
 		unsigned int b = 0;

@@ -148,5 +148,6 @@ private:
 	void assign_son_properties(const std::array<double, max_SON2D>& x_SON, const std::array<double, max_SON2D>& y_SON, double h_DAD, double m_DAD, std::array<double, max_SON2D>& h_SON, std::array<double, max_SON2D>& m_SON) const;
 	void validate_mass_conservation(double m_DAD, double dad_new_mass, const std::array<double, max_SON2D>& m_SON) const;
 	particle create_son_particle(unsigned int son_idx, double x, double y, double m, double h, unsigned int step, const particle& dad) const;
+};
 
 #endif /* ADAPTIVITY_H_ */

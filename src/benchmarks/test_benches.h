@@ -52,7 +52,7 @@
 #define TEST_BENCHES_H_
 
 #include "../logger.h"
-#include "../tool.h"
+#include "../fe_tool.h"
 #include "../body.h"
 #include "../johnson_cook_Sima_2010.h"
 #include "../plasticity.h"

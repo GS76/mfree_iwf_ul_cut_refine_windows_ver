@@ -418,7 +418,7 @@ static void enforce_fe_tool_corner_clearance(fe_tool &ft, glm::dvec2 wp_corner, 
 	}
 }
 
-static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 desired_center, glm::dvec2 desired_vel, double desired_edge_y,
+static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, glm::dvec2 desired_vel, double desired_edge_y,
                                      glm::dvec2 wp_corner, double clearance_target_m) {
 	const char *msh_env = getenv("MFREE_FE_TOOL_MSH");
 	std::string msh;
@@ -427,13 +427,17 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	} else {
 		const std::string def = "./snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh";
 		if (std::filesystem::exists(def)) msh = def;
-		else return t;
+		else {
+			std::fprintf(stderr, "Missing MFREE_FE_TOOL_MSH\n");
+			exit(1);
+		}
 	}
 
 	fe_tool *ft = new fe_tool();
 	if (!ft->load_gmsh_msh2(msh)) {
 		delete ft;
-		return t;
+		std::fprintf(stderr, "Failed to load MFREE_FE_TOOL_MSH\n");
+		exit(1);
 	}
 
 	fe_tool::thermal_material mat;
@@ -569,13 +573,7 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 		if (rear_found) ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
 	}
 
-	b->set_fe_tool(ft);
-
-	const char *use_contact_env = getenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
-	if (use_contact_env && atoi(use_contact_env) != 0) {
-		return t;
-	}
-	return t;
+	return ft;
 }
 
  body *cutting_ref_mr(unsigned int ny) {
@@ -668,26 +666,22 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	body *b = new body(particles, n, sim_data);
 	b->set_plasticity(plast);
 
-	double nudge = -0.001;
+	glm::dvec2 desired_vel = glm::dvec2(speed, 0.);
+	glm::dvec2 desired_center = glm::dvec2(-0.025, 0.075);
+	double desired_edge_y = 0.0486;
 
-	glm::dvec2 tl(-0.05      + nudge, 0.0986074);
-	glm::dvec2 tr(-0.0086824 + nudge, 0.0986074);
-	glm::dvec2 br(-0.0000    + nudge, 0.0486);
-	glm::dvec2 bl(-0.05      + nudge, 0.0555074);
-
-	tool *t = new tool(tl, tr, br, bl, 20e-6*100, mu_fric);
-	t->set_vel(glm::dvec2(speed,0.));
-	b->set_tool(t);
 	double feed_per_rev_mm = 0.2;
 	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
 	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm <= 0.) feed_per_rev_mm = 0.2;
 	double clearance_target = feed_per_rev_mm * 1e-3;
 	glm::dvec2 wp_corner(0.0, 0.060);
-	t = attach_fe_tool_from_env(b, t, tool_T0, t->center(), t->get_vel(), t->get_edge_coord().y, wp_corner, clearance_target);
-	b->set_tool(t);
+	
+	fe_tool *ft = attach_fe_tool_from_env(tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
+	ft->set_mu(mu_fric);
+	b->set_fe_tool(ft);
 
 	global_logger = new logger("cutting");
-	global_logger->set_tool(t);
+	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
 
 	return b;
@@ -859,88 +853,57 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double x_offset = 0.;
 	try_read_env_double("MFREE_TOOL_X_OFFSET", x_offset);
 
-	bool no_rigid_tool = false;
-	const char *no_rigid_env = getenv("MFREE_NO_RIGID_TOOL");
-	if (no_rigid_env && atoi(no_rigid_env) != 0) no_rigid_tool = true;
-
-	tool *t = nullptr;
-	if (!no_rigid_tool) {
-		t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
-
-		double current_feed = hi_y - t->low();
-		double dist_to_target_feed = fabs(current_feed - target_feed);
-		double correction_time = dist_to_target_feed / vc;
-		double sign = (current_feed > target_feed) ? 1 : -1.;
-		t->set_vel(glm::dvec2(0.,vc));
-		t->update_tool(correction_time*sign);
-
-		if (std::isfinite(y_offset) && y_offset != 0.) {
-			t->set_vel(glm::dvec2(0., 1.));
-			t->update_tool(y_offset);
-		}
-
-		if (std::isfinite(x_offset) && x_offset != 0.) {
-			t->set_vel(glm::dvec2(1., 0.));
-			t->update_tool(x_offset);
-		}
-
-		t->set_vel(glm::dvec2(tool_vx, 0.)); // set actual velocity
-	}
+	bool no_rigid_tool = true;
 
 	// save settings to body
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
-	b->set_tool(t);
-	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
-	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
-	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
+	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
+	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
+	double desired_edge_y = (hi_y - target_feed);
 	glm::dvec2 wp_corner(lo_x, hi_y);
 	double clearance_target = feed_per_rev_mm * 1e-3;
-	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
-	b->set_tool(t);
+	fe_tool *ft = attach_fe_tool_from_env(tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
+	ft->set_mu(mu_friction);
+	b->set_fe_tool(ft);
 
-	if (no_rigid_tool) {
-		fe_tool *ft = b->get_fe_tool();
-		if (ft) {
-			auto low_y = [&]() -> double {
-				std::vector<glm::dvec2> poly = ft->boundary_loop_world();
-				double low = std::numeric_limits<double>::infinity();
-				for (const auto &p : poly) low = std::min(low, p.y);
-				if (!std::isfinite(low)) low = hi_y;
-				return low;
-			};
+	if (ft) {
+		auto low_y = [&]() -> double {
+			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
+			double low = std::numeric_limits<double>::infinity();
+			for (const auto &p : poly) low = std::min(low, p.y);
+			if (!std::isfinite(low)) low = hi_y;
+			return low;
+		};
 
-			double current_feed = hi_y - low_y();
-			double dist_to_target_feed = fabs(current_feed - target_feed);
-			double correction_time = dist_to_target_feed / vc;
-			double sign = (current_feed > target_feed) ? 1 : -1.;
+		double current_feed = hi_y - low_y();
+		double dist_to_target_feed = fabs(current_feed - target_feed);
+		double correction_time = dist_to_target_feed / vc;
+		double sign = (current_feed > target_feed) ? 1 : -1.;
 
-			ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
-			ft->update_pose(correction_time * sign);
+		ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
+		ft->update_pose(correction_time * sign);
 
-			if (std::isfinite(y_offset) && y_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
-				ft->update_pose(y_offset);
-			}
-
-			if (std::isfinite(x_offset) && x_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
-				ft->update_pose(x_offset);
-			}
-
-			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
-			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
+		if (std::isfinite(y_offset) && y_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
+			ft->update_pose(y_offset);
 		}
+
+		if (std::isfinite(x_offset) && x_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
+			ft->update_pose(x_offset);
+		}
+
+		ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+		enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 	}
 
 	global_logger = new logger("cutting");
-	global_logger->set_tool(t);
+	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
 
 	double feed_report = 0.;
-	if (t) {
-		feed_report = hi_y - t->low();
-	} else if (b->get_fe_tool()) {
+	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
 		for (const auto &p : poly) low = std::min(low, p.y);
@@ -1185,54 +1148,27 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double x_offset = 0.;
 	try_read_env_double("MFREE_TOOL_X_OFFSET", x_offset);
 
-	bool no_rigid_tool = false;
-	const char *no_rigid_env = getenv("MFREE_NO_RIGID_TOOL");
-	if (no_rigid_env && atoi(no_rigid_env) != 0) no_rigid_tool = true;
-
-	tool *t = nullptr;
-	if (!no_rigid_tool) {
-		t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
-
-		double current_feed = hi_y - t->low();
-		double dist_to_target_feed = fabs(current_feed - target_feed);
-		double correction_time = dist_to_target_feed / vc;
-		double sign = (current_feed > target_feed) ? 1 : -1.;
-		t->set_vel(glm::dvec2(0.,vc));
-		t->update_tool(correction_time*sign);
-
-		if (std::isfinite(y_offset) && y_offset != 0.) {
-			t->set_vel(glm::dvec2(0., 1.));
-			t->update_tool(y_offset);
-		}
-		if (std::isfinite(x_offset) && x_offset != 0.) {
-			t->set_vel(glm::dvec2(1., 0.));
-			t->update_tool(x_offset);
-		}
-
-		t->set_vel(glm::dvec2(tool_vx, 0.)); // set actual velocity
-	}
+	bool no_rigid_tool = true;
 
 	// save settings to body
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
-	b->set_tool(t);
-	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
-	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
-	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
+	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
+	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
+	double desired_edge_y = (hi_y - target_feed);
 	glm::dvec2 wp_corner(lo_x, hi_y);
 	double clearance_target = feed_per_rev_mm * 1e-3;
-	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
-	b->set_tool(t);
+	fe_tool *ft = attach_fe_tool_from_env(tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
+	ft->set_mu(mu_friction);
+	b->set_fe_tool(ft);
 
-	if (no_rigid_tool) {
-		fe_tool *ft = b->get_fe_tool();
-		if (ft) {
-			auto low_y = [&]() -> double {
-				std::vector<glm::dvec2> poly = ft->boundary_loop_world();
-				double low = std::numeric_limits<double>::infinity();
-				for (const auto &p : poly) low = std::min(low, p.y);
-				if (!std::isfinite(low)) low = hi_y;
-				return low;
+	if (ft) {
+		auto low_y = [&]() -> double {
+			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
+			double low = std::numeric_limits<double>::infinity();
+			for (const auto &p : poly) low = std::min(low, p.y);
+			if (!std::isfinite(low)) low = hi_y;
+			return low;
 			};
 
 			double current_feed = hi_y - low_y();
@@ -1255,16 +1191,13 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
 			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
-	}
 
 	global_logger = new logger("cutting");
-	global_logger->set_tool(t);
+	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
 
 	double feed_report = 0.;
-	if (t) {
-		feed_report = hi_y - t->low();
-	} else if (b->get_fe_tool()) {
+	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
 		for (const auto &p : poly) low = std::min(low, p.y);
@@ -1531,57 +1464,29 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 	double x_offset = 0.;
 	try_read_env_double("MFREE_TOOL_X_OFFSET", x_offset);
 
-	bool no_rigid_tool = false;
-	const char *no_rigid_env = getenv("MFREE_NO_RIGID_TOOL");
-	if (no_rigid_env && atoi(no_rigid_env) != 0) no_rigid_tool = true;
-
-	tool *t = nullptr;
-	if (!no_rigid_tool) {
-		t = new tool(tl, length_tool, height_tool, rake_deg, clear_deg, fillet_radius, mu_friction);
-
-		double current_feed = hi_y - t->low();
-		double dist_to_target_feed = fabs(current_feed - target_feed);
-		double correction_time = dist_to_target_feed / vc;
-		double sign = (current_feed > target_feed) ? 1 : -1.;
-		t->set_vel(glm::dvec2(0.,vc));
-		t->update_tool(correction_time*sign);
-
-		if (std::isfinite(y_offset) && y_offset != 0.) {
-			t->set_vel(glm::dvec2(0., 1.));
-			t->update_tool(y_offset);
-		}
-		if (std::isfinite(x_offset) && x_offset != 0.) {
-			t->set_vel(glm::dvec2(1., 0.));
-			t->update_tool(x_offset);
-		}
-
-		t->set_vel(glm::dvec2(tool_vx, 0.)); // set actual velocity
-		t->set_edge_coord(glm::dvec2(0., hi_y - target_feed)); // set coord edge
-	}
+	bool no_rigid_tool = true;
 
 	// save settings to body
 	b->set_plasticity(plast);
 	if (thermal_conduction) b->set_thermal(trml);
-	b->set_tool(t);
-	glm::dvec2 desired_center = t ? t->center() : compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
-	glm::dvec2 desired_vel = t ? t->get_vel() : glm::dvec2(tool_vx, 0.);
-	double desired_edge_y = t ? t->get_edge_coord().y : (hi_y - target_feed);
+	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
+	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
+	double desired_edge_y = (hi_y - target_feed);
 	glm::dvec2 wp_corner(lo_x, hi_y);
 	double clearance_target = feed_per_rev_mm * 1e-3;
-	t = attach_fe_tool_from_env(b, t, tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
-	b->set_tool(t);
+	fe_tool *ft = attach_fe_tool_from_env(tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
+	ft->set_mu(mu_friction);
+	b->set_fe_tool(ft);
 	b->set_adaptivity(adapt);
 
-	if (no_rigid_tool) {
-		fe_tool *ft = b->get_fe_tool();
-		if (ft) {
-			auto low_y = [&]() -> double {
-				std::vector<glm::dvec2> poly = ft->boundary_loop_world();
-				double low = std::numeric_limits<double>::infinity();
-				for (const auto &p : poly) low = std::min(low, p.y);
-				if (!std::isfinite(low)) low = hi_y;
-				return low;
-			};
+	if (ft) {
+		auto low_y = [&]() -> double {
+			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
+			double low = std::numeric_limits<double>::infinity();
+			for (const auto &p : poly) low = std::min(low, p.y);
+			if (!std::isfinite(low)) low = hi_y;
+			return low;
+		};
 
 			double current_feed = hi_y - low_y();
 			double dist_to_target_feed = fabs(current_feed - target_feed);
@@ -1603,16 +1508,13 @@ static tool *attach_fe_tool_from_env(body *b, tool *t, double T0, glm::dvec2 des
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
 			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
-	}
 
 	global_logger = new logger("cutting");
-	global_logger->set_tool(t);
+	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
 
 	double feed_report = 0.;
-	if (t) {
-		feed_report = hi_y - t->low();
-	} else if (b->get_fe_tool()) {
+	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
 		for (const auto &p : poly) low = std::min(low, p.y);

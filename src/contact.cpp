@@ -52,8 +52,9 @@
 
 #include "contact_iface.h"
 #include "fe_tool.h"
-#include "tool_adapter_rigid.h"
 #include "tool_iface.h"
+#include "particle.h"
+#include "body.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -557,13 +558,4 @@ void contact_apply_master_to_body_2d(const tool_contact_2d &master, body &slave,
 			if (std::isfinite(P_tool)) thermal_master->add_boundary_point_power(tev.xcntct, P_tool);
 		}
 	}
-}
-
-void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
-	contact_apply_tool_to_body_2d(master, slave, nullptr);
-}
-
-void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *thermal_master) {
-	rigid_tool_contact_adapter adapt(master);
-	contact_apply_master_to_body_2d(adapt, slave, thermal_master);
 }

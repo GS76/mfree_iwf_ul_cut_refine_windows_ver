@@ -51,15 +51,11 @@
 #ifndef CONTACT_H_
 #define CONTACT_H_
 
-#include <glm/glm.hpp>
-
-#include "tool.h"
-#include "body.h"
-
 class fe_tool;
 
 /*
  This is the implementation of the penalty contact algorithm illustrated in Fig. 12 in Section 6.1.
+
 
  This function is called as soon as  is detected using the parametrization of the tool.
 
@@ -72,8 +68,5 @@ class fe_tool;
  	 5- The resultant Fc (cutting) and Ft (thrust) forces acting on the tool is computed by summing the x and y components of contact and friction forces.
 
 */
-
-void contact_apply_tool_to_body_2d(const tool *master, body &slave);
-void contact_apply_tool_to_body_2d(const tool *master, body &slave, fe_tool *thermal_master);
 
 #endif /* CONTACT_H_ */

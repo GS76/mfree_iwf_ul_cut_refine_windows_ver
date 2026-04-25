@@ -78,7 +78,6 @@ private:
 	plasticity *m_plast = 0; 			// plasticity algorithm (if any)
 	thermal *m_thermal = 0;  			// thermal algorithm (if any)
 	adaptivity *m_adapt = 0;  			// adaptivity algorithm (if any)
-	tool *m_tool = 0;					// tool (potentially) in contact with this body (if any)
 	fe_tool *m_fe_tool = 0;
 	std::vector<particle> m_particles;  // workpiece particles
 	simulation_data m_simulation_data;  // all physical constants
@@ -87,7 +86,6 @@ private:
 public:
 	void set_plasticity(plasticity *plasticity);
 	void set_thermal(thermal *thermal);
-	void set_tool(tool *tool);
 	void set_fe_tool(fe_tool *tool);
 	void set_adaptivity(adaptivity *adaptivity);
 
@@ -101,8 +99,6 @@ public:
 
 	glm::dvec2 speed_tool();
 	glm::dvec2 edge_tool();
-	const tool *get_tool() const;
-	tool *get_tool();
 	const fe_tool *get_fe_tool() const;
 	fe_tool *get_fe_tool();
 

@@ -72,7 +72,7 @@
 #include "benchmarks/test_benches.h"
 #include "benchmarks/test_cuttings.h"
 
-#include "tool.h"
+#include "fe_tool.h"
 #include "logger.h"
 #include "body.h"
 
@@ -647,7 +647,7 @@ static void write_precheck_report(body &b, const char *folder) {
 
 	unsigned int overlap_count = 0;
 	double overlap_max_depth = 0.;
-	const tool *t = b.get_tool();
+	const fe_tool *t = b.get_fe_tool();
 	double tool_xmin = std::numeric_limits<double>::infinity();
 	double tool_xmax = -std::numeric_limits<double>::infinity();
 	double tool_ymin = std::numeric_limits<double>::infinity();
@@ -660,12 +660,12 @@ static void write_precheck_report(body &b, const char *folder) {
 				overlap_max_depth = std::max(overlap_max_depth, d);
 			}
 		}
-		auto seg = t->get_segments();
-		for (const auto &s : seg) {
-			tool_xmin = std::min(tool_xmin, std::min(s.left.x, s.right.x));
-			tool_xmax = std::max(tool_xmax, std::max(s.left.x, s.right.x));
-			tool_ymin = std::min(tool_ymin, std::min(s.left.y, s.right.y));
-			tool_ymax = std::max(tool_ymax, std::max(s.left.y, s.right.y));
+		fe_tool::bbox bb = t->get_bbox_world();
+		if (bb.valid()) {
+			tool_xmin = bb.bbmin_x;
+			tool_xmax = bb.bbmax_x;
+			tool_ymin = bb.bbmin_y;
+			tool_ymax = bb.bbmax_y;
 		}
 	}
 
@@ -748,14 +748,7 @@ static void write_precheck_report(body &b, const char *folder) {
 
 	std::fprintf(fp, "  \"tool\": {\n");
 	if (t) {
-		auto seg = t->get_segments();
-		std::fprintf(fp, "    \"segments\": %u,\n", static_cast<unsigned int>(seg.size()));
 		std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_xmin, tool_xmax, tool_ymin, tool_ymax);
-		if (t->get_fillet()) {
-			std::fprintf(fp, "    \"fillet\": {\"cx\": %.15e, \"cy\": %.15e, \"r\": %.15e},\n", t->get_fillet()->p.x, t->get_fillet()->p.y, t->get_fillet()->r);
-		} else {
-			std::fprintf(fp, "    \"fillet\": null,\n");
-		}
 		std::fprintf(fp, "    \"overlap\": {\"count\": %u, \"max_depth\": %.15e}\n", overlap_count, overlap_max_depth);
 	} else {
 		std::fprintf(fp, "    \"segments\": 0,\n");

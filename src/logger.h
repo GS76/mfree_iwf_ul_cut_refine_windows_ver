@@ -51,7 +51,7 @@
 #ifndef LOGGER_H_
 #define LOGGER_H_
 
-#include "tool.h"
+#include "fe_tool.h"
 #include "body.h"
 #include "vtk_writer.h"
 
@@ -73,7 +73,7 @@ private:
 	bool m_log_forces  = true;
 	bool m_emit_vtk    = true;
 
-	tool *m_t = 0;
+	fe_tool *m_t = 0;
 	FILE *m_fp_forces = 0;
 	FILE *m_fp_trace = 0;
 	FILE *m_fp_thermal = 0;
@@ -86,7 +86,7 @@ public:
 	logger(const char *case_name, const char *foldername = "results");
 	void close();
 
-	void set_tool(tool *t);
+	void set_fe_tool(fe_tool *t);
 	void set_log_forces(bool log_forces);
 	void set_log_vtk(bool log_vtk);
 	void add_tracer_particle(unsigned int tracer_idx);

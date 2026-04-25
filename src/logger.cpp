@@ -63,7 +63,7 @@ void logger::close() {
 	if (m_fp_metrics) fclose(m_fp_metrics);
 }
 
-void logger::set_tool(tool *t) {
+void logger::set_fe_tool(fe_tool *t) {
 	m_t = t;
 }
 
@@ -155,13 +155,8 @@ void logger::log(const body &b, unsigned int step) {
 
 	if (m_emit_vtk) {
 		if (log_vtk_workpiece) vtk_writer_write(b.get_particles(), step, m_folder);
-		const char *use_mesh_env = std::getenv("MFREE_USE_FE_TOOL_FOR_CONTACT");
-		bool use_mesh_for_contact = (use_mesh_env && std::atoi(use_mesh_env) != 0);
-		if (log_vtk_tool && m_t && !(use_mesh_for_contact && b.get_fe_tool())) {
-			vtk_writer_write(m_t, step, m_folder);
-		}
 		if (b.get_fe_tool()) {
-			if (log_vtk_tool && use_mesh_for_contact) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
+			if (log_vtk_tool) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
 			if (log_vtk_fe_tool) vtk_writer_write(b.get_fe_tool(), step, m_folder);
 		}
 	}

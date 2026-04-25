@@ -53,7 +53,7 @@
 
 #include "../particle.h"
 #include "../body.h"
-#include "../tool.h"
+#include "../fe_tool.h"
 #include "../fe_tool.h"
 #include "../correctors.h"
 #include "../cont_mech.h"

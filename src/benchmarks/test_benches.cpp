@@ -49,6 +49,20 @@
  */
 
 #include "test_benches.h"
+#include "../fe_tool.h"
+#include <array>
+
+static fe_tool *make_rect_fe_tool(glm::dvec2 tl, glm::dvec2 tr, glm::dvec2 br, glm::dvec2 bl, double mu) {
+	fe_tool *ft = new fe_tool();
+	std::vector<glm::dvec2> nodes = { tl, tr, br, bl };
+	std::vector<std::array<unsigned int, 3>> tris = { {0, 1, 2}, {0, 2, 3} };
+	std::vector<fe_tool::boundary_edge> edges = {
+		{0, 1, 1}, {1, 2, 1}, {2, 3, 1}, {3, 0, 1}
+	};
+	ft->set_mesh(nodes, tris, edges);
+	ft->set_mu(mu);
+	return ft;
+}
 
 body *test_bench_setup_rings(unsigned int nbox) {
 	// material constants (rubber like)
@@ -204,8 +218,8 @@ body *test_bench_setup_ring_contact(unsigned int nbox) {
 	glm::dvec2 tr(10*dx, +2*ro);
 	glm::dvec2 tl(0.,    +2*ro);
 
-	tool *t = new tool(tl, tr, br, bl, 0.);
-	b->set_tool(t);
+	fe_tool *ft = make_rect_fe_tool(tl, tr, br, bl, 0.);
+	b->set_fe_tool(ft);
 
 	global_logger = new logger("rings");
 
@@ -279,18 +293,15 @@ body *test_bench_setup_disk_impact(unsigned int nbox) {
 	time->set_t_final(6e3*dt);
 	time->set_dt(dt);
 
-	glm::dvec2 bl(0.,    -2*ro);
-	glm::dvec2 br(10*dx, -2*ro);
-	glm::dvec2 tr(10*dx, +2*ro);
-	glm::dvec2 tl(0.,    +2*ro);
+	glm::dvec2 bl(0.,    -0.5*ro);
+	glm::dvec2 br(10*dx, -0.5*ro);
+	glm::dvec2 tr(10*dx, +1.5*ro);
+	glm::dvec2 tl(0.,    +1.5*ro);
 
-	tool *t = new tool(tl, tr, br, bl, 0.);
-	b->set_tool(t);
+	fe_tool *ft = make_rect_fe_tool(tl, tr, br, bl, 0.);
+	b->set_fe_tool(ft);
 
-	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(sim_data.get_physical_constants()));
-	b->set_plasticity(plast);
-
-	global_logger = new logger("rings");
+	global_logger = new logger("disk_impact");
 
 	return b;
 }

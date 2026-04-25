@@ -190,16 +190,13 @@ static bool test_frictional_heating_partition() {
 	body b(&p, 1, sim_data);
 	particle &pp = b.get_particles()[0];
 
-	tool t(glm::dvec2(0., 1.), glm::dvec2(1., 1.), glm::dvec2(1., 0.), glm::dvec2(0., 0.), 0.5);
-	t.set_vel(glm::dvec2(0.));
-	b.set_tool(&t);
-
 	fe_tool ft = make_rect_tool_mesh(1.0, 1.0, 3, 3, 1, 2, 3);
 	fe_tool::thermal_material mat;
 	mat.rho = 7800.0;
 	mat.cp = 500.0;
 	mat.k = 1.0e6;
 	ft.set_material(mat);
+	ft.set_mu(0.5);
 	ft.set_pose(glm::dvec2(0.), glm::dvec2(0.));
 	ft.set_initial_temperature(p.T);
 	b.set_fe_tool(&ft);

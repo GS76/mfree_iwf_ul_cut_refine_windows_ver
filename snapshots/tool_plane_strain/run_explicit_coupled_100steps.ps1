@@ -40,6 +40,6 @@ $env:MFREE_FE_TOOL_ALPHA = "4.5e-6"
 
 $env:MFREE_FE_TOOL_FIX_TAGS = "114"
 
-.\build\Release\mfree_iwf.exe -m 1
+.\build\Release\mfree_iwf.exe -m 3
 
 Pop-Location

@@ -145,31 +145,11 @@ void body::apply_thermal_conduction() {
 }
 
 void body::apply_contact() {
-	if (m_tool == 0 && m_fe_tool == nullptr) return;
-	bool use_mesh_for_contact = parse_env_bool_strict("MFREE_USE_FE_TOOL_FOR_CONTACT");
-	if (m_tool == nullptr) use_mesh_for_contact = true;
+	if (m_fe_tool == nullptr) return;
 
-	double mu = 0.35;
-	glm::dvec2 v_master(0.);
-	if (m_tool) {
-		mu = m_tool->mu();
-		v_master = m_tool->get_vel();
-	} else if (m_fe_tool) {
-		v_master = m_fe_tool->get_vel();
-		parse_env_double_strict_min("MFREE_CONTACT_MU", 0.0, mu);
-	}
-
-	if (m_fe_tool == nullptr) {
-		if (m_tool) contact_apply_tool_to_body_2d(m_tool, *this, nullptr);
-		return;
-	}
-
-	if (!use_mesh_for_contact && m_tool) {
-		m_fe_tool->clear_sources();
-		m_fe_tool->clear_forces();
-		contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
-		return;
-	}
+	double mu = m_fe_tool->get_mu();
+	glm::dvec2 v_master = m_fe_tool->get_vel();
+	parse_env_double_strict_min("MFREE_CONTACT_MU", 0.0, mu);
 
 	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
 
@@ -180,8 +160,6 @@ void body::apply_contact() {
 		if (poly.size() >= 3) {
 			poly_tool_contact_adapter tpoly(poly, mu, v_master);
 			contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
-		} else if (m_tool) {
-			contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 		}
 		return;
 	}
@@ -276,8 +254,6 @@ void body::apply_contact() {
 			if (poly.size() >= 3) {
 				poly_tool_contact_adapter tpoly(poly, mu, v_master);
 				contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
-			} else if (m_tool) {
-				contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 			}
 
 			double dt_th = dt / static_cast<double>(thermal_substeps);
@@ -331,7 +307,6 @@ void body::apply_contact() {
 
 		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
 		if (poly.size() < 3) {
-			if (m_tool) contact_apply_tool_to_body_2d(m_tool, *this, m_fe_tool);
 			break;
 		}
 
@@ -437,9 +412,6 @@ void body::apply_adaptivity() {
 	m_adapt->adapt_resolution(*this);
 }
 
-void body::set_tool(tool *tool) {
-	m_tool = tool;
-}
 
 void body::set_fe_tool(fe_tool *tool) {
 	m_fe_tool = tool;
@@ -448,18 +420,15 @@ void body::set_fe_tool(fe_tool *tool) {
 void body::move_tool() {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
-	if (m_tool) m_tool->update_tool(dt);
 	if (m_fe_tool) m_fe_tool->update_pose(dt);
 }
 
 glm::dvec2 body::speed_tool() {
-	if (m_tool) return m_tool->get_vel();
 	if (m_fe_tool) return m_fe_tool->get_vel();
 	return glm::dvec2(0.);
 }
 
 glm::dvec2 body::edge_tool() {
-	if (m_tool) return m_tool->get_edge_coord();
 	if (m_fe_tool) {
 		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
 		if (!poly.empty()) {
@@ -473,8 +442,6 @@ glm::dvec2 body::edge_tool() {
 	return glm::dvec2(0.);
 }
 
-const tool *body::get_tool() const { return m_tool; }
-tool *body::get_tool() { return m_tool; }
 const fe_tool *body::get_fe_tool() const { return m_fe_tool; }
 fe_tool *body::get_fe_tool() { return m_fe_tool; }
 
