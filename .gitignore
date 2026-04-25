@@ -12,3 +12,5 @@ results/**
 docs/*tree*.txt
 s\ -File\ .scriptsgit_checkpoint.ps1*
 **/*.exe
+*.vtk
+*.csv
