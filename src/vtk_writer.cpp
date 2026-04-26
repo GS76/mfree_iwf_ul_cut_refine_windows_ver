@@ -212,8 +212,9 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	if (nodes_tool.empty() || tris.empty()) return;
 
 	char buf[1024];
-	if (!filename_prefix || filename_prefix[0] == '\0') filename_prefix = "fe_tool";
-	std::snprintf(buf, sizeof(buf), "%s/%s_%06d.vtk", folder, filename_prefix, step);
+	const char *effective_prefix = filename_prefix;
+	if (!effective_prefix || effective_prefix[0] == '\0') effective_prefix = "fe_tool";
+	std::snprintf(buf, sizeof(buf), "%s/%s_%06d.vtk", folder, effective_prefix, step);
 	FILE *fp = fopen(buf, "w+");
 	if (!fp) return;
 

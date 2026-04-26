@@ -441,7 +441,7 @@ const std::vector<std::array<unsigned int, 3>> &fe_tool::triangles() const { ret
 const std::vector<fe_tool::boundary_edge> &fe_tool::boundary_edges() const { return m_bnd; }
 
 double fe_tool::temperature_at_node(unsigned int i) const {
-	assert(i < m_T.size());
+	if (i >= m_T.size()) return 0.;
 	return m_T[i];
 }
 
