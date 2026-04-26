@@ -19,6 +19,15 @@ def is_cpp_file(path):
     return ext in {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl"}
 
 
+def should_check_file(path):
+    """Return True if the file should be checked, False if it's excluded (e.g., vendor code)."""
+    # Exclude third-party libraries and vendor directories
+    excluded_prefixes = (
+        "Meshing/gmsh-",  # Exclude Gmsh SDK and other bundled tools
+    )
+    return not any(path.startswith(prefix) for prefix in excluded_prefixes)
+
+
 def read_file_list(path):
     with open(path, "r", encoding="utf-8") as f:
         out = []
@@ -37,13 +46,13 @@ def main():
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     if args.file_list:
-        files = [p for p in read_file_list(args.file_list) if is_cpp_file(p)]
+        files = [p for p in read_file_list(args.file_list) if is_cpp_file(p) and should_check_file(p)]
     else:
         rc, out, err = run(["git", "ls-files"], cwd=repo)
         if rc != 0:
             sys.stderr.write(err)
             return rc
-        files = [p for p in out.splitlines() if is_cpp_file(p)]
+        files = [p for p in out.splitlines() if is_cpp_file(p) and should_check_file(p)]
     if not files:
         return 0
 
