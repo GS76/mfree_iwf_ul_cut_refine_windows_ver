@@ -1,7 +1,7 @@
 ---
 description: "Use when reviewing, editing, or writing C++ source files in this project. Focuses on best practices, performance, maintainability, and project-specific conventions."
 name: "C++ Code Review Guidelines"
-applyTo: ["**/*.cpp", "**/*.h", "**/*.hpp"]
+applyTo: "**/*.cpp, **/*.h, **/*.hpp"
 ---
 # C++ Code Guidelines for mfree_iwf Project
 

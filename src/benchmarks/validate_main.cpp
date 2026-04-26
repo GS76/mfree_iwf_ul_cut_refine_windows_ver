@@ -58,6 +58,8 @@
 #include <cstdlib>
 #include <cstdio>
 #include <vector>
+#include <particle.h>
+#include <adaptivity.h>
 
 static fe_tool make_rect_tool_mesh(double L, double H, unsigned int nx, unsigned int ny, int tag_left, int tag_right, int tag_other) {
 	std::vector<glm::dvec2> nodes;
