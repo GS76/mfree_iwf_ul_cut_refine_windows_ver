@@ -207,7 +207,7 @@ static bool test_frictional_heating_partition() {
 
 	pp.T_t = 0.;
 	b.apply_contact();
-	std::printf("inside=%g\n", t.inside(glm::dvec2(pp.x, pp.y)));
+	std::printf("inside=%g\n", ft.inside(glm::dvec2(pp.x, pp.y)));
 
 	glm::dvec2 F_t(pp.ftx, pp.fty);
 	glm::dvec2 F_n(pp.fcx, pp.fcy);
