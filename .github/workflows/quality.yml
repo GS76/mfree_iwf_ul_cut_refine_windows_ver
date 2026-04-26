@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   formatting:
     runs-on: ubuntu-latest
@@ -20,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags origin "${{ github.base_ref }}"
+            git fetch --no-tags origin "${{ github.event.base_ref }}"
             git diff --name-only "FETCH_HEAD...HEAD" > changed_files.txt
           else
             git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt
@@ -29,3 +32,21 @@ jobs:
         run: python3 scripts/check_editorconfig_basic.py --file-list changed_files.txt
       - name: clang-format
         run: python3 scripts/check_clang_format.py --file-list changed_files.txt
+
+  build-and-test:
+    needs: formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential python3
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Run tests
+        run: ctest --test-dir build -C Release --output-on-failure

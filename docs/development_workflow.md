@@ -123,12 +123,13 @@ ctest -C Release --test-dir build --output-on-failure
 
 This repo uses GitHub Actions for automated checks.
 
-### Formatting Gate
+### CI Gate
 
 Workflow: `.github/workflows/quality.yml`
 
 - Runs a basic `.editorconfig`-style gate and a `clang-format` gate.
-- The gate is enforced on the set of files changed by the push/PR (not the entire repository) to avoid unrelated legacy formatting issues blocking unrelated work.
+- Also builds the repository and runs CTest to ensure the change set compiles and passes unit tests.
+- The formatting gate is enforced on the set of files changed by the push/PR (not the entire repository) to avoid unrelated legacy formatting issues blocking unrelated work.
 - If you need to reproduce it locally:
 
 ```powershell
