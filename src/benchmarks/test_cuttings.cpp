@@ -675,7 +675,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm <= 0.) feed_per_rev_mm = 0.2;
 	double clearance_target = feed_per_rev_mm * 1e-3;
 	glm::dvec2 wp_corner(0.0, 0.060);
-	
+
 	fe_tool *ft = attach_fe_tool_from_env(tool_T0, desired_center, desired_vel, desired_edge_y, wp_corner, clearance_target);
 	ft->set_mu(mu_fric);
 	b->set_fe_tool(ft);

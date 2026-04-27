@@ -201,7 +201,7 @@ public:
 
 	fe_tool::bbox get_bbox_world() const;
 	glm::dvec2 get_edge_coord() const;
-	
+
 	// returns distance from qp to tool if qp is inside tool
 	// returns -1 otherwise
 	double inside(glm::dvec2 qp) const;
