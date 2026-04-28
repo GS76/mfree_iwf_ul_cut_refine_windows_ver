@@ -147,6 +147,10 @@ void body::apply_thermal_conduction() {
 void body::apply_contact() {
 	if (m_fe_tool == nullptr) return;
 
+	simulation_time *time = &simulation_time::getInstance();
+	double dt = time->get_dt();
+	m_fe_tool->reset_thermal_energy_accounting_step(dt);
+
 	double mu = m_fe_tool->get_mu();
 	glm::dvec2 v_master = m_fe_tool->get_vel();
 	parse_env_double_strict_min("MFREE_CONTACT_MU", 0.0, mu);
@@ -159,7 +163,7 @@ void body::apply_contact() {
 		std::vector<glm::dvec2> poly = m_fe_tool->boundary_loop_world();
 		if (poly.size() >= 3) {
 			poly_tool_contact_adapter tpoly(poly, mu, v_master);
-			contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
+			contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool, dt);
 		}
 		return;
 	}
@@ -190,9 +194,6 @@ void body::apply_contact() {
 	const auto &nodes = m_fe_tool->nodes_tool_frame();
 	std::vector<glm::dvec2> prev_forces(nodes.size(), glm::dvec2(0.));
 	std::vector<double> prev_powers(nodes.size(), 0.);
-
-	simulation_time *time = &simulation_time::getInstance();
-	double dt = time->get_dt();
 
 	if (explicit_coupled) {
 		double a0 = 0.;
@@ -253,7 +254,7 @@ void body::apply_contact() {
 
 			if (poly.size() >= 3) {
 				poly_tool_contact_adapter tpoly(poly, mu, v_master);
-				contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
+				contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool, dt / static_cast<double>(substeps));
 			}
 
 			double dt_th = dt / static_cast<double>(thermal_substeps);
@@ -311,7 +312,8 @@ void body::apply_contact() {
 		}
 
 		poly_tool_contact_adapter tpoly(poly, mu, v_master);
-		contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool);
+		m_fe_tool->reset_thermal_energy_accounting_step(dt);
+		contact_apply_master_to_body_2d(tpoly, *this, m_fe_tool, dt);
 		m_fe_tool->solve_mechanics_quasistatic(mech_cg_iters, mech_rel_tol);
 		if (relax < 1.0) {
 			std::vector<glm::dvec2> u_new = m_fe_tool->displacements();

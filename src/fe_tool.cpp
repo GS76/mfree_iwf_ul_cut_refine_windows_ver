@@ -347,6 +347,87 @@ bool fe_tool::is_mechanics_fixed_y(unsigned int node) const {
 void fe_tool::set_initial_temperature(double T0) {
 	for (std::size_t i = 0; i < m_T.size(); i++) m_T[i] = T0;
 	m_T_ref = T0;
+	m_thermal_energy.tool_internal_E = thermal_internal_energy();
+}
+
+void fe_tool::reset_thermal_energy_accounting_step(double dt) {
+	m_thermal_energy.step_dt = dt;
+	m_contact_energy = contact_energy_balance();
+	m_thermal_energy.step_contact_E_cond_raw = 0.;
+	m_thermal_energy.step_contact_E_fric_raw = 0.;
+	m_thermal_energy.step_contact_E_cond_scaled = 0.;
+	m_thermal_energy.step_contact_E_fric_scaled = 0.;
+	m_thermal_energy.step_contact_E_workpiece = 0.;
+	m_thermal_energy.step_contact_E_tool = 0.;
+	m_thermal_energy.step_contact_E_limiter_suppressed = 0.;
+	m_thermal_energy.step_tool_E_sources = 0.;
+	m_thermal_energy.step_tool_E_conduction = 0.;
+	m_thermal_energy.step_tool_E_convection = 0.;
+	m_thermal_energy.step_tool_E_dirichlet = 0.;
+	m_thermal_energy.cumulative_contact_E_cond_raw = 0.;
+	m_thermal_energy.cumulative_contact_E_fric_raw = 0.;
+	m_thermal_energy.cumulative_contact_E_cond_scaled = 0.;
+	m_thermal_energy.cumulative_contact_E_fric_scaled = 0.;
+	m_thermal_energy.cumulative_contact_E_workpiece = 0.;
+	m_thermal_energy.cumulative_contact_E_tool = 0.;
+	m_thermal_energy.cumulative_contact_E_limiter_suppressed = 0.;
+	m_thermal_energy.cumulative_tool_E_sources = 0.;
+	m_thermal_energy.cumulative_tool_E_conduction = 0.;
+	m_thermal_energy.cumulative_tool_E_convection = 0.;
+	m_thermal_energy.cumulative_tool_E_dirichlet = 0.;
+	m_thermal_energy.tool_internal_E = thermal_internal_energy();
+}
+
+void fe_tool::add_contact_energy_accounting(double dt, double P_cond_raw, double P_fric_raw, double scale, double frac_workpiece, double frac_tool) {
+	if (!std::isfinite(dt) || dt <= 0.) return;
+	if (!std::isfinite(P_cond_raw)) P_cond_raw = 0.;
+	if (!std::isfinite(P_fric_raw) || P_fric_raw < 0.) P_fric_raw = 0.;
+	if (!std::isfinite(scale) || scale < 0.) scale = 1.;
+	if (!std::isfinite(frac_workpiece)) frac_workpiece = 0.;
+	if (!std::isfinite(frac_tool)) frac_tool = 0.;
+
+	double P_cond_scaled = scale * P_cond_raw;
+	double P_fric_scaled = scale * P_fric_raw;
+	double E_cond_raw = dt * P_cond_raw;
+	double E_fric_raw = dt * P_fric_raw;
+	double E_cond_scaled = dt * P_cond_scaled;
+	double E_fric_scaled = dt * P_fric_scaled;
+	double E_workpiece = dt * (-P_cond_scaled + frac_workpiece * P_fric_scaled);
+	double E_tool = dt * (P_cond_scaled + frac_tool * P_fric_scaled);
+	double E_suppressed = dt * ((std::abs(P_cond_raw) + P_fric_raw) - (std::abs(P_cond_scaled) + P_fric_scaled));
+	if (!std::isfinite(E_suppressed) || E_suppressed < 0.) E_suppressed = 0.;
+
+	m_thermal_energy.step_contact_E_cond_raw += E_cond_raw;
+	m_thermal_energy.step_contact_E_fric_raw += E_fric_raw;
+	m_thermal_energy.step_contact_E_cond_scaled += E_cond_scaled;
+	m_thermal_energy.step_contact_E_fric_scaled += E_fric_scaled;
+	m_thermal_energy.step_contact_E_workpiece += E_workpiece;
+	m_thermal_energy.step_contact_E_tool += E_tool;
+	m_thermal_energy.step_contact_E_limiter_suppressed += E_suppressed;
+
+	m_thermal_energy.cumulative_contact_E_cond_raw = m_thermal_energy.step_contact_E_cond_raw;
+	m_thermal_energy.cumulative_contact_E_fric_raw = m_thermal_energy.step_contact_E_fric_raw;
+	m_thermal_energy.cumulative_contact_E_cond_scaled = m_thermal_energy.step_contact_E_cond_scaled;
+	m_thermal_energy.cumulative_contact_E_fric_scaled = m_thermal_energy.step_contact_E_fric_scaled;
+	m_thermal_energy.cumulative_contact_E_workpiece = m_thermal_energy.step_contact_E_workpiece;
+	m_thermal_energy.cumulative_contact_E_tool = m_thermal_energy.step_contact_E_tool;
+	m_thermal_energy.cumulative_contact_E_limiter_suppressed = m_thermal_energy.step_contact_E_limiter_suppressed;
+}
+
+fe_tool::thermal_energy_accounting fe_tool::get_thermal_energy_accounting() const {
+	thermal_energy_accounting e = m_thermal_energy;
+	e.tool_internal_E = thermal_internal_energy();
+	return e;
+}
+
+double fe_tool::thermal_internal_energy() const {
+	double E = 0.;
+	const std::size_t n = std::min(m_T.size(), m_capacity.size());
+	for (std::size_t i = 0; i < n; i++) {
+		if (!std::isfinite(m_T[i]) || !std::isfinite(m_capacity[i])) continue;
+		E += m_capacity[i] * m_T[i];
+	}
+	return E;
 }
 
 void fe_tool::set_pose(glm::dvec2 pos, glm::dvec2 vel) {
@@ -685,6 +766,7 @@ void fe_tool::advance_explicit(double dt) {
 	if (m_capacity.size() != m_T.size()) return;
 	if (m_K_rows.size() != m_T.size()) return;
 	if (m_mat.rho <= 0. || m_mat.cp <= 0. || m_mat.k < 0.) return;
+	if (!std::isfinite(dt) || dt <= 0.) return;
 
 	if (!m_k_T.empty() || !m_cp_T.empty() || !m_rho_T.empty()) build_conduction_operator_from_temperature();
 
@@ -692,12 +774,15 @@ void fe_tool::advance_explicit(double dt) {
 	apply_dirichlet_bc(is_fixed);
 
 	std::vector<double> power(m_T.size(), 0.);
+	std::vector<double> power_conduction(m_T.size(), 0.);
+	std::vector<double> power_convection(m_T.size(), 0.);
 
 	for (std::size_t i = 0; i < m_T.size(); i++) {
 		double pi = 0.;
 		for (const auto &kv : m_K_rows[i]) {
 			pi -= kv.second * m_T[kv.first];
 		}
+		power_conduction[i] += pi;
 		power[i] += pi;
 	}
 
@@ -735,12 +820,38 @@ void fe_tool::advance_explicit(double dt) {
 
 			double pi = bc.h * L / 6.0 * (2.0 * di + dj);
 			double pj = bc.h * L / 6.0 * (di + 2.0 * dj);
+			power_convection[e.n0] += pi;
+			power_convection[e.n1] += pj;
 			power[e.n0] += pi;
 			power[e.n1] += pj;
 		}
 	}
 
-	for (std::size_t i = 0; i < m_T.size(); i++) power[i] += m_power_sources[i];
+	double E_sources = 0.;
+	double E_conduction = 0.;
+	double E_convection = 0.;
+	double E_dirichlet = 0.;
+
+	for (std::size_t i = 0; i < m_T.size(); i++) {
+		power[i] += m_power_sources[i];
+
+		if (std::isfinite(m_power_sources[i])) E_sources += dt * m_power_sources[i];
+		if (std::isfinite(power_conduction[i])) E_conduction += dt * power_conduction[i];
+		if (std::isfinite(power_convection[i])) E_convection += dt * power_convection[i];
+
+		if (i < is_fixed.size() && is_fixed[i] && std::isfinite(power[i])) {
+			E_dirichlet -= dt * power[i];
+		}
+	}
+
+	m_thermal_energy.step_tool_E_sources += E_sources;
+	m_thermal_energy.step_tool_E_conduction += E_conduction;
+	m_thermal_energy.step_tool_E_convection += E_convection;
+	m_thermal_energy.step_tool_E_dirichlet += E_dirichlet;
+	m_thermal_energy.cumulative_tool_E_sources = m_thermal_energy.step_tool_E_sources;
+	m_thermal_energy.cumulative_tool_E_conduction = m_thermal_energy.step_tool_E_conduction;
+	m_thermal_energy.cumulative_tool_E_convection = m_thermal_energy.step_tool_E_convection;
+	m_thermal_energy.cumulative_tool_E_dirichlet = m_thermal_energy.step_tool_E_dirichlet;
 
 	for (std::size_t i = 0; i < m_T.size(); i++) {
 		if (is_fixed[i]) continue;
@@ -748,6 +859,8 @@ void fe_tool::advance_explicit(double dt) {
 		if (cap <= 0.) continue;
 		m_T[i] += dt * power[i] / cap;
 	}
+
+	m_thermal_energy.tool_internal_E = thermal_internal_energy();
 }
 
 void fe_tool::set_mechanics_rayleigh(double a0, double a1) {

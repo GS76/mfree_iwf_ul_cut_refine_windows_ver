@@ -235,6 +235,37 @@ public:
 	void set_contact_energy_balance(contact_energy_balance b);
 	contact_energy_balance get_contact_energy_balance() const;
 
+	struct thermal_energy_accounting {
+		double step_dt = 0.;
+		double step_contact_E_cond_raw = 0.;
+		double step_contact_E_fric_raw = 0.;
+		double step_contact_E_cond_scaled = 0.;
+		double step_contact_E_fric_scaled = 0.;
+		double step_contact_E_workpiece = 0.;
+		double step_contact_E_tool = 0.;
+		double step_contact_E_limiter_suppressed = 0.;
+		double step_tool_E_sources = 0.;
+		double step_tool_E_conduction = 0.;
+		double step_tool_E_convection = 0.;
+		double step_tool_E_dirichlet = 0.;
+		double tool_internal_E = 0.;
+		double cumulative_contact_E_cond_raw = 0.;
+		double cumulative_contact_E_fric_raw = 0.;
+		double cumulative_contact_E_cond_scaled = 0.;
+		double cumulative_contact_E_fric_scaled = 0.;
+		double cumulative_contact_E_workpiece = 0.;
+		double cumulative_contact_E_tool = 0.;
+		double cumulative_contact_E_limiter_suppressed = 0.;
+		double cumulative_tool_E_sources = 0.;
+		double cumulative_tool_E_conduction = 0.;
+		double cumulative_tool_E_convection = 0.;
+		double cumulative_tool_E_dirichlet = 0.;
+	};
+	void reset_thermal_energy_accounting_step(double dt);
+	void add_contact_energy_accounting(double dt, double P_cond_raw, double P_fric_raw, double scale, double frac_workpiece, double frac_tool);
+	thermal_energy_accounting get_thermal_energy_accounting() const;
+	double thermal_internal_energy() const;
+
 	fe_tool();
 	virtual ~fe_tool() = default;
 
@@ -335,6 +366,7 @@ private:
 	std::vector<unsigned int> m_boundary_loop;
 	contact_convergence m_contact_conv;
 	contact_energy_balance m_contact_energy;
+	thermal_energy_accounting m_thermal_energy;
 
 	std::unordered_map<edge_key, unsigned int, edge_key_hash> m_bnd_edge_to_tri;
 

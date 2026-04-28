@@ -78,6 +78,18 @@ private:
 	FILE *m_fp_trace = 0;
 	FILE *m_fp_thermal = 0;
 	FILE *m_fp_metrics = 0;
+	FILE *m_fp_energy = 0;
+	double m_cum_contact_E_cond_raw = 0.;
+	double m_cum_contact_E_fric_raw = 0.;
+	double m_cum_contact_E_cond_scaled = 0.;
+	double m_cum_contact_E_fric_scaled = 0.;
+	double m_cum_contact_E_workpiece = 0.;
+	double m_cum_contact_E_tool = 0.;
+	double m_cum_contact_E_limiter_suppressed = 0.;
+	double m_cum_tool_E_sources = 0.;
+	double m_cum_tool_E_conduction = 0.;
+	double m_cum_tool_E_convection = 0.;
+	double m_cum_tool_E_dirichlet = 0.;
 	std::vector<unsigned int> m_trace_p;
 	char m_folder[256] = "results";
 	char m_case_name[256] = "case";

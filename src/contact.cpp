@@ -328,9 +328,11 @@ static glm::dvec2 compute_friction_ldyna(const tool_contact_2d &master, glm::dve
 	}
 }
 
-void contact_apply_master_to_body_2d(const tool_contact_2d &master, body &slave, fe_tool *thermal_master) {
+void contact_apply_master_to_body_2d(const tool_contact_2d &master, body &slave, fe_tool *thermal_master, double accounting_dt) {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
+	double accounting_dt_safe = accounting_dt;
+	if (!std::isfinite(accounting_dt_safe) || accounting_dt_safe <= 0.) accounting_dt_safe = dt;
 
 	std::vector<particle> &particles = slave.get_particles();
 	const double cp_wp = slave.get_sim_data().get_physical_constants().tc().cp();
@@ -539,6 +541,8 @@ void contact_apply_master_to_body_2d(const tool_contact_2d &master, body &slave,
 			eb.frac_workpiece = tcp.friction_heat_fraction_workpiece;
 			eb.frac_tool = tcp.friction_heat_fraction_tool;
 			thermal_master->set_contact_energy_balance(eb);
+			thermal_master->add_contact_energy_accounting(accounting_dt_safe, sum_P_cond_raw, sum_P_fric_raw, scale,
+			                                              tcp.friction_heat_fraction_workpiece, tcp.friction_heat_fraction_tool);
 		}
 
 		for (const thermal_event &tev : thermals) {

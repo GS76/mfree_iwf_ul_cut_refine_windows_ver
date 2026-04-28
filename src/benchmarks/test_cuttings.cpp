@@ -1217,7 +1217,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	 * ===========================================================
 	 */
 
-	// MODEL 2 from the paper
+	// MODEL 3 from the paper
 	// ----------------------------------------------------------
 	// choose your desired material model as the following:
 	// ----------------------------------------------------------
@@ -1306,13 +1306,18 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	srand(0);
 	unsigned int part_iter = 0;
 
+	// Keep Model 3's seeded refined block on the same lattice as the high-resolution particles.
+	// The old literal limit (0.000117 m) landed between columns for the default 61-layer setup and
+	// left a visible clearance strip at the refinement front. Snap to an integer dxh column instead.
+	double initial_refined_x_max = dxh * std::ceil((0.000117 - 1e-12) / dxh);
+
 	// 1. create the high resolution region
 	for (unsigned int i = 0; i < nxh; i++) {
 		for (unsigned int j = 0; j < nyh; j++) {
 			double pxh = i*dxh;
 			double pyh = j*dxh;
 
-			if ((pyh+lo_y)<(py_split-1.9*dxh) || pxh>0.000117) continue;
+			if ((pyh+lo_y)<(py_split-1.9*dxh) || pxh>initial_refined_x_max) continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxh + lo_x;
@@ -1343,7 +1348,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 			double pxl = i*dxl;
 			double pyl = j*dxl;
 
-			if ((pyl+lo_y)>=(py_split-1.9*dxh) && pxl<=0.000117) continue;
+			if ((pyl+lo_y)>=(py_split-1.9*dxh) && pxl<=initial_refined_x_max) continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxl + lo_x;
