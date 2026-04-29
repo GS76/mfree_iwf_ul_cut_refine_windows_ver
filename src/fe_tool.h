@@ -61,7 +61,7 @@
 #include <unordered_set>
 
 class fe_tool {
-public:
+  public:
 	struct bbox {
 		double bbmin_x = 0.;
 		double bbmax_x = 0.;
@@ -83,8 +83,8 @@ public:
 	};
 
 	struct mechanical_material {
-		double E = 0.;     // Pa - Young's modulus
-		double nu = 0.;    // - - Poisson's ratio
+		double E = 0.;	   // Pa - Young's modulus
+		double nu = 0.;	   // - - Poisson's ratio
 		double alpha = 0.; // 1/K - thermal expansion coefficient
 	};
 
@@ -100,9 +100,8 @@ public:
 	};
 
 	bool load_gmsh_msh2(const std::string &path);
-	void set_mesh(const std::vector<glm::dvec2> &nodes_tool_frame,
-	              const std::vector<std::array<unsigned int, 3>> &triangles,
-	              const std::vector<boundary_edge> &boundary_edges);
+	void set_mesh(const std::vector<glm::dvec2> &nodes_tool_frame, const std::vector<std::array<unsigned int, 3>> &triangles,
+				  const std::vector<boundary_edge> &boundary_edges);
 
 	void set_material(thermal_material mat);
 	thermal_material get_material() const;
@@ -237,6 +236,17 @@ public:
 
 	struct thermal_energy_accounting {
 		double step_dt = 0.;
+		double step_contact_event_count = 0.;
+		double step_contact_area_eff = 0.;
+		double step_contact_hA = 0.;
+		double step_contact_P_cond_pos_raw = 0.;
+		double step_contact_P_cond_neg_raw = 0.;
+		double step_contact_P_cond_net_raw = 0.;
+		double step_contact_deltaT_mean = 0.;
+		double step_contact_deltaT_max = 0.;
+		double step_contact_h_c_mean = 0.;
+		double step_contact_h_c_max = 0.;
+		double step_contact_max_pred_dT = 0.;
 		double step_contact_E_cond_raw = 0.;
 		double step_contact_E_fric_raw = 0.;
 		double step_contact_E_cond_scaled = 0.;
@@ -262,7 +272,11 @@ public:
 		double cumulative_tool_E_dirichlet = 0.;
 	};
 	void reset_thermal_energy_accounting_step(double dt);
-	void add_contact_energy_accounting(double dt, double P_cond_raw, double P_fric_raw, double scale, double frac_workpiece, double frac_tool);
+	void add_contact_thermal_diagnostics(double dt, unsigned int contact_count, double area_eff, double hA, double P_cond_pos_raw,
+										 double P_cond_neg_raw, double P_cond_net_raw, double deltaT_sum, double deltaT_max, double h_c_sum,
+										 double h_c_max, double max_pred_dT);
+	void add_contact_energy_accounting(double dt, double P_cond_raw, double P_fric_raw, double scale, double frac_workpiece,
+									   double frac_tool);
 	thermal_energy_accounting get_thermal_energy_accounting() const;
 	double thermal_internal_energy() const;
 	double min_thermal_nodal_capacity() const;
@@ -272,7 +286,7 @@ public:
 
 	double thermal_dt_crit() const;
 
-private:
+  private:
 	double m_mu = 0.0;
 
 	struct edge_key {

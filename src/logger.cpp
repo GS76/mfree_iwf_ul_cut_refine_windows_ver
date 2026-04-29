@@ -58,30 +58,27 @@
 #include <limits>
 
 void logger::close() {
-	if (m_fp_forces) fclose(m_fp_forces);
-	if (m_fp_trace) fclose(m_fp_trace);
-	if (m_fp_thermal) fclose(m_fp_thermal);
-	if (m_fp_metrics) fclose(m_fp_metrics);
-	if (m_fp_energy) fclose(m_fp_energy);
+	if (m_fp_forces)
+		fclose(m_fp_forces);
+	if (m_fp_trace)
+		fclose(m_fp_trace);
+	if (m_fp_thermal)
+		fclose(m_fp_thermal);
+	if (m_fp_metrics)
+		fclose(m_fp_metrics);
+	if (m_fp_energy)
+		fclose(m_fp_energy);
 }
 
-void logger::set_fe_tool(fe_tool *t) {
-	m_t = t;
-}
+void logger::set_fe_tool(fe_tool *t) { m_t = t; }
 
-void logger::set_log_vtk(bool log_vtk) {
-	m_emit_vtk = log_vtk;
-}
+void logger::set_log_vtk(bool log_vtk) { m_emit_vtk = log_vtk; }
 
-void logger::set_log_forces(bool log_forces) {
-	m_log_forces = log_forces;
-}
+void logger::set_log_forces(bool log_forces) { m_log_forces = log_forces; }
 
-void logger::add_tracer_particle(unsigned int tracer_idx) {
-	m_trace_p.push_back(tracer_idx);
-}
+void logger::add_tracer_particle(unsigned int tracer_idx) { m_trace_p.push_back(tracer_idx); }
 
-void logger::set_folder(const char* folder) {
+void logger::set_folder(const char *folder) {
 	std::snprintf(m_folder, sizeof(m_folder), "%s", folder ? folder : "");
 
 	m_cum_contact_E_cond_raw = 0.;
@@ -96,7 +93,8 @@ void logger::set_folder(const char* folder) {
 	m_cum_tool_E_convection = 0.;
 	m_cum_tool_E_dirichlet = 0.;
 
-	if (m_fp_forces) fclose(m_fp_forces);
+	if (m_fp_forces)
+		fclose(m_fp_forces);
 
 	std::filesystem::create_directories(m_folder);
 
@@ -104,15 +102,18 @@ void logger::set_folder(const char* folder) {
 	std::filesystem::path forces = base / (std::string(m_case_name) + "_forces");
 	m_fp_forces = fopen(forces.string().c_str(), "w+");
 
-	if (m_fp_thermal) fclose(m_fp_thermal);
+	if (m_fp_thermal)
+		fclose(m_fp_thermal);
 	std::filesystem::path thermal = base / (std::string(m_case_name) + "_thermal.csv");
 	m_fp_thermal = fopen(thermal.string().c_str(), "w+");
 	if (m_fp_thermal) {
-		std::fprintf(m_fp_thermal, "time,step,P_cond_W,P_fric_W,scale,frac_wp,frac_tool,tool_pos_x,tool_pos_y,tool_vel_x,tool_vel_y,tool_Tmin,tool_Tmax,wp_Tmin,wp_Tmax,wp_Tavg,contact_iters,rel_force,rel_power\n");
+		std::fprintf(m_fp_thermal, "time,step,P_cond_W,P_fric_W,scale,frac_wp,frac_tool,tool_pos_x,tool_pos_y,tool_vel_x,tool_vel_y,tool_"
+								   "Tmin,tool_Tmax,wp_Tmin,wp_Tmax,wp_Tavg,contact_iters,rel_force,rel_power\n");
 		std::fflush(m_fp_thermal);
 	}
 
-	if (m_fp_metrics) fclose(m_fp_metrics);
+	if (m_fp_metrics)
+		fclose(m_fp_metrics);
 	std::filesystem::path metrics = base / (std::string(m_case_name) + "_metrics.csv");
 	m_fp_metrics = fopen(metrics.string().c_str(), "w+");
 	if (m_fp_metrics) {
@@ -120,19 +121,24 @@ void logger::set_folder(const char* folder) {
 		std::fflush(m_fp_metrics);
 	}
 
-	if (m_fp_energy) fclose(m_fp_energy);
+	if (m_fp_energy)
+		fclose(m_fp_energy);
 	std::filesystem::path energy = base / (std::string(m_case_name) + "_energy.csv");
 	m_fp_energy = fopen(energy.string().c_str(), "w+");
 	if (m_fp_energy) {
 		std::fprintf(m_fp_energy,
-		             "time,step,step_dt,wp_internal_E,tool_internal_E,"
-		             "step_contact_E_cond_raw,step_contact_E_fric_raw,step_contact_E_cond_scaled,step_contact_E_fric_scaled,"
-		             "step_contact_E_workpiece,step_contact_E_tool,step_contact_E_limiter_suppressed,"
-		             "step_tool_E_sources,step_tool_E_conduction,step_tool_E_convection,step_tool_E_dirichlet,"
-		             "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
-		             "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
-		             "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-		             "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
+					 "time,step,step_dt,wp_internal_E,tool_internal_E,"
+					 "step_contact_event_count,step_contact_area_eff,step_contact_hA,"
+					 "step_contact_P_cond_pos_raw,step_contact_P_cond_neg_raw,step_contact_P_cond_net_raw,"
+					 "step_contact_deltaT_mean,step_contact_deltaT_max,step_contact_h_c_mean,step_contact_h_c_max,"
+					 "step_contact_max_pred_dT,"
+					 "step_contact_E_cond_raw,step_contact_E_fric_raw,step_contact_E_cond_scaled,step_contact_E_fric_scaled,"
+					 "step_contact_E_workpiece,step_contact_E_tool,step_contact_E_limiter_suppressed,"
+					 "step_tool_E_sources,step_tool_E_conduction,step_tool_E_convection,step_tool_E_dirichlet,"
+					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
+					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
+					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
+					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
 		std::fflush(m_fp_energy);
 	}
 }
@@ -146,14 +152,19 @@ void logger::log(const body &b, unsigned int step) {
 	static bool log_trace = true;
 	if (cfg_init == 0) {
 		cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_VTK_WORKPIECE"); s && std::atoi(s) == 0) log_vtk_workpiece = false;
-		if (const char *s = std::getenv("MFREE_LOG_VTK_TOOL"); s && std::atoi(s) == 0) log_vtk_tool = false;
-		if (const char *s = std::getenv("MFREE_LOG_VTK_FE_TOOL"); s && std::atoi(s) == 0) log_vtk_fe_tool = false;
-		if (const char *s = std::getenv("MFREE_LOG_FORCES"); s && std::atoi(s) == 0) log_forces = false;
-		if (const char *s = std::getenv("MFREE_LOG_TRACE"); s && std::atoi(s) == 0) log_trace = false;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_WORKPIECE"); s && std::atoi(s) == 0)
+			log_vtk_workpiece = false;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_TOOL"); s && std::atoi(s) == 0)
+			log_vtk_tool = false;
+		if (const char *s = std::getenv("MFREE_LOG_VTK_FE_TOOL"); s && std::atoi(s) == 0)
+			log_vtk_fe_tool = false;
+		if (const char *s = std::getenv("MFREE_LOG_FORCES"); s && std::atoi(s) == 0)
+			log_forces = false;
+		if (const char *s = std::getenv("MFREE_LOG_TRACE"); s && std::atoi(s) == 0)
+			log_trace = false;
 	}
 
-	//log forces (if desired)
+	// log forces (if desired)
 	if (m_log_forces && log_forces && m_fp_forces) {
 		double fx = 0.;
 		double fy = 0.;
@@ -171,7 +182,7 @@ void logger::log(const body &b, unsigned int step) {
 		fflush(m_fp_forces);
 	}
 
-	//trace particles to be traced
+	// trace particles to be traced
 	if (log_trace) {
 		if (m_fp_trace) {
 			for (const auto it : m_trace_p) {
@@ -184,10 +195,13 @@ void logger::log(const body &b, unsigned int step) {
 	}
 
 	if (m_emit_vtk) {
-		if (log_vtk_workpiece) vtk_writer_write(b.get_particles(), step, m_folder);
+		if (log_vtk_workpiece)
+			vtk_writer_write(b.get_particles(), step, m_folder);
 		if (b.get_fe_tool()) {
-			if (log_vtk_tool) vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
-			if (log_vtk_fe_tool) vtk_writer_write(b.get_fe_tool(), step, m_folder);
+			if (log_vtk_tool)
+				vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");
+			if (log_vtk_fe_tool)
+				vtk_writer_write(b.get_fe_tool(), step, m_folder);
 		}
 	}
 
@@ -195,7 +209,8 @@ void logger::log(const body &b, unsigned int step) {
 	static bool log_thermal = true;
 	if (thermal_cfg_init == 0) {
 		thermal_cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_THERMAL"); s && std::atoi(s) == 0) log_thermal = false;
+		if (const char *s = std::getenv("MFREE_LOG_THERMAL"); s && std::atoi(s) == 0)
+			log_thermal = false;
 	}
 
 	const fe_tool *ft_log = b.get_fe_tool();
@@ -212,26 +227,26 @@ void logger::log(const body &b, unsigned int step) {
 		unsigned int wp_n = 0;
 		for (unsigned int i = 0; i < b.get_num_part(); i++) {
 			double T = b.get_particles()[i].T;
-			if (!std::isfinite(T)) continue;
+			if (!std::isfinite(T))
+				continue;
 			wp_Tmin = std::min(wp_Tmin, T);
 			wp_Tmax = std::max(wp_Tmax, T);
 			wp_Tsum += T;
 			wp_n++;
 		}
-		if (!std::isfinite(wp_Tmin)) wp_Tmin = 0.0;
-		if (!std::isfinite(wp_Tmax)) wp_Tmax = 0.0;
+		if (!std::isfinite(wp_Tmin))
+			wp_Tmin = 0.0;
+		if (!std::isfinite(wp_Tmax))
+			wp_Tmax = 0.0;
 		double wp_Tavg = (wp_n > 0) ? (wp_Tsum / static_cast<double>(wp_n)) : 0.0;
 
 		simulation_time *time = &simulation_time::getInstance();
 		double cur_time = time->get_time();
 
-		std::fprintf(m_fp_thermal, "%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u,%.15e,%.15e\n",
-		             cur_time, step,
-		             eb.P_cond, eb.P_fric, eb.scale, eb.frac_workpiece, eb.frac_tool,
-		             tool_pos.x, tool_pos.y, tool_vel.x, tool_vel.y,
-		             ft->min_temperature(), ft->max_temperature(),
-		             wp_Tmin, wp_Tmax, wp_Tavg,
-		             cc.iters, cc.rel_force, cc.rel_power);
+		std::fprintf(
+			m_fp_thermal, "%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u,%.15e,%.15e\n",
+			cur_time, step, eb.P_cond, eb.P_fric, eb.scale, eb.frac_workpiece, eb.frac_tool, tool_pos.x, tool_pos.y, tool_vel.x, tool_vel.y,
+			ft->min_temperature(), ft->max_temperature(), wp_Tmin, wp_Tmax, wp_Tavg, cc.iters, cc.rel_force, cc.rel_power);
 		std::fflush(m_fp_thermal);
 	}
 
@@ -239,7 +254,8 @@ void logger::log(const body &b, unsigned int step) {
 	static bool log_energy = true;
 	if (energy_cfg_init == 0) {
 		energy_cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0) log_energy = false;
+		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0)
+			log_energy = false;
 	}
 
 	if (log_energy && m_fp_energy && ft_log) {
@@ -251,7 +267,8 @@ void logger::log(const body &b, unsigned int step) {
 		if (std::isfinite(cp_wp) && cp_wp > 0.) {
 			for (unsigned int i = 0; i < b.get_num_part(); i++) {
 				const particle &pi = b.get_particles()[i];
-				if (!std::isfinite(pi.m) || !std::isfinite(pi.T)) continue;
+				if (!std::isfinite(pi.m) || !std::isfinite(pi.T))
+					continue;
 				wp_internal_E += pi.m * cp_wp * pi.T;
 			}
 		}
@@ -271,30 +288,35 @@ void logger::log(const body &b, unsigned int step) {
 		const double step_interface_balance_residual =
 			(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
 		const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
-		const double cum_interface_balance_residual =
-			(m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
+		const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
 		const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
 
 		simulation_time *time = &simulation_time::getInstance();
 		double cur_time = time->get_time();
 
 		std::fprintf(m_fp_energy,
-		             "%.15e,%u,%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,%.15e,"
-		             "%.15e,%.15e,%.15e,%.15e\n",
-		             cur_time, step, ea.step_dt, wp_internal_E, ea.tool_internal_E,
-		             ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled, ea.step_contact_E_fric_scaled,
-		             ea.step_contact_E_workpiece, ea.step_contact_E_tool, ea.step_contact_E_limiter_suppressed,
-		             ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection, ea.step_tool_E_dirichlet,
-		             m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled, m_cum_contact_E_fric_scaled,
-		             m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
-		             m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
-		             step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual);
+					 "%.15e,%u,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e\n",
+					 cur_time, step, ea.step_dt, wp_internal_E, ea.tool_internal_E, ea.step_contact_event_count, ea.step_contact_area_eff,
+					 ea.step_contact_hA, ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
+					 ea.step_contact_deltaT_mean, ea.step_contact_deltaT_max, ea.step_contact_h_c_mean, ea.step_contact_h_c_max,
+					 ea.step_contact_max_pred_dT, ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled,
+					 ea.step_contact_E_fric_scaled, ea.step_contact_E_workpiece, ea.step_contact_E_tool,
+					 ea.step_contact_E_limiter_suppressed, ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection,
+					 ea.step_tool_E_dirichlet, m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled,
+					 m_cum_contact_E_fric_scaled, m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
+					 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
+					 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual);
 		std::fflush(m_fp_energy);
 	}
 
@@ -302,7 +324,8 @@ void logger::log(const body &b, unsigned int step) {
 	static bool log_metrics = true;
 	if (metrics_cfg_init == 0) {
 		metrics_cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_METRICS"); s && std::atoi(s) == 0) log_metrics = false;
+		if (const char *s = std::getenv("MFREE_LOG_METRICS"); s && std::atoi(s) == 0)
+			log_metrics = false;
 	}
 
 	if (log_metrics && m_fp_metrics) {
@@ -326,14 +349,17 @@ void logger::log(const body &b, unsigned int step) {
 			double dx = pi.x - pi.X;
 			double dy = pi.y - pi.Y;
 			double u = std::sqrt(dx * dx + dy * dy);
-			if (std::isfinite(u)) umax = std::max(umax, u);
+			if (std::isfinite(u))
+				umax = std::max(umax, u);
 			double sxx = pi.Sxx - pi.p;
 			double sxy = pi.Sxy;
 			double syy = pi.Syy - pi.p;
 			double szz = pi.Szz - pi.p;
 			double svm = std::sqrt(std::abs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
-			if (std::isfinite(svm)) svm_max = std::max(svm_max, svm);
-			if (std::isfinite(pi.eps_pl_equiv)) epspl_max = std::max(epspl_max, pi.eps_pl_equiv);
+			if (std::isfinite(svm))
+				svm_max = std::max(svm_max, svm);
+			if (std::isfinite(pi.eps_pl_equiv))
+				epspl_max = std::max(epspl_max, pi.eps_pl_equiv);
 			double Fn = std::sqrt(pi.fcx * pi.fcx + pi.fcy * pi.fcy);
 			double p = 0.0;
 			if (Fn > 0.0 && pi.m > 0.0 && pi.rho > 0.0) {
@@ -344,14 +370,16 @@ void logger::log(const body &b, unsigned int step) {
 				pcount++;
 			}
 		}
-		if (!std::isfinite(wp_Tmin)) wp_Tmin = 0.0;
-		if (!std::isfinite(wp_Tmax)) wp_Tmax = 0.0;
+		if (!std::isfinite(wp_Tmin))
+			wp_Tmin = 0.0;
+		if (!std::isfinite(wp_Tmax))
+			wp_Tmax = 0.0;
 		double wp_Tavg = (wp_n > 0) ? (wp_Tsum / static_cast<double>(wp_n)) : 0.0;
 
 		simulation_time *time = &simulation_time::getInstance();
 		double cur_time = time->get_time();
-		std::fprintf(m_fp_metrics, "%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u\n",
-		             cur_time, step, wp_Tmin, wp_Tmax, wp_Tavg, umax, svm_max, epspl_max, pmax, pcount);
+		std::fprintf(m_fp_metrics, "%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u\n", cur_time, step, wp_Tmin, wp_Tmax, wp_Tavg,
+					 umax, svm_max, epspl_max, pmax, pcount);
 		std::fflush(m_fp_metrics);
 	}
 }
@@ -373,7 +401,8 @@ logger::logger(const char *case_name, const char *foldername) {
 	m_fp_trace = fopen(trace.string().c_str(), "w+");
 	m_fp_thermal = fopen(thermal.string().c_str(), "w+");
 	if (m_fp_thermal) {
-		std::fprintf(m_fp_thermal, "time,step,P_cond_W,P_fric_W,scale,frac_wp,frac_tool,tool_pos_x,tool_pos_y,tool_vel_x,tool_vel_y,tool_Tmin,tool_Tmax,wp_Tmin,wp_Tmax,wp_Tavg,contact_iters,rel_force,rel_power\n");
+		std::fprintf(m_fp_thermal, "time,step,P_cond_W,P_fric_W,scale,frac_wp,frac_tool,tool_pos_x,tool_pos_y,tool_vel_x,tool_vel_y,tool_"
+								   "Tmin,tool_Tmax,wp_Tmin,wp_Tmax,wp_Tavg,contact_iters,rel_force,rel_power\n");
 		std::fflush(m_fp_thermal);
 	}
 	m_fp_metrics = fopen(metrics.string().c_str(), "w+");
@@ -384,14 +413,18 @@ logger::logger(const char *case_name, const char *foldername) {
 	m_fp_energy = fopen(energy.string().c_str(), "w+");
 	if (m_fp_energy) {
 		std::fprintf(m_fp_energy,
-		             "time,step,step_dt,wp_internal_E,tool_internal_E,"
-		             "step_contact_E_cond_raw,step_contact_E_fric_raw,step_contact_E_cond_scaled,step_contact_E_fric_scaled,"
-		             "step_contact_E_workpiece,step_contact_E_tool,step_contact_E_limiter_suppressed,"
-		             "step_tool_E_sources,step_tool_E_conduction,step_tool_E_convection,step_tool_E_dirichlet,"
-		             "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
-		             "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
-		             "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-		             "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
+					 "time,step,step_dt,wp_internal_E,tool_internal_E,"
+					 "step_contact_event_count,step_contact_area_eff,step_contact_hA,"
+					 "step_contact_P_cond_pos_raw,step_contact_P_cond_neg_raw,step_contact_P_cond_net_raw,"
+					 "step_contact_deltaT_mean,step_contact_deltaT_max,step_contact_h_c_mean,step_contact_h_c_max,"
+					 "step_contact_max_pred_dT,"
+					 "step_contact_E_cond_raw,step_contact_E_fric_raw,step_contact_E_cond_scaled,step_contact_E_fric_scaled,"
+					 "step_contact_E_workpiece,step_contact_E_tool,step_contact_E_limiter_suppressed,"
+					 "step_tool_E_sources,step_tool_E_conduction,step_tool_E_convection,step_tool_E_dirichlet,"
+					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
+					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
+					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
+					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
 		std::fflush(m_fp_energy);
 	}
 }

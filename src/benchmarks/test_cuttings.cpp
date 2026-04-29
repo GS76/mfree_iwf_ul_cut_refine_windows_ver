@@ -61,58 +61,76 @@
 
 static bool try_read_env_double(const char *key, double &out) {
 	const char *s = getenv(key);
-	if (!s || s[0] == '\0') return false;
+	if (!s || s[0] == '\0')
+		return false;
 	char *end = nullptr;
 	double v = strtod(s, &end);
-	if (end == s || !std::isfinite(v)) return false;
+	if (end == s || !std::isfinite(v))
+		return false;
 	out = v;
 	return true;
 }
 
 static bool try_read_env_int(const char *key, int &out) {
 	const char *s = getenv(key);
-	if (!s || s[0] == '\0') return false;
-	while (*s && std::isspace(static_cast<unsigned char>(*s))) ++s;
-	if (!*s) return false;
+	if (!s || s[0] == '\0')
+		return false;
+	while (*s && std::isspace(static_cast<unsigned char>(*s)))
+		++s;
+	if (!*s)
+		return false;
 	char *end = nullptr;
 	long v = std::strtol(s, &end, 10);
-	if (end == s) return false;
-	while (*end && std::isspace(static_cast<unsigned char>(*end))) ++end;
-	if (*end != '\0') return false;
-	if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) return false;
+	if (end == s)
+		return false;
+	while (*end && std::isspace(static_cast<unsigned char>(*end)))
+		++end;
+	if (*end != '\0')
+		return false;
+	if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max())
+		return false;
 	out = static_cast<int>(v);
 	return true;
 }
 
 static bool try_read_env_table(const char *key, std::vector<double> &T_out, std::vector<double> &v_out) {
 	const char *s = getenv(key);
-	if (!s || s[0] == '\0') return false;
+	if (!s || s[0] == '\0')
+		return false;
 
 	std::vector<std::pair<double, double>> pairs;
 	const char *p = s;
 	while (*p) {
-		while (*p == ' ' || *p == '\t' || *p == ',' || *p == ';' || *p == '\n' || *p == '\r') ++p;
-		if (!*p) break;
+		while (*p == ' ' || *p == '\t' || *p == ',' || *p == ';' || *p == '\n' || *p == '\r')
+			++p;
+		if (!*p)
+			break;
 
 		char *end = nullptr;
 		double T = strtod(p, &end);
-		if (end == p || !std::isfinite(T)) return false;
+		if (end == p || !std::isfinite(T))
+			return false;
 		p = end;
 
-		while (*p == ' ' || *p == '\t') ++p;
-		if (*p != ':' && *p != '=') return false;
+		while (*p == ' ' || *p == '\t')
+			++p;
+		if (*p != ':' && *p != '=')
+			return false;
 		++p;
-		while (*p == ' ' || *p == '\t') ++p;
+		while (*p == ' ' || *p == '\t')
+			++p;
 
 		end = nullptr;
 		double v = strtod(p, &end);
-		if (end == p || !std::isfinite(v)) return false;
+		if (end == p || !std::isfinite(v))
+			return false;
 		p = end;
 
 		pairs.push_back({T, v});
 	}
 
-	if (pairs.size() < 2) return false;
+	if (pairs.size() < 2)
+		return false;
 	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
 
 	T_out.clear();
@@ -128,9 +146,8 @@ static bool try_read_env_table(const char *key, std::vector<double> &T_out, std:
 	return T_out.size() >= 2;
 }
 
-static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_y, unsigned int base_ny,
-											   double target_feed, unsigned int safety_layers,
-											   double &lo_y, double &hi_y, unsigned int &ny, double &dy) {
+static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_y, unsigned int base_ny, double target_feed,
+											   unsigned int safety_layers, double &lo_y, double &hi_y, unsigned int &ny, double &dy) {
 	hi_y = base_hi_y;
 	double base_thickness = base_hi_y - base_lo_y;
 	dy = base_thickness / (base_ny - 1);
@@ -148,31 +165,46 @@ static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_
 static double read_coupled_motion_ratio() {
 	const char *enable_env = getenv("MFREE_COUPLED_MOTION");
 	bool enabled = (enable_env && atoi(enable_env) != 0);
-	if (!enabled) return 1.0;
+	if (!enabled)
+		return 1.0;
 
 	double ratio = 1.0;
 	if (try_read_env_double("MFREE_COUPLED_MOTION_RATIO", ratio)) {
-		if (!std::isfinite(ratio)) ratio = 1.0;
+		if (!std::isfinite(ratio))
+			ratio = 1.0;
 		ratio = std::max(0.0, std::min(1.0, ratio));
 		return ratio;
 	}
 
 	const char *primary = getenv("MFREE_PRIMARY_MOVING_BODY");
-	if (!primary || primary[0] == '\0') return 1.0;
+	if (!primary || primary[0] == '\0')
+		return 1.0;
 	std::string s(primary);
-	for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	if (s == "workpiece" || s == "wp") return 0.0;
-	if (s == "both" || s == "coupled") return 0.5;
+	for (char &c : s)
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	if (s == "workpiece" || s == "wp")
+		return 0.0;
+	if (s == "both" || s == "coupled")
+		return 0.5;
 	return 1.0;
 }
 
-static double estimate_dt_for_cutting(const physical_constants &pc, double dx, double hdx, double relative_speed, double empirical_cap, const fe_tool *ft) {
+static double estimate_dt_for_cutting(const physical_constants &pc, double dx, double hdx, double relative_speed, double empirical_cap,
+									  const fe_tool *ft) {
 	coupled_timestep_config cfg;
 	cfg.particle_spacing = dx;
 	cfg.smoothing_length_ratio = hdx;
 	cfg.max_relative_speed = relative_speed;
 	cfg.empirical_dt_cap = empirical_cap;
-	cfg.interface_contact_area = dx * dx;
+	double plane_strain_thickness = 1.0;
+	try_read_env_double("MFREE_PLANE_STRAIN_THICKNESS", plane_strain_thickness);
+	if (!std::isfinite(plane_strain_thickness) || plane_strain_thickness <= 0.)
+		plane_strain_thickness = 1.0;
+	double contact_length_factor = 1.0;
+	try_read_env_double("MFREE_THERMAL_CONTACT_LENGTH_FACTOR", contact_length_factor);
+	if (!std::isfinite(contact_length_factor) || contact_length_factor <= 0.)
+		contact_length_factor = 1.0;
+	cfg.interface_contact_area = dx * contact_length_factor * plane_strain_thickness;
 	try_read_env_double("MFREE_TIMESTEP_WP_MECH_SAFETY", cfg.workpiece_mechanical_safety);
 	try_read_env_double("MFREE_TIMESTEP_WP_THERM_SAFETY", cfg.workpiece_thermal_safety);
 	try_read_env_double("MFREE_TIMESTEP_TOOL_MECH_SAFETY", cfg.tool_mechanical_safety);
@@ -181,27 +213,33 @@ static double estimate_dt_for_cutting(const physical_constants &pc, double dx, d
 	try_read_env_double("MFREE_THERMAL_H_FULL", cfg.contact_conductance_full);
 	double area_factor = 1.0;
 	try_read_env_double("MFREE_TIMESTEP_INTERFACE_AREA_FACTOR", area_factor);
-	if (std::isfinite(area_factor) && area_factor > 0.) cfg.interface_contact_area *= area_factor;
+	if (std::isfinite(area_factor) && area_factor > 0.)
+		cfg.interface_contact_area *= area_factor;
 
 	coupled_timestep_limits limits = estimate_coupled_timestep(pc, cfg, ft);
 	int print_limits = 1;
 	try_read_env_int("MFREE_TIMESTEP_PRINT", print_limits);
-	if (print_limits != 0) print_coupled_timestep_limits(limits);
+	if (print_limits != 0)
+		print_coupled_timestep_limits(limits);
 	return (std::isfinite(limits.maximum_dt) && limits.maximum_dt > 0.) ? limits.maximum_dt : empirical_cap;
 }
 
 static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 	auto apply_tag_list = [&](const char *env_key, auto apply_tag) -> bool {
 		const char *tags = getenv(env_key);
-		if (!tags || tags[0] == '\0') return false;
+		if (!tags || tags[0] == '\0')
+			return false;
 		std::string s(tags);
 		std::size_t i = 0;
 		bool any = false;
 		while (i < s.size()) {
-			while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ',')) i++;
-			if (i >= s.size()) break;
+			while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ','))
+				i++;
+			if (i >= s.size())
+				break;
 			std::size_t j = i;
-			while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t') j++;
+			while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t')
+				j++;
 			std::string tok = s.substr(i, j - i);
 			errno = 0;
 			char *end = nullptr;
@@ -209,7 +247,7 @@ static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 			if (end != tok.c_str() && end != nullptr && *end == '\0' && errno == 0) {
 				if (v >= std::numeric_limits<int>::min() && v <= std::numeric_limits<int>::max() && v != 0) {
 					apply_tag(static_cast<int>(v));
-				any = true;
+					any = true;
 				}
 			}
 			i = j;
@@ -225,17 +263,20 @@ static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 		bool anchor_ux = true;
 		{
 			int v = 0;
-			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_UX", v)) anchor_ux = (v != 0);
+			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_UX", v))
+				anchor_ux = (v != 0);
 		}
 		int anchor_tag = 0;
 		{
 			int v = 0;
-			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_TAG", v)) anchor_tag = v;
+			if (try_read_env_int("MFREE_FE_TOOL_ANCHOR_TAG", v))
+				anchor_tag = v;
 		}
 		if (anchor_ux && anchor_tag != 0) {
 			std::unordered_set<unsigned int> nodes;
 			for (const auto &e : ft.boundary_edges()) {
-				if (e.physical_tag != anchor_tag) continue;
+				if (e.physical_tag != anchor_tag)
+					continue;
 				nodes.insert(e.n0);
 				nodes.insert(e.n1);
 			}
@@ -244,7 +285,8 @@ static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 				double best_x = -std::numeric_limits<double>::infinity();
 				for (unsigned int n : nodes) {
 					glm::dvec2 pw = ft.node_world(n);
-					if (!std::isfinite(pw.x)) continue;
+					if (!std::isfinite(pw.x))
+						continue;
 					if (pw.x > best_x) {
 						best_x = pw.x;
 						anchor = n;
@@ -263,25 +305,31 @@ static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 			bnodes.insert(e.n0);
 			bnodes.insert(e.n1);
 		}
-		if (bnodes.empty()) return;
+		if (bnodes.empty())
+			return;
 
 		double x_max = -std::numeric_limits<double>::infinity();
 		double x_min = std::numeric_limits<double>::infinity();
-		for (unsigned int i : bnodes) x_max = std::max(x_max, ft.nodes_tool_frame()[i].x);
-		for (unsigned int i : bnodes) x_min = std::min(x_min, ft.nodes_tool_frame()[i].x);
+		for (unsigned int i : bnodes)
+			x_max = std::max(x_max, ft.nodes_tool_frame()[i].x);
+		for (unsigned int i : bnodes)
+			x_min = std::min(x_min, ft.nodes_tool_frame()[i].x);
 
 		std::vector<unsigned int> fixed;
 		double width = x_max - x_min;
 		double tol = 0.01 * width;
 		try_read_env_double("MFREE_FE_TOOL_FIX_X_TOL", tol);
-		if (!std::isfinite(tol) || tol <= 0.) tol = 0.01 * width;
+		if (!std::isfinite(tol) || tol <= 0.)
+			tol = 0.01 * width;
 
 		for (int attempt = 0; attempt < 4; attempt++) {
 			fixed.clear();
 			for (unsigned int i : bnodes) {
-				if (ft.nodes_tool_frame()[i].x >= x_max - tol) fixed.push_back(i);
+				if (ft.nodes_tool_frame()[i].x >= x_max - tol)
+					fixed.push_back(i);
 			}
-			if (fixed.size() >= 2) break;
+			if (fixed.size() >= 2)
+				break;
 			tol *= 5.0;
 		}
 		ft.set_mechanics_fixed_nodes(fixed);
@@ -290,12 +338,16 @@ static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 	std::string s(tags);
 	std::size_t i = 0;
 	while (i < s.size()) {
-		while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ',')) i++;
-		if (i >= s.size()) break;
+		while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == ';' || s[i] == ','))
+			i++;
+		if (i >= s.size())
+			break;
 		std::size_t j = i;
-		while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t') j++;
+		while (j < s.size() && s[j] != ';' && s[j] != ',' && s[j] != ' ' && s[j] != '\t')
+			j++;
 		int tag = std::atoi(s.substr(i, j - i).c_str());
-		if (tag != 0) ft.set_mechanics_fixed_on_physical(tag);
+		if (tag != 0)
+			ft.set_mechanics_fixed_on_physical(tag);
 		i = j;
 	}
 }
@@ -318,7 +370,8 @@ static std::vector<glm::dvec2> extract_boundary_loop_world(const fe_tool &ft) {
 
 	for (const auto &kv : adj) {
 		unsigned int idx = kv.first;
-		if (idx >= nodes.size()) continue;
+		if (idx >= nodes.size())
+			continue;
 		glm::dvec2 p = ft.to_world_frame(nodes[idx]);
 		if (!has_start || p.x < start_p.x || (p.x == start_p.x && p.y < start_p.y)) {
 			has_start = true;
@@ -327,7 +380,8 @@ static std::vector<glm::dvec2> extract_boundary_loop_world(const fe_tool &ft) {
 		}
 	}
 
-	if (!has_start) return {};
+	if (!has_start)
+		return {};
 
 	std::vector<unsigned int> loop;
 	loop.reserve(adj.size());
@@ -337,10 +391,13 @@ static std::vector<glm::dvec2> extract_boundary_loop_world(const fe_tool &ft) {
 	for (unsigned int it = 0; it < static_cast<unsigned int>(adj.size()) + 2; it++) {
 		loop.push_back(cur);
 		const auto &nb = adj[cur];
-		if (nb.empty()) break;
+		if (nb.empty())
+			break;
 		unsigned int next = nb[0];
-		if (nb.size() >= 2 && next == prev) next = nb[1];
-		if (next == start) break;
+		if (nb.size() >= 2 && next == prev)
+			next = nb[1];
+		if (next == start)
+			break;
 		prev = cur;
 		cur = next;
 	}
@@ -348,7 +405,8 @@ static std::vector<glm::dvec2> extract_boundary_loop_world(const fe_tool &ft) {
 	std::vector<glm::dvec2> pts;
 	pts.reserve(loop.size());
 	for (unsigned int idx : loop) {
-		if (idx >= nodes.size()) continue;
+		if (idx >= nodes.size())
+			continue;
 		pts.push_back(ft.to_world_frame(nodes[idx]));
 	}
 	return pts;
@@ -379,7 +437,8 @@ static glm::dvec2 compute_nominal_tool_center(glm::dvec2 tl, double length, doub
 		double d34 = x3 * y4 - y3 * x4;
 		double px = (d12 * (x3 - x4) - (x1 - x2) * d34) / denom;
 		double py = (d12 * (y3 - y4) - (y1 - y2) * d34) / denom;
-		if (std::isfinite(px) && std::isfinite(py)) br = glm::dvec2(px, py);
+		if (std::isfinite(px) && std::isfinite(py))
+			br = glm::dvec2(px, py);
 	}
 
 	return 0.25 * (tl + tr + br + bl);
@@ -388,9 +447,11 @@ static glm::dvec2 compute_nominal_tool_center(glm::dvec2 tl, double length, doub
 static glm::dvec2 closest_point_on_segment(glm::dvec2 p, glm::dvec2 a, glm::dvec2 b) {
 	glm::dvec2 ab = b - a;
 	double ab2 = ab.x * ab.x + ab.y * ab.y;
-	if (!(ab2 > 0.0) || !std::isfinite(ab2)) return a;
+	if (!(ab2 > 0.0) || !std::isfinite(ab2))
+		return a;
 	double t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / ab2;
-	if (!std::isfinite(t)) t = 0.0;
+	if (!std::isfinite(t))
+		t = 0.0;
 	t = std::max(0.0, std::min(1.0, t));
 	return a + t * ab;
 }
@@ -398,7 +459,8 @@ static glm::dvec2 closest_point_on_segment(glm::dvec2 p, glm::dvec2 a, glm::dvec
 static glm::dvec2 closest_point_on_polyline(glm::dvec2 p, const std::vector<glm::dvec2> &poly) {
 	glm::dvec2 best(0.);
 	double best_d2 = std::numeric_limits<double>::infinity();
-	if (poly.size() < 2) return best;
+	if (poly.size() < 2)
+		return best;
 	for (std::size_t i = 0; i < poly.size(); i++) {
 		glm::dvec2 a = poly[i];
 		glm::dvec2 b = poly[(i + 1) % poly.size()];
@@ -415,15 +477,18 @@ static glm::dvec2 closest_point_on_polyline(glm::dvec2 p, const std::vector<glm:
 
 static double poly_min_y(const std::vector<glm::dvec2> &poly) {
 	double low = std::numeric_limits<double>::infinity();
-	for (const auto &p : poly) low = std::min(low, p.y);
-	if (!std::isfinite(low)) return 0.0;
+	for (const auto &p : poly)
+		low = std::min(low, p.y);
+	if (!std::isfinite(low))
+		return 0.0;
 	return low;
 }
 
 static void enforce_fe_tool_corner_clearance(fe_tool &ft, glm::dvec2 wp_corner, double clearance_target_m, unsigned int iters) {
 	for (unsigned int it = 0; it < iters; it++) {
 		std::vector<glm::dvec2> poly = ft.boundary_loop_world();
-		if (poly.size() < 3) return;
+		if (poly.size() < 3)
+			return;
 
 		double y_bottom = poly_min_y(poly);
 		double dy = (wp_corner.y - clearance_target_m) - y_bottom;
@@ -433,7 +498,8 @@ static void enforce_fe_tool_corner_clearance(fe_tool &ft, glm::dvec2 wp_corner, 
 		ft.set_pose(pos, ft.get_vel());
 
 		poly = ft.boundary_loop_world();
-		if (poly.size() < 3) return;
+		if (poly.size() < 3)
+			return;
 		glm::dvec2 cp = closest_point_on_polyline(wp_corner, poly);
 		double dx = wp_corner.x - cp.x;
 		pos = ft.get_pos();
@@ -443,14 +509,15 @@ static void enforce_fe_tool_corner_clearance(fe_tool &ft, glm::dvec2 wp_corner, 
 }
 
 static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, glm::dvec2 desired_vel, double desired_edge_y,
-                                     glm::dvec2 wp_corner, double clearance_target_m) {
+										glm::dvec2 wp_corner, double clearance_target_m) {
 	const char *msh_env = getenv("MFREE_FE_TOOL_MSH");
 	std::string msh;
 	if (msh_env && msh_env[0] != '\0') {
 		msh = msh_env;
 	} else {
 		const std::string def = "./snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh";
-		if (std::filesystem::exists(def)) msh = def;
+		if (std::filesystem::exists(def))
+			msh = def;
 		else {
 			std::fprintf(stderr, "Missing MFREE_FE_TOOL_MSH\n");
 			exit(1);
@@ -476,9 +543,12 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	{
 		std::vector<double> T;
 		std::vector<double> v;
-		if (try_read_env_table("MFREE_FE_TOOL_RHO_TABLE", T, v)) ft->set_material_table_rho(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_CP_TABLE", T, v)) ft->set_material_table_cp(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_K_TABLE", T, v)) ft->set_material_table_k(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_RHO_TABLE", T, v))
+			ft->set_material_table_rho(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_CP_TABLE", T, v))
+			ft->set_material_table_cp(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_K_TABLE", T, v))
+			ft->set_material_table_k(std::move(T), std::move(v));
 	}
 
 	fe_tool::mechanical_material mech;
@@ -493,15 +563,19 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	{
 		std::vector<double> T;
 		std::vector<double> v;
-		if (try_read_env_table("MFREE_FE_TOOL_E_TABLE", T, v)) ft->set_mechanical_table_E(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_NU_TABLE", T, v)) ft->set_mechanical_table_nu(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_ALPHA_TABLE", T, v)) ft->set_mechanical_table_alpha(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_E_TABLE", T, v))
+			ft->set_mechanical_table_E(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_NU_TABLE", T, v))
+			ft->set_mechanical_table_nu(std::move(T), std::move(v));
+		if (try_read_env_table("MFREE_FE_TOOL_ALPHA_TABLE", T, v))
+			ft->set_mechanical_table_alpha(std::move(T), std::move(v));
 	}
 	ft->set_reference_temperature(T0);
 	bool bc_validate = false;
 	{
 		int v = 0;
-		if (try_read_env_int("MFREE_FE_BC_VALIDATE", v) && v != 0) bc_validate = true;
+		if (try_read_env_int("MFREE_FE_BC_VALIDATE", v) && v != 0)
+			bc_validate = true;
 	}
 	if (!bc_validate) {
 		apply_mech_fix_tags_from_env(*ft);
@@ -511,12 +585,15 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	glm::dvec2 pos(0.);
 	const char *align_env = getenv("MFREE_FE_TOOL_ALIGN_CENTER");
 	bool align = true;
-	if (align_env) align = (atoi(align_env) != 0);
+	if (align_env)
+		align = (atoi(align_env) != 0);
 	if (align) {
 		glm::dvec2 mesh_center(0.);
 		const auto &nodes = ft->nodes_tool_frame();
-		for (const auto &p : nodes) mesh_center += p;
-		if (!nodes.empty()) mesh_center /= static_cast<double>(nodes.size());
+		for (const auto &p : nodes)
+			mesh_center += p;
+		if (!nodes.empty())
+			mesh_center /= static_cast<double>(nodes.size());
 		pos = desired_center - mesh_center;
 	} else {
 		try_read_env_double("MFREE_FE_TOOL_POS_X", pos.x);
@@ -534,7 +611,8 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	double y_thresh = desired_edge_y;
 	const char *y_env = getenv("MFREE_COOLANT_Y_THRESHOLD");
-	if (y_env) y_thresh = atof(y_env);
+	if (y_env)
+		y_thresh = atof(y_env);
 	ft->set_convection_flooded_by_y(air, water, y_thresh);
 
 	enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target_m, 5);
@@ -544,8 +622,10 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		int rear_tag = 114;
 		{
 			int v = 0;
-			if (try_read_env_int("MFREE_FE_BC_TOP_TAG", v)) top_tag = v;
-			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v)) rear_tag = v;
+			if (try_read_env_int("MFREE_FE_BC_TOP_TAG", v))
+				top_tag = v;
+			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v))
+				rear_tag = v;
 		}
 		double Tamb_C = 25.0;
 		try_read_env_double("MFREE_FE_BC_AMBIENT_C", Tamb_C);
@@ -556,80 +636,94 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		bool top_found = false;
 		bool rear_found = false;
 		for (const auto &e : ft->boundary_edges()) {
-			if (e.physical_tag == top_tag) top_found = true;
-			if (e.physical_tag == rear_tag) rear_found = true;
+			if (e.physical_tag == top_tag)
+				top_found = true;
+			if (e.physical_tag == rear_tag)
+				rear_found = true;
 		}
-		if (top_found) ft->set_mechanics_fixed_y_on_physical(top_tag);
-		else std::fprintf(stderr, "warning: FE BC validation top_tag=%d not found in FE tool boundary edges\n", top_tag);
-		if (rear_found) ft->set_mechanics_fixed_y_on_physical(rear_tag);
-		else std::fprintf(stderr, "warning: FE BC validation rear_tag=%d not found in FE tool boundary edges\n", rear_tag);
+		if (top_found)
+			ft->set_mechanics_fixed_y_on_physical(top_tag);
+		else
+			std::fprintf(stderr, "warning: FE BC validation top_tag=%d not found in FE tool boundary edges\n", top_tag);
+		if (rear_found)
+			ft->set_mechanics_fixed_y_on_physical(rear_tag);
+		else
+			std::fprintf(stderr, "warning: FE BC validation rear_tag=%d not found in FE tool boundary edges\n", rear_tag);
 
 		bool anchor_ux = true;
 		{
 			int v = 0;
-			if (try_read_env_int("MFREE_FE_BC_ANCHOR_UX", v)) anchor_ux = (v != 0);
+			if (try_read_env_int("MFREE_FE_BC_ANCHOR_UX", v))
+				anchor_ux = (v != 0);
 		}
 		if (anchor_ux && rear_found) {
 			std::unordered_set<unsigned int> rear_nodes;
 			for (const auto &e : ft->boundary_edges()) {
-				if (e.physical_tag != rear_tag) continue;
+				if (e.physical_tag != rear_tag)
+					continue;
 				rear_nodes.insert(e.n0);
 				rear_nodes.insert(e.n1);
 			}
 			if (rear_nodes.empty()) {
 				std::fprintf(stderr, "warning: FE BC validation rear_tag=%d has no nodes; skipping UX anchor\n", rear_tag);
 			} else {
-			unsigned int anchor = 0;
-			double best_x = -std::numeric_limits<double>::infinity();
-			for (unsigned int n : rear_nodes) {
-				glm::dvec2 pw = ft->node_world(n);
-				if (!std::isfinite(pw.x)) continue;
-				if (pw.x > best_x) {
-					best_x = pw.x;
-					anchor = n;
+				unsigned int anchor = 0;
+				double best_x = -std::numeric_limits<double>::infinity();
+				for (unsigned int n : rear_nodes) {
+					glm::dvec2 pw = ft->node_world(n);
+					if (!std::isfinite(pw.x))
+						continue;
+					if (pw.x > best_x) {
+						best_x = pw.x;
+						anchor = n;
+					}
 				}
-			}
-			ft->set_mechanics_fixed_x_nodes({anchor});
+				ft->set_mechanics_fixed_x_nodes({anchor});
 			}
 		}
 
-		if (top_found) ft->set_dirichlet_on_physical(top_tag, Tamb_K);
-		if (rear_found) ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
+		if (top_found)
+			ft->set_dirichlet_on_physical(top_tag, Tamb_K);
+		if (rear_found)
+			ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
 	}
 
 	return ft;
 }
 
- body *cutting_ref_mr(unsigned int ny) {
+body *cutting_ref_mr(unsigned int ny) {
 	physical_constants physical_constants = matlib_tial6v4_Sima_tanh2010_cm_musec_g();
 
-	double speed = 83.333328*1e-5;
+	double speed = 83.333328 * 1e-5;
 	double mu_fric = 0.35;
 
-	double hi_x = 0.100; double hi_y =  0.060;
-	double lo_x = 0.000; double lo_y =  0.030;
+	double hi_x = 0.100;
+	double hi_y = 0.060;
+	double lo_x = 0.000;
+	double lo_y = 0.030;
 
-	double dy = (hi_y-lo_y)/(ny-1);
+	double dy = (hi_y - lo_y) / (ny - 1);
 	double dx = dy;
-	unsigned int nx = (hi_x-lo_x)/dx;
+	unsigned int nx = (hi_x - lo_x) / dx;
 	double hdx = 1.5;
 
 	double c0 = physical_constants.c0();
-	double dt = 0.1*dx*hdx/(speed + c0);
-	double t_final =  0.1/speed*0.5; // 1mm of cut
+	double dt = 0.1 * dx * hdx / (speed + c0);
+	double t_final = 0.1 / speed * 0.5; // 1mm of cut
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	printf("using timestep %e with %d particles\n", dt, nx*ny);
+	printf("using timestep %e with %d particles\n", dt, nx * ny);
 
-	particle *particles = new particle[nx*ny];
+	particle *particles = new particle[nx * ny];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
 		for (unsigned int j = 0; j < ny; j++) {
-			double px = i*dx; double py = j*dx;
+			double px = i * dx;
+			double py = j * dx;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = px + lo_x;
@@ -648,35 +742,37 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
 	try_read_env_double("MFREE_TOOL_T0", tool_T0);
-	if (!std::isfinite(wp_T0)) wp_T0 = T0;
-	if (!std::isfinite(tool_T0)) tool_T0 = T0;
+	if (!std::isfinite(wp_T0))
+		wp_T0 = T0;
+	if (!std::isfinite(tool_T0))
+		tool_T0 = T0;
 
-	unsigned int n = nx*ny;
+	unsigned int n = nx * ny;
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].T = wp_T0;
 		particles[i].T_init = wp_T0;
 
 		// fix bottom
-		particles[i].fixed = (particles[i].y < lo_y + 0.5*dy) ? true : false;
+		particles[i].fixed = (particles[i].y < lo_y + 0.5 * dy) ? true : false;
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(physical_constants, correction_constants);
@@ -696,7 +792,8 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	double feed_per_rev_mm = 0.2;
 	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
-	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm <= 0.) feed_per_rev_mm = 0.2;
+	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm <= 0.)
+		feed_per_rev_mm = 0.2;
 	double clearance_target = feed_per_rev_mm * 1e-3;
 	glm::dvec2 wp_corner(0.0, 0.060);
 
@@ -711,7 +808,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	return b;
 }
 
- body *cutting_ref_single_resol(unsigned int nbox) {
+body *cutting_ref_single_resol(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -733,22 +830,27 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
 	try_read_env_double("MFREE_TOOL_T0", tool_T0);
-	if (!std::isfinite(wp_T0)) wp_T0 = T0;
-	if (!std::isfinite(tool_T0)) tool_T0 = T0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	if (!std::isfinite(wp_T0))
+		wp_T0 = T0;
+	if (!std::isfinite(tool_T0))
+		tool_T0 = T0;
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
 	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
-	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.) feed_per_rev_mm = 0.2;
+	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.)
+		feed_per_rev_mm = 0.2;
 	double depth_adjust = feed_per_rev_mm * 1e-3;
 	double base_target_feed_mm = 0.1;
 	try_read_env_double("MFREE_BASE_TARGET_FEED_MM", base_target_feed_mm);
-	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.) base_target_feed_mm = 0.1;
+	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.)
+		base_target_feed_mm = 0.1;
 
 	// workpiece dimensions SI
 	double thickness_mm = 0.5;
 	try_read_env_double("MFREE_WORKPIECE_THICKNESS_MM", thickness_mm);
-	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.) thickness_mm = 0.5;
+	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.)
+		thickness_mm = 0.5;
 	double thickness = thickness_mm * 1e-3;
 
 	double lo_x = 0.00000;
@@ -761,11 +863,12 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double lo_y = 0., hi_y = 0., dy = 0.;
 	adjust_workpiece_y_bounds_for_feed(base_lo_y, base_hi_y, nbox, target_feed, 5, lo_y, hi_y, ny, dy);
 	double dx = dy;
-	unsigned int nx = (hi_x-lo_x)/dx + 1;
+	unsigned int nx = (hi_x - lo_x) / dx + 1;
 	double v_m_min = 500.;
 	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
-	double vc = v_m_min / 60.;		// m/min -> m/s
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+		v_m_min = 500.;
+	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -774,7 +877,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
@@ -782,13 +885,14 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nx*ny];
+	particle *particles = new particle[nx * ny];
 
 	srand(0);
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
 		for (unsigned int j = 0; j < ny; j++) {
-			double px = i*dx; double py = j*dx;
+			double px = i * dx;
+			double py = j * dx;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = px + lo_x;
@@ -801,11 +905,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		}
 	}
 
-	unsigned int n = nx*ny;
+	unsigned int n = nx * ny;
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].T = wp_T0;
 		particles[i].T_init = wp_T0;
 		particles[i].vx = wp_vx;
@@ -814,25 +918,25 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		// fixtures
 		particles[i].fixed = false;
 		if (apply_fixtures) {
-			particles[i].fixed = (particles[i].y < lo_y + 0.5*dy) ? true : false;
-			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dx);
+			particles[i].fixed = (particles[i].y < lo_y + 0.5 * dy) ? true : false;
+			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dx);
 		}
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -847,14 +951,14 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// tool settings
 	float_t rake = 0.00001;
 	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
+	glm::dvec2 tl(-0.000410 + nudge, 0.000986074);
 	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t height_tool = 0.000986074 - 0.000555074;
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
@@ -877,7 +981,8 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = (hi_y - target_feed);
@@ -891,8 +996,10 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		auto low_y = [&]() -> double {
 			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
 			double low = std::numeric_limits<double>::infinity();
-			for (const auto &p : poly) low = std::min(low, p.y);
-			if (!std::isfinite(low)) low = hi_y;
+			for (const auto &p : poly)
+				low = std::min(low, p.y);
+			if (!std::isfinite(low))
+				low = hi_y;
 			return low;
 		};
 
@@ -929,17 +1036,19 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
-		for (const auto &p : poly) low = std::min(low, p.y);
-		if (!std::isfinite(low)) low = hi_y;
+		for (const auto &p : poly)
+			low = std::min(low, p.y);
+		if (!std::isfinite(low))
+			low = hi_y;
 		feed_report = hi_y - low;
 	}
-	printf("feed: %f, dt %e, num_part %d\n", feed_report, dt, nx*ny);
+	printf("feed: %f, dt %e, num_part %d\n", feed_report, dt, nx * ny);
 	printf("<<< single-resolution simulation >>>\n");
 
 	return b;
 }
 
- body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
+body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -961,22 +1070,27 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
 	try_read_env_double("MFREE_TOOL_T0", tool_T0);
-	if (!std::isfinite(wp_T0)) wp_T0 = T0;
-	if (!std::isfinite(tool_T0)) tool_T0 = T0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	if (!std::isfinite(wp_T0))
+		wp_T0 = T0;
+	if (!std::isfinite(tool_T0))
+		tool_T0 = T0;
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
 	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
-	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.) feed_per_rev_mm = 0.2;
+	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.)
+		feed_per_rev_mm = 0.2;
 	double depth_adjust = feed_per_rev_mm * 1e-3;
 	double base_target_feed_mm = 0.1;
 	try_read_env_double("MFREE_BASE_TARGET_FEED_MM", base_target_feed_mm);
-	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.) base_target_feed_mm = 0.1;
+	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.)
+		base_target_feed_mm = 0.1;
 
 	// workpiece dimensions SI
 	double thickness_mm = 0.5;
 	try_read_env_double("MFREE_WORKPIECE_THICKNESS_MM", thickness_mm);
-	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.) thickness_mm = 0.5;
+	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.)
+		thickness_mm = 0.5;
 	double thickness = thickness_mm * 1e-3;
 
 	double lo_x = 0.00000;
@@ -991,11 +1105,12 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double ly = hi_y - lo_y;
 
 	double dx = dy;
-	unsigned int nx = lx/dx + 1;
+	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
 	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
-	double vc = v_m_min / 60.;		// m/min -> m/s
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+		v_m_min = 500.;
+	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -1004,21 +1119,21 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// multi-resolution setup
 	double resol_ratio = 2.0;
-	double py_split = 0.5*ly + lo_y;
+	double py_split = 0.5 * ly + lo_y;
 	double dxh = dx;
 	double dxl = dxh * resol_ratio;
 	unsigned int nxh = nx;
 	unsigned int nyh = ny;
-	unsigned int nxl = lx/dxl + 1;
-	unsigned int nyl = ly/dxl + 1;
-	double dVl = dxl *dxl;
-	double dVh = dxh *dxh;
+	unsigned int nxl = lx / dxl + 1;
+	unsigned int nyl = ly / dxl + 1;
+	double dVl = dxl * dxl;
+	double dVh = dxh * dxh;
 	double h0l = hdx * dxl;
 	double h0h = hdx * dxh;
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
@@ -1026,7 +1141,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nxh*nyh];
+	particle *particles = new particle[nxh * nyh];
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -1034,10 +1149,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// 1. create the high resolution region
 	for (unsigned int i = 0; i < nxh; i++) {
 		for (unsigned int j = 0; j < nyh; j++) {
-			double pxh = i*dxh;
-			double pyh = j*dxh;
+			double pxh = i * dxh;
+			double pyh = j * dxh;
 
-			if ((pyh+lo_y)<(py_split-1.1*dxh)) continue;
+			if ((pyh + lo_y) < (py_split - 1.1 * dxh))
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxh + lo_x;
@@ -1063,10 +1179,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// 2. create the low resolution region
 	for (unsigned int i = 0; i < nxl; i++) {
 		for (unsigned int j = 0; j < nyl; j++) {
-			double pxl = i*dxl;
-			double pyl = j*dxl;
+			double pxl = i * dxl;
+			double pyl = j * dxl;
 
-			if ((pyl+lo_y)>=py_split) continue;
+			if ((pyl + lo_y) >= py_split)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxl + lo_x;
@@ -1093,14 +1210,14 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// total #particles
 	unsigned int n = part_iter;
 
-	printf("n_single_resolution=%d   n_multi_resolution=%d   \n",nxh*nyh,n);
+	printf("n_single_resolution=%d   n_multi_resolution=%d   \n", nxh * nyh, n);
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
 		particles[i].T = wp_T0;
 		particles[i].T_init = wp_T0;
-		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
-		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
+		particles[i].h = (particles[i].refine_step != 0) ? h0h : h0l;
+		particles[i].m = (particles[i].refine_step != 0) ? dVh * rho0 : dVl * rho0;
 		particles[i].split = false;
 		particles[i].merge = false;
 		particles[i].vx = wp_vx;
@@ -1109,25 +1226,25 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		// fixtures
 		particles[i].fixed = false;
 		if (apply_fixtures) {
-			particles[i].fixed = (particles[i].y < lo_y + 0.5*dxl) ? true : false;
-			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dxh);
+			particles[i].fixed = (particles[i].y < lo_y + 0.5 * dxl) ? true : false;
+			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dxh);
 		}
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -1142,14 +1259,14 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// tool settings
 	float_t rake = 0.00001;
 	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
+	glm::dvec2 tl(-0.000410 + nudge, 0.000986074);
 	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t height_tool = 0.000986074 - 0.000555074;
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
@@ -1171,7 +1288,8 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = (hi_y - target_feed);
@@ -1185,31 +1303,33 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		auto low_y = [&]() -> double {
 			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
 			double low = std::numeric_limits<double>::infinity();
-			for (const auto &p : poly) low = std::min(low, p.y);
-			if (!std::isfinite(low)) low = hi_y;
+			for (const auto &p : poly)
+				low = std::min(low, p.y);
+			if (!std::isfinite(low))
+				low = hi_y;
 			return low;
-			};
+		};
 
-			double current_feed = hi_y - low_y();
-			double dist_to_target_feed = fabs(current_feed - target_feed);
-			double correction_time = dist_to_target_feed / vc;
-			double sign = (current_feed > target_feed) ? 1 : -1.;
+		double current_feed = hi_y - low_y();
+		double dist_to_target_feed = fabs(current_feed - target_feed);
+		double correction_time = dist_to_target_feed / vc;
+		double sign = (current_feed > target_feed) ? 1 : -1.;
 
-			ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
-			ft->update_pose(correction_time * sign);
+		ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
+		ft->update_pose(correction_time * sign);
 
-			if (std::isfinite(y_offset) && y_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
-				ft->update_pose(y_offset);
-			}
-			if (std::isfinite(x_offset) && x_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
-				ft->update_pose(x_offset);
-			}
-
-			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
-			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
+		if (std::isfinite(y_offset) && y_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
+			ft->update_pose(y_offset);
 		}
+		if (std::isfinite(x_offset) && x_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
+			ft->update_pose(x_offset);
+		}
+
+		ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+		enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
+	}
 
 	dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, ft);
 	time->set_dt(dt);
@@ -1222,8 +1342,10 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
-		for (const auto &p : poly) low = std::min(low, p.y);
-		if (!std::isfinite(low)) low = hi_y;
+		for (const auto &p : poly)
+			low = std::min(low, p.y);
+		if (!std::isfinite(low))
+			low = hi_y;
 		feed_report = hi_y - low;
 	}
 	printf("feed: %f, dt %e, num_part %d\n", feed_report, dt, n);
@@ -1232,7 +1354,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	return b;
 }
 
- body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
+body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -1254,22 +1376,27 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
 	try_read_env_double("MFREE_TOOL_T0", tool_T0);
-	if (!std::isfinite(wp_T0)) wp_T0 = T0;
-	if (!std::isfinite(tool_T0)) tool_T0 = T0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	if (!std::isfinite(wp_T0))
+		wp_T0 = T0;
+	if (!std::isfinite(tool_T0))
+		tool_T0 = T0;
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	double feed_per_rev_mm = 0.2;
 	try_read_env_double("MFREE_FEED_PER_REV_MM", feed_per_rev_mm);
-	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.) feed_per_rev_mm = 0.2;
+	if (!std::isfinite(feed_per_rev_mm) || feed_per_rev_mm < 0.)
+		feed_per_rev_mm = 0.2;
 	double depth_adjust = feed_per_rev_mm * 1e-3;
 	double base_target_feed_mm = 0.1;
 	try_read_env_double("MFREE_BASE_TARGET_FEED_MM", base_target_feed_mm);
-	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.) base_target_feed_mm = 0.1;
+	if (!std::isfinite(base_target_feed_mm) || base_target_feed_mm < 0.)
+		base_target_feed_mm = 0.1;
 
 	// workpiece dimensions SI
 	double thickness_mm = 0.5;
 	try_read_env_double("MFREE_WORKPIECE_THICKNESS_MM", thickness_mm);
-	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.) thickness_mm = 0.5;
+	if (!std::isfinite(thickness_mm) || thickness_mm <= 0.)
+		thickness_mm = 0.5;
 	double thickness = thickness_mm * 1e-3;
 
 	double lo_x = 0.00000;
@@ -1284,11 +1411,12 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double ly = hi_y - lo_y;
 
 	double dx = dy;
-	unsigned int nx = lx/dx + 1;
+	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
 	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.) v_m_min = 500.;
-	double vc = v_m_min / 60.;		// m/min -> m/s
+	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+		v_m_min = 500.;
+	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
 	double tool_vx = ratio * vc;
@@ -1297,21 +1425,21 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// multi-resolution setup
 	double resol_ratio = 2.0;
-	double py_split = 0.5*ly + lo_y;
+	double py_split = 0.5 * ly + lo_y;
 	double dxh = dx;
 	double dxl = dxh * resol_ratio;
 	unsigned int nxh = nx;
 	unsigned int nyh = ny;
-	unsigned int nxl = lx/dxl + 1;
-	unsigned int nyl = ly/dxl + 1;
-	double dVl = dxl *dxl;
-	double dVh = dxh *dxh;
+	unsigned int nxl = lx / dxl + 1;
+	unsigned int nyl = ly / dxl + 1;
+	double dVl = dxl * dxl;
+	double dVh = dxh * dxh;
 	double h0l = hdx * dxl;
 	double h0h = hdx * dxh;
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
@@ -1319,7 +1447,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nxh*nyh];
+	particle *particles = new particle[nxh * nyh];
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -1332,10 +1460,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// 1. create the high resolution region
 	for (unsigned int i = 0; i < nxh; i++) {
 		for (unsigned int j = 0; j < nyh; j++) {
-			double pxh = i*dxh;
-			double pyh = j*dxh;
+			double pxh = i * dxh;
+			double pyh = j * dxh;
 
-			if ((pyh+lo_y)<(py_split-1.9*dxh) || pxh>initial_refined_x_max) continue;
+			if ((pyh + lo_y) < (py_split - 1.9 * dxh) || pxh > initial_refined_x_max)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxh + lo_x;
@@ -1363,10 +1492,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// 2. create the low resolution region
 	for (unsigned int i = 0; i < nxl; i++) {
 		for (unsigned int j = 0; j < nyl; j++) {
-			double pxl = i*dxl;
-			double pyl = j*dxl;
+			double pxl = i * dxl;
+			double pyl = j * dxl;
 
-			if ((pyl+lo_y)>=(py_split-1.9*dxh) && pxl<=initial_refined_x_max) continue;
+			if ((pyl + lo_y) >= (py_split - 1.9 * dxh) && pxl <= initial_refined_x_max)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxl + lo_x;
@@ -1384,18 +1514,18 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	unsigned int n = part_iter;
 
 	// slight modification for reserved CHILD particles!
-	for (unsigned int i = n; i < nxh*nyh; i++) {
+	for (unsigned int i = n; i < nxh * nyh; i++) {
 		particles[part_iter] = particle(part_iter);
 	}
 
-	printf("n_single_resolution=%d   n_current=%d  \n",nxh*nyh,n);
+	printf("n_single_resolution=%d   n_current=%d  \n", nxh * nyh, n);
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
 		particles[i].T = wp_T0;
 		particles[i].T_init = wp_T0;
-		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
-		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
+		particles[i].h = (particles[i].refine_step != 0) ? h0h : h0l;
+		particles[i].m = (particles[i].refine_step != 0) ? dVh * rho0 : dVl * rho0;
 		particles[i].split = false;
 		particles[i].merge = false;
 		particles[i].vx = wp_vx;
@@ -1404,25 +1534,25 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		// fixtures
 		particles[i].fixed = false;
 		if (apply_fixtures) {
-			particles[i].fixed = (particles[i].y < lo_y + 0.5*dxl) ? true : false;
-			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dxh);
+			particles[i].fixed = (particles[i].y < lo_y + 0.5 * dxl) ? true : false;
+			particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dxh);
 		}
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -1437,7 +1567,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// adaptivity settings
 
@@ -1451,14 +1581,13 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double T_cr = 700.;
 	glm::dvec2 xy_min = {0.25, 0.25};
 	glm::dvec2 xy_max = {0.75, 0.75};
-	double frame_width =  0.000350;
+	double frame_width = 0.000350;
 	double frame_height = 0.000060;
 	unsigned int n_nbh = 10;
-	double l_eff = lc + 0.1*lx;
+	double l_eff = lc + 0.1 * lx;
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
-	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr,
-									   T_cr, xy_min, xy_max, frame_width, frame_height,
+	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr, T_cr, xy_min, xy_max, frame_width, frame_height,
 									   n_nbh, l_eff, true);
 
 	adapt->set_refine_criterion(adaptivity::refine_criteria::moving_frame);
@@ -1467,9 +1596,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	// tool settings
 	float_t rake = 0.00001;
 	float_t clear = 11.;
-	glm::dvec2 tl(-0.000410  + nudge, 0.000986074);
+	glm::dvec2 tl(-0.000410 + nudge, 0.000986074);
 	float_t length_tool = -0.000086824 - -0.000500000;
-	float_t height_tool =  0.000986074 -  0.000555074;
+	float_t height_tool = 0.000986074 - 0.000555074;
 
 	double mu_friction = 0.35;
 	double fillet_radius = 5e-6;
@@ -1491,7 +1620,8 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	glm::dvec2 desired_center = compute_nominal_tool_center(tl, length_tool, height_tool, rake_deg, clear_deg);
 	glm::dvec2 desired_vel = glm::dvec2(tool_vx, 0.);
 	double desired_edge_y = (hi_y - target_feed);
@@ -1506,31 +1636,33 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		auto low_y = [&]() -> double {
 			std::vector<glm::dvec2> poly = ft->boundary_loop_world();
 			double low = std::numeric_limits<double>::infinity();
-			for (const auto &p : poly) low = std::min(low, p.y);
-			if (!std::isfinite(low)) low = hi_y;
+			for (const auto &p : poly)
+				low = std::min(low, p.y);
+			if (!std::isfinite(low))
+				low = hi_y;
 			return low;
 		};
 
-			double current_feed = hi_y - low_y();
-			double dist_to_target_feed = fabs(current_feed - target_feed);
-			double correction_time = dist_to_target_feed / vc;
-			double sign = (current_feed > target_feed) ? 1 : -1.;
+		double current_feed = hi_y - low_y();
+		double dist_to_target_feed = fabs(current_feed - target_feed);
+		double correction_time = dist_to_target_feed / vc;
+		double sign = (current_feed > target_feed) ? 1 : -1.;
 
-			ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
-			ft->update_pose(correction_time * sign);
+		ft->set_pose(ft->get_pos(), glm::dvec2(0., vc));
+		ft->update_pose(correction_time * sign);
 
-			if (std::isfinite(y_offset) && y_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
-				ft->update_pose(y_offset);
-			}
-			if (std::isfinite(x_offset) && x_offset != 0.) {
-				ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
-				ft->update_pose(x_offset);
-			}
-
-			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
-			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
+		if (std::isfinite(y_offset) && y_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(0., 1.));
+			ft->update_pose(y_offset);
 		}
+		if (std::isfinite(x_offset) && x_offset != 0.) {
+			ft->set_pose(ft->get_pos(), glm::dvec2(1., 0.));
+			ft->update_pose(x_offset);
+		}
+
+		ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
+		enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
+	}
 
 	dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, ft);
 	time->set_dt(dt);
@@ -1543,8 +1675,10 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	if (b->get_fe_tool()) {
 		std::vector<glm::dvec2> poly = b->get_fe_tool()->boundary_loop_world();
 		double low = std::numeric_limits<double>::infinity();
-		for (const auto &p : poly) low = std::min(low, p.y);
-		if (!std::isfinite(low)) low = hi_y;
+		for (const auto &p : poly)
+			low = std::min(low, p.y);
+		if (!std::isfinite(low))
+			low = hi_y;
 		feed_report = hi_y - low;
 	}
 	printf("feed: %f, dt %e, num_part %d\n", feed_report, dt, n);
