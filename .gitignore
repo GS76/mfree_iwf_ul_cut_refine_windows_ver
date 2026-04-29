@@ -15,3 +15,6 @@ s\ -File\ .scriptsgit_checkpoint.ps1*
 **/*.exe
 *.vtk
 *.csv
+.tmp.drivedownload/
+.tmp.driveupload/
+__pycache__/
