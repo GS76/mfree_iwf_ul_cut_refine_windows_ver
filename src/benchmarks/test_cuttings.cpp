@@ -166,6 +166,30 @@ static double read_coupled_motion_ratio() {
 	return 1.0;
 }
 
+static double estimate_dt_for_cutting(const physical_constants &pc, double dx, double hdx, double relative_speed, double empirical_cap, const fe_tool *ft) {
+	coupled_timestep_config cfg;
+	cfg.particle_spacing = dx;
+	cfg.smoothing_length_ratio = hdx;
+	cfg.max_relative_speed = relative_speed;
+	cfg.empirical_dt_cap = empirical_cap;
+	cfg.interface_contact_area = dx * dx;
+	try_read_env_double("MFREE_TIMESTEP_WP_MECH_SAFETY", cfg.workpiece_mechanical_safety);
+	try_read_env_double("MFREE_TIMESTEP_WP_THERM_SAFETY", cfg.workpiece_thermal_safety);
+	try_read_env_double("MFREE_TIMESTEP_TOOL_MECH_SAFETY", cfg.tool_mechanical_safety);
+	try_read_env_double("MFREE_TIMESTEP_TOOL_THERM_SAFETY", cfg.tool_thermal_safety);
+	try_read_env_double("MFREE_TIMESTEP_INTERFACE_SAFETY", cfg.interface_thermal_safety);
+	try_read_env_double("MFREE_THERMAL_H_FULL", cfg.contact_conductance_full);
+	double area_factor = 1.0;
+	try_read_env_double("MFREE_TIMESTEP_INTERFACE_AREA_FACTOR", area_factor);
+	if (std::isfinite(area_factor) && area_factor > 0.) cfg.interface_contact_area *= area_factor;
+
+	coupled_timestep_limits limits = estimate_coupled_timestep(pc, cfg, ft);
+	int print_limits = 1;
+	try_read_env_int("MFREE_TIMESTEP_PRINT", print_limits);
+	if (print_limits != 0) print_coupled_timestep_limits(limits);
+	return (std::isfinite(limits.maximum_dt) && limits.maximum_dt > 0.) ? limits.maximum_dt : empirical_cap;
+}
+
 static void apply_mech_fix_tags_from_env(fe_tool &ft) {
 	auto apply_tag_list = [&](const char *env_key, auto apply_tag) -> bool {
 		const char *tags = getenv(env_key);
@@ -752,11 +776,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double lc = 1e-3; // 1mm of cut
 	double t_final =  lc/vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
@@ -898,6 +918,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 	}
 
+	dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, ft);
+	time->set_dt(dt);
+
 	global_logger = new logger("cutting");
 	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
@@ -997,11 +1020,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double lc = 1e-3; // 1mm of cut
 	double t_final =  lc/vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
@@ -1192,6 +1211,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
 
+	dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, ft);
+	time->set_dt(dt);
+
 	global_logger = new logger("cutting");
 	global_logger->set_fe_tool(ft);
 	global_logger->set_log_vtk(true);
@@ -1291,11 +1313,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	double lc = 1e-3; // 1mm of cut
 	double t_final =  lc/vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
@@ -1513,6 +1531,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 			ft->set_pose(ft->get_pos(), glm::dvec2(tool_vx, 0.));
 			enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target, 5);
 		}
+
+	dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, ft);
+	time->set_dt(dt);
 
 	global_logger = new logger("cutting");
 	global_logger->set_fe_tool(ft);

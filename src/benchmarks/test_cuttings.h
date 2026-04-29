@@ -60,6 +60,7 @@
 #include "../material.h"
 #include "../derivatives.h"
 #include "../plasticity.h"
+#include "../timestep_estimator.h"
 #include "../johnson_cook_Sima_2010.h"
 #include "../logger.h"
 #include "../leap_frog.h"

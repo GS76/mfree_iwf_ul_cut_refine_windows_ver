@@ -27,6 +27,7 @@ add_executable(mfree_iwf
   src/simulation_data.cpp
   src/simulation_time.cpp
   src/thermal.cpp
+  src/timestep_estimator.cpp
   src/tool_adapter_poly.cpp
   src/vtk_writer.cpp
   src/benchmarks/material_library.cpp
@@ -67,6 +68,7 @@ add_executable(mfree_iwf_validate
   src/simulation_data.cpp
   src/simulation_time.cpp
   src/thermal.cpp
+  src/timestep_estimator.cpp
   src/tool_adapter_poly.cpp
   src/vtk_writer.cpp
   src/benchmarks/material_library.cpp

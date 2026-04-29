@@ -52,6 +52,7 @@
 #include "contact.h"
 #include "simulation_time.h"
 #include "body.h"
+#include "timestep_estimator.h"
 
 #include "benchmarks/material_library.h"
 
@@ -274,6 +275,46 @@ static bool test_frictional_heating_partition() {
 	return std::abs(ratio - 1.0) <= 0.1;
 }
 
+static bool test_coupled_timestep_estimator() {
+	physical_constants pc = matlib_tial6v4_Sima_tanh2010_SI();
+	fe_tool ft = make_rect_tool_mesh(0.001, 0.001, 5, 5, 1, 2, 3);
+
+	fe_tool::thermal_material tmat;
+	tmat.rho = 14500.0;
+	tmat.cp = 200.0;
+	tmat.k = 80.0;
+	ft.set_material(tmat);
+
+	fe_tool::mechanical_material mmat;
+	mmat.E = 600e9;
+	mmat.nu = 0.22;
+	mmat.alpha = 4.5e-6;
+	ft.set_mechanical_material(mmat);
+	ft.set_initial_temperature(293.15);
+
+	coupled_timestep_config cfg;
+	cfg.particle_spacing = 2.0e-5;
+	cfg.smoothing_length_ratio = 1.7;
+	cfg.max_relative_speed = 10.0;
+	cfg.empirical_dt_cap = 1.0e-3;
+	cfg.interface_contact_area = cfg.particle_spacing * cfg.particle_spacing;
+	cfg.contact_conductance_full = 1.0e5;
+	coupled_timestep_limits limits = estimate_coupled_timestep(pc, cfg, &ft);
+
+	bool ok = limits.maximum_dt > 0. && std::isfinite(limits.maximum_dt) &&
+	          limits.workpiece_mechanical_dt > 0. && limits.workpiece_thermal_dt > 0. &&
+	          limits.tool_mechanical_dt > 0. && limits.tool_thermal_dt > 0. && limits.interface_thermal_dt > 0.;
+	std::printf("timestep_estimator dt=%e limiter=%s wp_mech=%e wp_therm=%e tool_mech=%e tool_therm=%e interface=%e\n",
+	            limits.maximum_dt,
+	            limits.limiting_reason.c_str(),
+	            limits.workpiece_mechanical_dt,
+	            limits.workpiece_thermal_dt,
+	            limits.tool_mechanical_dt,
+	            limits.tool_thermal_dt,
+	            limits.interface_thermal_dt);
+	return ok;
+}
+
 static bool test_convection_lumped() {
 	const double L = 0.01;
 	const double H = 0.01;
@@ -327,10 +368,12 @@ int main() {
 	bool ok1 = test_tool_1d_conduction();
 	bool ok2 = test_frictional_heating_partition();
 	bool ok3 = test_convection_lumped();
+	bool ok4 = test_coupled_timestep_estimator();
 	std::printf("tool_1d_conduction %s\n", ok1 ? "ok" : "fail");
 	std::printf("friction_partition %s\n", ok2 ? "ok" : "fail");
 	std::printf("convection_lumped %s\n", ok3 ? "ok" : "fail");
-	ok = ok1 && ok2 && ok3;
+	std::printf("coupled_timestep_estimator %s\n", ok4 ? "ok" : "fail");
+	ok = ok1 && ok2 && ok3 && ok4;
 
 	if (!ok) {
 		std::printf("validation_failed\n");

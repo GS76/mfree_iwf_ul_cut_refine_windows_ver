@@ -29,8 +29,8 @@ $env:MFREE_TIMESTEP_INTERFACE_AREA_FACTOR = "1.0"
 
 # Allow a 100000-step run. MFREE_T_FINAL_SCALE is kept high enough that
 # the executable stops by MFREE_MAX_STEPS instead of final simulation time.
-$env:MFREE_MAX_STEPS = "100000"
-$env:MFREE_T_FINAL_SCALE = "0.05"
+$env:MFREE_MAX_STEPS = "1000000"
+$env:MFREE_T_FINAL_SCALE = "1.0"
 
 # Enable per-step/cumulative energy accounting output: results/cutting_energy.csv
 $env:MFREE_LOG_ENERGY = "1"

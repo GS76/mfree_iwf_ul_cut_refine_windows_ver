@@ -430,6 +430,14 @@ double fe_tool::thermal_internal_energy() const {
 	return E;
 }
 
+double fe_tool::min_thermal_nodal_capacity() const {
+	double cmin = std::numeric_limits<double>::infinity();
+	for (double c : m_capacity) {
+		if (std::isfinite(c) && c > 0.) cmin = std::min(cmin, c);
+	}
+	return cmin;
+}
+
 void fe_tool::set_pose(glm::dvec2 pos, glm::dvec2 vel) {
 	m_pos = pos;
 	m_vel = vel;

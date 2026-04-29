@@ -265,6 +265,7 @@ public:
 	void add_contact_energy_accounting(double dt, double P_cond_raw, double P_fric_raw, double scale, double frac_workpiece, double frac_tool);
 	thermal_energy_accounting get_thermal_energy_accounting() const;
 	double thermal_internal_energy() const;
+	double min_thermal_nodal_capacity() const;
 
 	fe_tool();
 	virtual ~fe_tool() = default;
