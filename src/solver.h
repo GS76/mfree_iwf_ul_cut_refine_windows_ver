@@ -56,7 +56,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <vector>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 static const unsigned int max_iter = 100;
 

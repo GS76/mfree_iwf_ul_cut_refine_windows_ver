@@ -1,5 +1,6 @@
-import os
 import argparse
+import os
+import shutil
 import subprocess
 import sys
 
@@ -38,15 +39,83 @@ def read_file_list(path):
         return out
 
 
+def add_clang_format_search_paths(repo):
+    """Add common clang-format install locations to PATH for this process only."""
+    env = os.environ
+    candidates = [
+        os.path.join(repo, "tools"),
+        os.path.join(repo, "tools", "LLVM", "bin"),
+        os.path.join(repo, "tools", "llvm", "bin"),
+    ]
+
+    for key in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        base = env.get(key)
+        if base:
+            candidates.append(os.path.join(base, "LLVM", "bin"))
+            candidates.append(os.path.join(base, "Programs", "LLVM", "bin"))
+
+    user_profile = env.get("USERPROFILE")
+    if user_profile:
+        candidates.extend(
+            [
+                os.path.join(user_profile, "scoop", "shims"),
+                os.path.join(user_profile, "scoop", "apps", "llvm", "current", "bin"),
+            ]
+        )
+
+    candidates.extend(
+        [
+            r"C:\Program Files\LLVM\bin",
+            r"C:\Program Files (x86)\LLVM\bin",
+            r"C:\ProgramData\chocolatey\bin",
+            r"C:\msys64\clang64\bin",
+            r"C:\msys64\mingw64\bin",
+            r"C:\msys64\ucrt64\bin",
+        ]
+    )
+
+    existing = []
+    seen = set()
+    for path in env.get("PATH", "").split(os.pathsep):
+        normalized = os.path.normcase(os.path.abspath(path)) if path else path
+        if normalized not in seen:
+            seen.add(normalized)
+            existing.append(path)
+
+    for path in candidates:
+        if os.path.isdir(path):
+            normalized = os.path.normcase(os.path.abspath(path))
+            if normalized not in seen:
+                seen.add(normalized)
+                existing.append(path)
+
+    env["PATH"] = os.pathsep.join(existing)
+
+
+def find_clang_format(repo):
+    override = os.environ.get("CLANG_FORMAT") or os.environ.get("MFREE_CLANG_FORMAT")
+    if override:
+        return override
+
+    add_clang_format_search_paths(repo)
+    return shutil.which("clang-format") or shutil.which("clang-format.exe")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--file-list", help="Newline-separated paths (repo-relative) to check")
+    ap.add_argument(
+        "--file-list", help="Newline-separated paths (repo-relative) to check"
+    )
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     if args.file_list:
-        files = [p for p in read_file_list(args.file_list) if is_cpp_file(p) and should_check_file(p)]
+        files = [
+            p
+            for p in read_file_list(args.file_list)
+            if is_cpp_file(p) and should_check_file(p)
+        ]
     else:
         rc, out, err = run(["git", "ls-files"], cwd=repo)
         if rc != 0:
@@ -56,13 +125,23 @@ def main():
     if not files:
         return 0
 
+    clang_format = find_clang_format(repo)
+    if not clang_format:
+        sys.stderr.write(
+            "clang-format is required on PATH or in a common Windows LLVM install location.\n"
+        )
+        sys.stderr.write(
+            "You can also set CLANG_FORMAT or MFREE_CLANG_FORMAT to the full clang-format executable path.\n"
+        )
+        return 2
+
     try:
-        rc, _, err = run(["clang-format", "--version"], cwd=repo)
+        rc, _, err = run([clang_format, "--version"], cwd=repo)
     except FileNotFoundError:
-        sys.stderr.write("clang-format is required on PATH.\n")
+        sys.stderr.write(f"clang-format was not found: {clang_format}\n")
         return 2
     if rc != 0:
-        sys.stderr.write("clang-format is required on PATH.\n")
+        sys.stderr.write(f"clang-format failed to run: {clang_format}\n")
         sys.stderr.write(err)
         return 2
 
@@ -73,7 +152,7 @@ def main():
             continue
 
         p = subprocess.run(
-            ["clang-format", "--style=file", f"--assume-filename={rel}"],
+            [clang_format, "--style=file", f"--assume-filename={rel}"],
             cwd=repo,
             input=src,
             stdout=subprocess.PIPE,
@@ -91,7 +170,9 @@ def main():
         sys.stderr.write("clang-format check failed for:\n")
         for p in bad:
             sys.stderr.write(f"  {p}\n")
-        sys.stderr.write("\nFix by running clang-format using the repo .clang-format.\n")
+        sys.stderr.write(
+            "\nFix by running clang-format using the repo .clang-format.\n"
+        )
         return 1
 
     return 0

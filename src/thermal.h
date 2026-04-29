@@ -53,7 +53,7 @@
 
 #include <math.h>
 #include <assert.h>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "grid.h"
 #include "kernel.h"

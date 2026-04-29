@@ -54,7 +54,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <type_traits>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "kernel.h"
 #include "particle.h"

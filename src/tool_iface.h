@@ -1,7 +1,7 @@
 #ifndef TOOL_IFACE_H_
 #define TOOL_IFACE_H_
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 struct tool_contact_hit_2d {
 	bool inside = false;

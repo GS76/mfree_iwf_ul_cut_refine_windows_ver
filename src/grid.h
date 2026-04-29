@@ -51,7 +51,7 @@
 #ifndef GRID_H_
 #define GRID_H_
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include <algorithm>
 #include <vector>

@@ -56,7 +56,7 @@
 
 #include <assert.h>
 #include <vector>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 /*
   This implementation intends to compute the smoothing kernel (W)
