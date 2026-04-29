@@ -1,5 +1,5 @@
-import os
 import argparse
+import os
 import subprocess
 import sys
 
@@ -59,7 +59,14 @@ def read_file_list(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--file-list", help="Newline-separated paths (repo-relative) to check")
+    ap.add_argument(
+        "--file-list", help="Newline-separated paths (repo-relative) to check"
+    )
+    ap.add_argument(
+        "--worktree",
+        action="store_true",
+        help="Check working-tree file contents instead of staged contents",
+    )
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -77,9 +84,16 @@ def main():
 
     errors = []
     for rel in files:
-        rc, data, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
-        if rc != 0:
-            continue
+        if args.worktree:
+            path = os.path.join(repo, rel)
+            if not os.path.isfile(path):
+                continue
+            with open(path, "rb") as f:
+                data = f.read()
+        else:
+            rc, data, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
+            if rc != 0:
+                continue
 
         if not looks_text(data):
             continue

@@ -6,6 +6,23 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(MFREE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for project targets" OFF)
+
+function(mfree_apply_warning_options target_name)
+  if(MSVC)
+    target_compile_definitions(${target_name} PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(${target_name} PRIVATE /W4 /wd4100 /wd4189 /wd4244 /wd4267 /wd4305 /wd4456 /wd4458 /wd4505)
+    if(MFREE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target_name} PRIVATE /WX)
+    endif()
+  else()
+    target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
+    if(MFREE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target_name} PRIVATE -Werror)
+    endif()
+  endif()
+endfunction()
+
 add_executable(mfree_iwf
   src/adaptivity.cpp
   src/body.cpp
@@ -40,6 +57,8 @@ target_include_directories(mfree_iwf PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 )
+
+mfree_apply_warning_options(mfree_iwf)
 
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
@@ -80,6 +99,8 @@ target_include_directories(mfree_iwf_validate PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 )
 
+mfree_apply_warning_options(mfree_iwf_validate)
+
 if(OpenMP_CXX_FOUND)
   target_link_libraries(mfree_iwf_validate PRIVATE OpenMP::OpenMP_CXX)
 endif()
@@ -112,5 +133,7 @@ target_include_directories(mfree_geom_validation_math_test PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
 )
+
+mfree_apply_warning_options(mfree_geom_validation_math_test)
 
 add_test(NAME mfree_geom_validation_math_test COMMAND mfree_geom_validation_math_test)

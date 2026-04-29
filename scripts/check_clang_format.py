@@ -106,6 +106,11 @@ def main():
     ap.add_argument(
         "--file-list", help="Newline-separated paths (repo-relative) to check"
     )
+    ap.add_argument(
+        "--worktree",
+        action="store_true",
+        help="Check working-tree file contents instead of staged contents",
+    )
     args = ap.parse_args()
 
     repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -147,9 +152,16 @@ def main():
 
     bad = []
     for rel in files:
-        rc, src, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
-        if rc != 0:
-            continue
+        if args.worktree:
+            path = os.path.join(repo, rel)
+            if not os.path.isfile(path):
+                continue
+            with open(path, "rb") as f:
+                src = f.read()
+        else:
+            rc, src, err = run_bytes(["git", "show", f":{rel}"], cwd=repo)
+            if rc != 0:
+                continue
 
         p = subprocess.run(
             [clang_format, "--style=file", f"--assume-filename={rel}"],

@@ -24,6 +24,30 @@ if [ "${MFREE_ALLOW_EXCLUDED_STAGE:-0}" != "1" ]; then
   fi
 fi
 
+repo_root="$(git rev-parse --show-toplevel)"
+py=""
+py_args=""
+if command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
+  py="python3"
+elif command -v python >/dev/null 2>&1 && python --version >/dev/null 2>&1; then
+  py="python"
+elif command -v py >/dev/null 2>&1 && py -3 --version >/dev/null 2>&1; then
+  py="py"
+  py_args="-3"
+else
+  echo "pre-commit: python is required to run quality checks" >&2
+  exit 1
+fi
+
+staged_file_list="$(mktemp)"
+trap 'rm -f "$staged_file_list"' EXIT HUP INT TERM
+git diff --cached --name-only --diff-filter=ACMR > "$staged_file_list"
+
+if [ "${MFREE_PRECOMMIT_SKIP_QUALITY:-0}" != "1" ]; then
+  "$py" $py_args "$repo_root/scripts/check_editorconfig_basic.py" --file-list "$staged_file_list"
+  "$py" $py_args "$repo_root/scripts/check_clang_format.py" --file-list "$staged_file_list"
+fi
+
 if [ "${MFREE_PRECOMMIT_RUN_TESTS:-0}" = "1" ]; then
   if [ -f "./build/CTestTestfile.cmake" ]; then
     ctest -C Release --output-on-failure
