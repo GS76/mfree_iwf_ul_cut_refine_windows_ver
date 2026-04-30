@@ -141,7 +141,7 @@ void logger::set_folder(const char *folder) {
 					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
 					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual,"
+					 "step_suppression_ratio,step_tool_source_residual,cum_suppression_ratio,cum_tool_source_residual,"
 					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
 					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
 		std::fflush(m_fp_energy);
@@ -505,11 +505,20 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 	m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
 	m_cum_plastic_dissipation += b.get_step_plastic_dissipation();
 
-	// Existing interface / tool-source residuals.
-	const double step_interface_balance_residual =
-		(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
+	// Limiter suppression ratio: fraction of raw interface exchange discarded by
+	// the 1-degC/step safety limiter.  Equals (1 - scale) when contact is active,
+	// 0 when the limiter is inactive.  The previous 'step_interface_balance_residual'
+	// was algebraically zero always ((frac_wp+frac_tool-1)*E_fric_scaled = 0) and
+	// has been replaced with this non-trivial diagnostic.
+	const double step_denom_raw =
+		std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
+	const double step_suppression_ratio =
+		(step_denom_raw > 1e-30) ? ea.step_contact_E_limiter_suppressed / step_denom_raw : 0.;
 	const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
-	const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
+	const double cum_denom_raw =
+		std::abs(m_cum_contact_E_cond_raw) + m_cum_contact_E_fric_raw;
+	const double cum_suppression_ratio =
+		(cum_denom_raw > 1e-30) ? m_cum_contact_E_limiter_suppressed / cum_denom_raw : 0.;
 	const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
 
 	// Full-system energy closure.
@@ -553,7 +562,7 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 				 m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled, m_cum_contact_E_fric_scaled,
 				 m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
 				 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
-				 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual,
+				 step_suppression_ratio, step_tool_source_residual, cum_suppression_ratio, cum_tool_source_residual,
 				 m_T_ref, b.get_step_plastic_dissipation(), m_cum_plastic_dissipation,
 				 delta_wp, delta_tool, closure_residual, closure_residual_pct);
 	std::fflush(m_fp_energy);
@@ -599,7 +608,7 @@ logger::logger(const char *case_name, const char *foldername) {
 					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
 					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual,"
+					 "step_suppression_ratio,step_tool_source_residual,cum_suppression_ratio,cum_tool_source_residual,"
 					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
 					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
 		std::fflush(m_fp_energy);

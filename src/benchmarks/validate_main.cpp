@@ -356,6 +356,129 @@ static bool test_convection_lumped() {
 	return rel <= 0.05;
 }
 
+// ---------------------------------------------------------------------------
+// test_interface_suppression_ratio
+//
+// Verifies the corrected step_suppression_ratio diagnostic introduced in
+// Phase 4.  Two regimes are exercised:
+//
+//   Case A (dt = 1e-9 s): predicted per-step delta_T << 1 K, limiter
+//   inactive => suppression_ratio must be < 0.01.
+//
+//   Case B (dt = 1.0 s): predicted per-step delta_T >> 1 K, limiter fires
+//   => suppression_ratio must be > 0.5 (significant suppression).
+//
+// Additionally, after calling advance_explicit() for case A, the
+// step_tool_source_residual (step_tool_E_sources - step_contact_E_tool)
+// must be < 1 % of step_contact_E_tool, confirming the power mapping
+// from the contact model to the FE boundary nodes is conservative.
+// ---------------------------------------------------------------------------
+static bool test_interface_suppression_ratio() {
+	physical_constants pc = matlib_tial6v4_Sima_tanh2010_SI();
+	correction_constants cs(constants_monaghan(0.0, 4, 0.3), constants_artificial_viscosity(1.0, 1.0, 0.1), 0.5);
+	simulation_data sim_data(pc, cs);
+
+	// Particle positioned inside the tool mesh, with tangential velocity so
+	// that friction generates heat (reuses the geometry from
+	// test_frictional_heating_partition).
+	particle p(0);
+	p.x = 0.99;
+	p.y = 0.5;
+	p.vx = 0.0;
+	p.vy = 10.0;
+	p.rho = pc.rho0();
+	p.m = 1.0e-6;
+	p.T = 500.0; // hot workpiece so conduction also contributes
+
+	// Tool helper: build a simple 1x1 mesh with high conductivity so the
+	// tool stays near its initial temperature and P_cond is non-trivial.
+	auto make_tool = [&]() {
+		fe_tool ft = make_rect_tool_mesh(1.0, 1.0, 3, 3, 1, 2, 3);
+		fe_tool::thermal_material mat;
+		mat.rho = 7800.0;
+		mat.cp = 500.0;
+		mat.k = 1.0e6; // very high k => nearly uniform, isothermal tool
+		ft.set_material(mat);
+		ft.set_mu(0.5);
+		ft.set_pose(glm::dvec2(0.), glm::dvec2(0.));
+		ft.set_initial_temperature(300.0); // tool at ambient; WP at 500 K -> P_cond > 0
+		return ft;
+	};
+
+	simulation_time *time = &simulation_time::getInstance();
+
+	// ------------------------------------------------------------------
+	// Case A: small dt => limiter inactive, suppression_ratio ≈ 0
+	// ------------------------------------------------------------------
+	{
+		fe_tool ft = make_tool();
+		body b(&p, 1, sim_data);
+		b.get_particles()[0].T = 500.0;
+		b.get_particles()[0].T_t = 0.;
+		b.set_fe_tool(&ft);
+
+		time->set_dt(1.0e-9);
+		time->set_t_final(1.0e-9);
+		b.apply_contact();
+
+		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
+		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
+		double ratio_a = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
+		std::printf("suppression small_dt: ratio=%g suppressed=%g denom=%g scale=%g\n",
+				ratio_a, ea.step_contact_E_limiter_suppressed, denom,
+				ft.get_contact_energy_balance().scale);
+
+		// Also verify tool-source residual after advance_explicit.
+		ft.advance_explicit(1.0e-9);
+		ea = ft.get_thermal_energy_accounting();
+		double tool_src_res_rel = (std::abs(ea.step_contact_E_tool) > 1e-30)
+				? std::abs(ea.step_tool_E_sources - ea.step_contact_E_tool) /
+					  std::abs(ea.step_contact_E_tool)
+				: 0.;
+		std::printf("suppression small_dt: tool_src_res_rel=%g E_sources=%g E_contact_tool=%g\n",
+				tool_src_res_rel, ea.step_tool_E_sources, ea.step_contact_E_tool);
+
+		if (ratio_a >= 0.01) {
+			std::printf("FAIL: suppression_ratio=%g >= 0.01 with small dt\n", ratio_a);
+			return false;
+		}
+		if (tool_src_res_rel >= 0.01) {
+			std::printf("FAIL: tool_source_residual_rel=%g >= 0.01\n", tool_src_res_rel);
+			return false;
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Case B: large dt => limiter fires, suppression_ratio >> 0
+	// ------------------------------------------------------------------
+	{
+		fe_tool ft = make_tool();
+		body b(&p, 1, sim_data);
+		b.get_particles()[0].T = 500.0;
+		b.get_particles()[0].T_t = 0.;
+		b.set_fe_tool(&ft);
+
+		time->set_dt(1.0); // 1 second: predicted delta_T >> 1 K, limiter fires
+		time->set_t_final(1.0);
+		b.apply_contact();
+
+		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
+		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
+		double ratio_b = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
+		std::printf("suppression large_dt: ratio=%g suppressed=%g denom=%g scale=%g\n",
+				ratio_b, ea.step_contact_E_limiter_suppressed, denom,
+				ft.get_contact_energy_balance().scale);
+
+		if (ratio_b <= 0.5) {
+			std::printf("FAIL: suppression_ratio=%g <= 0.5 with large dt (limiter should have fired)\n",
+					ratio_b);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 int main() {
 #if defined(_WIN32)
 	_putenv_s("MFREE_DEFORMABLE_FE_TOOL", "");
@@ -369,11 +492,13 @@ int main() {
 	bool ok2 = test_frictional_heating_partition();
 	bool ok3 = test_convection_lumped();
 	bool ok4 = test_coupled_timestep_estimator();
+	bool ok5 = test_interface_suppression_ratio();
 	std::printf("tool_1d_conduction %s\n", ok1 ? "ok" : "fail");
 	std::printf("friction_partition %s\n", ok2 ? "ok" : "fail");
 	std::printf("convection_lumped %s\n", ok3 ? "ok" : "fail");
 	std::printf("coupled_timestep_estimator %s\n", ok4 ? "ok" : "fail");
-	ok = ok1 && ok2 && ok3 && ok4;
+	std::printf("interface_suppression_ratio %s\n", ok5 ? "ok" : "fail");
+	ok = ok1 && ok2 && ok3 && ok4 && ok5;
 
 	if (!ok) {
 		std::printf("validation_failed\n");
