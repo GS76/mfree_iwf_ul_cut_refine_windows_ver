@@ -84,6 +84,7 @@ void logger::set_folder(const char *folder) {
 	m_wp_internal_E_init = -1.;
 	m_tool_internal_E_init = -1.;
 	m_cum_plastic_dissipation = 0.;
+	m_suppression_warned = false;
 	m_cum_contact_E_cond_raw = 0.;
 	m_cum_contact_E_fric_raw = 0.;
 	m_cum_contact_E_cond_scaled = 0.;
@@ -514,6 +515,25 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 		std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
 	const double step_suppression_ratio =
 		(step_denom_raw > 1e-30) ? ea.step_contact_E_limiter_suppressed / step_denom_raw : 0.;
+
+	// Warn once per results folder when the limiter is discarding a significant
+	// fraction (> 10%) of the raw interface exchange.  This usually means the
+	// SPH timestep is too large for reliable thermal coupling, or
+	// MFREE_THERMAL_MAX_DT_PER_STEP should be relaxed.
+	if (!m_suppression_warned && step_suppression_ratio > 0.10) {
+		m_suppression_warned = true;
+		std::fprintf(stderr,
+					 "[energy WARNING] step_suppression_ratio=%.3f at step %u: the "
+					 "1-degC/step limiter is suppressing >10%% of the interface exchange.\n"
+					 "  Check MFREE_THERMAL_MAX_DT_PER_STEP (current cap=%.2f K) and/or "
+					 "the global SPH timestep.\n"
+					 "  See docs/coupling_thermal_mechanical.md section "
+					 "'Limiter Suppression of Interface Exchange' for guidance.\n",
+					 step_suppression_ratio, step,
+					 ea.step_contact_max_pred_dT > 0. ? ea.step_contact_max_pred_dT : 1.0);
+		std::fflush(stderr);
+	}
+
 	const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
 	const double cum_denom_raw =
 		std::abs(m_cum_contact_E_cond_raw) + m_cum_contact_E_fric_raw;

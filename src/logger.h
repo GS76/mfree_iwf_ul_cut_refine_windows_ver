@@ -88,6 +88,9 @@ private:
 	double m_tool_internal_E_init = -1.;
 	// Running total of Taylor-Quinney plastic dissipation energy (J).
 	double m_cum_plastic_dissipation = 0.;
+	// Set to true after the first step where step_suppression_ratio > 0.10 so
+	// the console warning is emitted at most once per results folder.
+	bool m_suppression_warned = false;
 	double m_cum_contact_E_cond_raw = 0.;
 	double m_cum_contact_E_fric_raw = 0.;
 	double m_cum_contact_E_cond_scaled = 0.;

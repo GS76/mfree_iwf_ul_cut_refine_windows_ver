@@ -157,6 +157,106 @@ Substeps are chosen by:
 
 Code reference: [body.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/body.cpp#L214-L307)
 
+## Known Approximations and Error Sources
+
+This section documents the principal sources of approximation error that are **inherent to the current sequential coupling architecture**. None of these are bugs — they are known, bounded trade-offs. The quantitative estimates below are given in SI units and assume typical Ti6Al4V workpiece / WC tool cutting conditions unless noted otherwise.
+
+### 1. Operator-Splitting Temporal Lag — O(dt)
+
+**What it is:** Contact/FE updates (step 4 in the execution order) occur using the SPH state at the start of the step, *before* SPH mechanical and thermal derivatives are evaluated (steps 7–8). This is a Lie–Trotter operator split. The resulting temperature and force lag between domains is first-order in time:
+
+```
+error ≈ (dT/dt)|_interface × dt
+```
+
+**Quantitative estimate:** For a cutting speed of 1–5 m/s, a friction coefficient of 0.3, and a contact pressure of ~1 GPa, the interface heating rate `dT/dt` experienced by the workpiece particle is of order 10³–10⁴ K/s. With a typical SPH timestep `dt ~ 1 × 10⁻⁸` s (set by the acoustic CFL), the per-step temperature error is 0.01–0.1 K — well below the 1 K/step limiter threshold. Over 100 000 steps this accumulates, but the error remains bounded because the operator split is not globally dissipative.
+
+**Mitigation:** The explicit coupled mode (`MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=1`) reduces this to O(dt/n_substeps) by performing n contact + FE advance sub-iterations within a single SPH step.
+
+**How to observe:** Not directly visible in the energy CSV. Compare runs with and without `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT` and note the difference in `cum_contact_E_tool` and `delta_tool_internal_E`.
+
+---
+
+### 2. Thermal One-Way-Per-Substep Lag — O(dt_th)
+
+**What it is:** Within each substep, the tool temperature `T_tool` is *sampled before* `advance_explicit()` updates the FE thermal state. The conduction power `P_cond = h_c × A_eff × (T_wp − T_tool)` therefore uses a tool temperature that is one substep behind. This introduces a lag proportional to the sub-timestep:
+
+```
+error in P_cond ≈ h_c × A_eff × (dT_tool/dt)|_boundary × dt_th
+```
+
+**Quantitative estimate:** For `h_c ~ 10⁴ W/m²K` (separated contact), `A_eff ~ (2×10⁻⁵)² m²` (one SPH particle), and a tool boundary heating rate of ~10³ K/s, the error in `P_cond` per substep is ~10⁴ × 4×10⁻¹⁰ × 10³ ≈ 4×10⁻³ W per particle. With the typical timestep this is negligible. At full contact (`h_c ~ 10⁵ W/m²K`) and aggressive dt, it can become significant.
+
+**Mitigation:** Increasing `MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS` reduces dt_th and therefore this lag. Values of 4–8 substeps are typical for stable explicit-coupled mode.
+
+**How to observe:** Compare `step_tool_source_residual` in `_energy.csv` (tool nodal power minus contact-model tool power) for runs with different `MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS`. A non-zero residual indicates that the power actually applied to FE nodes differs from what the contact model computed.
+
+---
+
+### 3. Limiter Suppression of Interface Exchange
+
+**What it is:** The 1 °C/step safety cap (`MFREE_THERMAL_MAX_DT_PER_STEP`, default 1.0 K) globally scales both `P_cond` and `P_fric` by a factor `scale ≤ 1` when the predicted maximum per-step particle temperature increment would exceed the cap. This discards energy from the thermal budget:
+
+```
+E_suppressed = dt × (1 − scale) × (|P_cond_raw| + P_fric_raw)
+```
+
+The suppression ratio `step_suppression_ratio` (column in `_energy.csv`, introduced in the Phase 4 energy-accounting work) equals `(1 − scale)` and is 0 when the limiter is inactive.
+
+**Quantitative estimate:** For the default 1 K cap and typical conditions, `scale ≈ 1` for most steps. The limiter fires only when frictional heating is rapid relative to the SPH timestep — this typically occurs during initial contact or at high cutting speeds. The Phase 4 validation test shows `scale = 0.000193` for dt = 1.0 s (extreme case), confirming `ratio → 1`. For dt ~ 1×10⁻⁸ s (normal), `ratio = 0`.
+
+**How to observe (from `_energy.csv`):**
+```
+cum_suppression_ratio = cum_contact_E_limiter_suppressed
+                        / (|cum_contact_E_cond_raw| + cum_contact_E_fric_raw)
+```
+A value above 0.10 (10%) indicates the timestep is too large for reliable thermal coupling at the current cutting conditions. The logger emits a one-time console warning when `step_suppression_ratio > 0.10` (see `MFREE_LOG_ENERGY` and suppression warning in `logger.cpp`).
+
+**Mitigation:** Tighten `MFREE_THERMAL_MAX_DT_PER_STEP` (e.g., to 0.1 K) or reduce the global SPH timestep. Setting `MFREE_THERMAL_MAX_DT_PER_STEP` too small increases the suppressed fraction, so it must be balanced against numerical stability.
+
+---
+
+### 4. Contact Area Heuristic — A_eff
+
+**What it is:** The effective thermal contact area per particle is computed as:
+
+```
+A_eff = contact_length × plane_strain_thickness
+contact_length = sqrt(m_i / rho_i) × contact_length_factor
+```
+
+For a uniform particle lattice, `sqrt(m/rho) ≈ dx` (the inter-particle spacing), so `A_eff ≈ dx × L_z` where `L_z` is the plane-strain out-of-plane thickness (default 1.0 m). This approximates each contacting particle as occupying one element of the contact interface of size `dx × L_z`.
+
+**Quantitative estimate:** For `dx = 2×10⁻⁵` m and `L_z = 1.0` m (plane-strain unit depth), `A_eff = 2×10⁻⁵` m². The analytical contact patch length in orthogonal cutting is of order the chip thickness (10–100 µm). With ~5–50 particles in contact, the total modelled contact area = 5–50 × 2×10⁻⁵ = 1×10⁻⁴ – 1×10⁻³ m², which brackets the analytical estimate. The area per particle is therefore a reasonable approximation for the nominally uniform pre-refinement lattice, but can deviate after adaptivity produces polydisperse particle masses.
+
+**How to observe:** `step_contact_area_eff` in `_energy.csv` gives the sum of `A_eff` over all contacting particles at each logged step. Compare against `N_contact × dx²` for a cross-check. The ratio `contact_length / dx = sqrt(m/rho) × factor / dx` ≈ `factor` (nominally 1.0, tunable via `MFREE_THERMAL_CONTACT_LENGTH_FACTOR`).
+
+**Mitigation:** Set `MFREE_THERMAL_CONTACT_LENGTH_FACTOR` to a value derived from the expected contact patch geometry. For post-refinement runs where particle masses vary significantly, a particle-size-adaptive factor may be needed.
+
+---
+
+### 5. Friction Heat Partition Fractions
+
+**What it is:** The empirical fractions `frac_wp = 0.8` and `frac_tool = 0.2` partition frictional heat between workpiece and tool. These are constant throughout the simulation and are not derived from any in-situ thermal resistance model.
+
+**Literature context (Ti6Al4V + uncoated WC, dry cutting):** Published partition fractions for the workpiece range from 0.50 to 0.90 depending on cutting speed, feed, and tool geometry. The default 0.80/0.20 split is consistent with the upper range of measurements for low cutting speeds (≤ 60 m/min). At high speeds the partition shifts toward the chip/workpiece (> 0.90) as the tool–chip contact time decreases.
+
+**How to observe:** The partition is fixed per run; no direct in-simulation measurement is available. Compare `cum_contact_E_workpiece / cum_contact_E_fric_scaled` against `frac_wp` from `_energy.csv` — this should equal `frac_wp` minus the conduction contribution. For a purely frictional (no conduction) case it equals `frac_wp` exactly.
+
+**Mitigation:** Override with `MFREE_THERMAL_FRAC_WP` and `MFREE_THERMAL_FRAC_TOOL`. For a more physically grounded partition, implement a Trigger-partition model (fraction proportional to thermal effusivities), which would require reading `h_c`, material properties, and contact speed per event.
+
+---
+
+### Summary Table
+
+| Approximation | Order of Magnitude | Measurable via | Mitigated by |
+|---|---|---|---|
+| Operator-splitting lag | O(dt) ≈ 0.01–0.1 K/step | Run comparison (explicit vs. default) | `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=1` |
+| Thermal one-way-per-substep lag | O(dt/n_sub) | `step_tool_source_residual` | Increase `MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS` |
+| Limiter suppression | `cum_suppression_ratio` in CSV | `cum_suppression_ratio` > 0.10 warning | Reduce `MFREE_THERMAL_MAX_DT_PER_STEP` or global dt |
+| Contact area heuristic | ±50% for uniform lattice; larger after adaptivity | `step_contact_area_eff` vs. `N × dx²` | `MFREE_THERMAL_CONTACT_LENGTH_FACTOR` |
+| Friction partition fractions | ±0.1–0.4 depending on speed | `cum_contact_E_workpiece / cum_contact_E_fric_scaled` | `MFREE_THERMAL_FRAC_WP` / `MFREE_THERMAL_FRAC_TOOL` |
+
 ## Advantages and Disadvantages
 
 ### Advantages

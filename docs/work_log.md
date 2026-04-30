@@ -1,13 +1,52 @@
 # Work Log
 
-- 2026-04-30: branch `feat/tighten-fe-sph-thermal-energy-accounting` created from `1-thermal-mechanical-solver-fea-tool-and-sph-workpiece-should-be-coupled` (commit `60b5912c`)
-  - Scope: accounting correctness and diagnostic output improvements only — no solver physics changes.
-  - Phase 1: remove dead `cumulative_*` fields from `fe_tool::thermal_energy_accounting` (they are reset to zero each step and then assigned `=` rather than accumulated `+=`, making them identical to the current-step values; the canonical cumulative source is the `logger` private accumulators).
-  - Phase 2: capture initial-state baseline (`wp_internal_E_init`, `tool_internal_E_init`) in the logger on the first logged step; add `delta_wp_internal_E`, `delta_tool_internal_E`, `closure_residual`, and `closure_residual_pct` columns to `_energy.csv` so energy conservation can be verified from the CSV alone.
-  - Phase 3: write `initial_x`, `initial_y`, and `initial_temperature` per-particle fields to VTK output; update `extract_final_chip` post-processor to derive the chip threshold and energy delta from these fields rather than assuming external geometry and a global `T_ref`.
-  - Phase 4: fix the `step_interface_balance_residual` formula to include limiter-suppressed energy; add a validation test for energy-balance closure.
-  - Phase 5: document known coupling approximations (operator-splitting lag, one-way-thermal lag, limiter suppression fraction) in `docs/coupling_thermal_mechanical.md`; add per-step suppression-ratio column to the energy log.
-  - All changes are additive or corrective; CTest suite, clang-format, and EditorConfig gates must remain green throughout.
+- 2026-04-30: branch `feat/tighten-fe-sph-thermal-energy-accounting` — Phases 1–5 completed
+
+  **Phase 1** (commit `7f40d2f8`): Remove dead `cumulative_*` fields from `fe_tool::thermal_energy_accounting`.  Fields were reset each step and aliased rather than accumulated; canonical source is the logger `m_cum_*` members.
+
+  **Phase 2** (commit `5ca530d8`): Full-system energy closure accounting.
+  - `plasticity`: `do_radial_return` now returns per-step Taylor-Quinney dissipation `sum(delta_T * m * cp)` over all yielding particles.
+  - `body`: stores and exposes `m_step_plastic_dissipation` per step.
+  - `fe_tool`: adds `thermal_internal_energy_above_ref(T_ref)` for reference-temperature-relative energy.
+  - `logger`: reads `MFREE_THERMAL_T_REF` (default 298.15 K); captures per-run initial-state baselines; accumulates `m_cum_plastic_dissipation`; writes 7 new `_energy.csv` columns including `closure_residual` and `closure_residual_pct`.
+  - Closure identity: `cum_plastic + cum_fric_scaled = delta_wp + delta_tool + cum_convection + cum_suppressed`.
+  - Duplicated energy block in logger refactored into `log_energy_block()` helper.
+
+  **Phase 3** (commit `bd19a87f`): VTK initial-state fields + self-contained chip classifier.
+  - `vtk_writer`: adds `initial_x`, `initial_y`, `initial_temperature` per-particle scalars (double precision).
+  - `extract_final_chip`: uses `initial_y` to derive `top_y`/`spacing` without requiring `out_000000.vtk`; uses per-particle `T_init` for `dE`; reads `delta_tool_internal_E` directly from energy CSV last row; `find_energy_csv()` accepts any `*_energy.csv` or legacy name; full backward-compat fallback for pre-Phase-3 VTKs.
+
+  **Phase 4** (commit `28b17740`): Replace trivially-zero interface residual with suppression ratio.
+  - `logger`: `step_interface_balance_residual` = `(E_wp+E_tool) − E_fric_scaled` was always 0 (algebraic identity). Replaced with `step_suppression_ratio = E_suppressed / (|E_cond_raw| + E_fric_raw)` = `(1−scale)`, which is 0 when the limiter is inactive and non-trivially non-zero when it fires.
+  - `validate_main`: `test_interface_suppression_ratio()` — Case A (dt=1e-9 s): ratio=0, scale=1; Case B (dt=1.0 s): ratio=0.9998, scale=0.000193; tool-source residual=0.
+
+  **Phase 5** (this entry): Coupling approximation documentation + suppression warning.
+  - `docs/coupling_thermal_mechanical.md`: new "Known Approximations and Error Sources" section with 5 named approximations, quantitative estimates, measurement recipes, and a summary table.
+  - `logger`: one-time stderr warning when `step_suppression_ratio > 0.10`, reset per results folder.
+
+  **Full-run baseline measurement (to be recorded after next production run):**
+
+  Run command:
+  ```
+  $env:MFREE_RESULTS_DIR = "results/baseline_phase5"
+  $env:MFREE_LOG_ENERGY  = "1"
+  $env:MFREE_THERMAL_T_REF = "298.15"
+  .\build\Release\mfree_iwf.exe  # model 1, FE tool, explicit coupled, 100000 steps
+  ```
+
+  Then read the final row of `results/baseline_phase5/cutting_energy.csv` and record:
+
+  | Metric | Column in `_energy.csv` | Measured value |
+  |---|---|---|
+  | Limiter suppression (cumulative) | `cum_suppression_ratio` | *(fill after run)* |
+  | Tool-source residual (cumulative) | `cum_tool_source_residual` | *(fill after run)* |
+  | Full-system closure residual % | `closure_residual_pct` | *(fill after run)* |
+  | Plastic dissipation fraction | `cum_plastic_dissipation / (cum_plastic_dissipation + cum_contact_E_fric_scaled)` | *(fill after run)* |
+  | Tool energy fraction | `delta_tool_internal_E / (cum_plastic_dissipation + cum_contact_E_fric_scaled)` | *(fill after run)* |
+
+  These numbers form the baseline for any future solver-tightening work (e.g., switching to a bidirectional thermal corrector or improving `A_eff`).
+
+  **All changes are additive or corrective; no solver physics were changed. 5/5 CTest tests pass throughout.**
 
 - 2026-04-20: repo hygiene + workflow docs: establish repeatable commit/PR/CI gates and document them so future work can continue without ambiguity
   - Completed (repo policy / hygiene)
