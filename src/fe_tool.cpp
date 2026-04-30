@@ -394,17 +394,6 @@ void fe_tool::reset_thermal_energy_accounting_step(double dt) {
 	m_thermal_energy.step_tool_E_conduction = 0.;
 	m_thermal_energy.step_tool_E_convection = 0.;
 	m_thermal_energy.step_tool_E_dirichlet = 0.;
-	m_thermal_energy.cumulative_contact_E_cond_raw = 0.;
-	m_thermal_energy.cumulative_contact_E_fric_raw = 0.;
-	m_thermal_energy.cumulative_contact_E_cond_scaled = 0.;
-	m_thermal_energy.cumulative_contact_E_fric_scaled = 0.;
-	m_thermal_energy.cumulative_contact_E_workpiece = 0.;
-	m_thermal_energy.cumulative_contact_E_tool = 0.;
-	m_thermal_energy.cumulative_contact_E_limiter_suppressed = 0.;
-	m_thermal_energy.cumulative_tool_E_sources = 0.;
-	m_thermal_energy.cumulative_tool_E_conduction = 0.;
-	m_thermal_energy.cumulative_tool_E_convection = 0.;
-	m_thermal_energy.cumulative_tool_E_dirichlet = 0.;
 	m_thermal_energy.tool_internal_E = thermal_internal_energy();
 }
 
@@ -492,14 +481,6 @@ void fe_tool::add_contact_energy_accounting(double dt, double P_cond_raw, double
 	m_thermal_energy.step_contact_E_workpiece += E_workpiece;
 	m_thermal_energy.step_contact_E_tool += E_tool;
 	m_thermal_energy.step_contact_E_limiter_suppressed += E_suppressed;
-
-	m_thermal_energy.cumulative_contact_E_cond_raw = m_thermal_energy.step_contact_E_cond_raw;
-	m_thermal_energy.cumulative_contact_E_fric_raw = m_thermal_energy.step_contact_E_fric_raw;
-	m_thermal_energy.cumulative_contact_E_cond_scaled = m_thermal_energy.step_contact_E_cond_scaled;
-	m_thermal_energy.cumulative_contact_E_fric_scaled = m_thermal_energy.step_contact_E_fric_scaled;
-	m_thermal_energy.cumulative_contact_E_workpiece = m_thermal_energy.step_contact_E_workpiece;
-	m_thermal_energy.cumulative_contact_E_tool = m_thermal_energy.step_contact_E_tool;
-	m_thermal_energy.cumulative_contact_E_limiter_suppressed = m_thermal_energy.step_contact_E_limiter_suppressed;
 }
 
 fe_tool::thermal_energy_accounting fe_tool::get_thermal_energy_accounting() const {
@@ -519,6 +500,21 @@ double fe_tool::thermal_internal_energy() const {
 		if (!std::isfinite(m_T[i]) || !std::isfinite(m_capacity[i]))
 			continue;
 		E += m_capacity[i] * m_T[i];
+	}
+	return E;
+}
+
+double fe_tool::thermal_internal_energy_above_ref(double T_ref) const {
+	double E = 0.;
+	const std::size_t n = std::min(m_T.size(), m_capacity.size());
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+:E) schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
+		if (!std::isfinite(m_T[i]) || !std::isfinite(m_capacity[i]))
+			continue;
+		E += m_capacity[i] * (m_T[i] - T_ref);
 	}
 	return E;
 }
@@ -1027,10 +1023,6 @@ void fe_tool::advance_explicit(double dt) {
 	m_thermal_energy.step_tool_E_conduction += E_conduction;
 	m_thermal_energy.step_tool_E_convection += E_convection;
 	m_thermal_energy.step_tool_E_dirichlet += E_dirichlet;
-	m_thermal_energy.cumulative_tool_E_sources = m_thermal_energy.step_tool_E_sources;
-	m_thermal_energy.cumulative_tool_E_conduction = m_thermal_energy.step_tool_E_conduction;
-	m_thermal_energy.cumulative_tool_E_convection = m_thermal_energy.step_tool_E_convection;
-	m_thermal_energy.cumulative_tool_E_dirichlet = m_thermal_energy.step_tool_E_dirichlet;
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)

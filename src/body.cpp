@@ -135,9 +135,14 @@ static bool parse_env_double_strict_min(const char *name, double min_value, doub
 } // namespace
 
 void body::apply_plasticity() {
-	if (m_plast == 0) return;
-	m_plast->plastic_state_by_radial_return(*this);
+	if (m_plast == 0) {
+		m_step_plastic_dissipation = 0.;
+		return;
+	}
+	m_step_plastic_dissipation = m_plast->plastic_state_by_radial_return(*this);
 }
+
+double body::get_step_plastic_dissipation() const { return m_step_plastic_dissipation; }
 
 void body::apply_thermal_conduction() {
 	if (m_thermal == 0) return;

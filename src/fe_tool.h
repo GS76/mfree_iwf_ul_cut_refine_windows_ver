@@ -259,17 +259,11 @@ class fe_tool {
 		double step_tool_E_convection = 0.;
 		double step_tool_E_dirichlet = 0.;
 		double tool_internal_E = 0.;
-		double cumulative_contact_E_cond_raw = 0.;
-		double cumulative_contact_E_fric_raw = 0.;
-		double cumulative_contact_E_cond_scaled = 0.;
-		double cumulative_contact_E_fric_scaled = 0.;
-		double cumulative_contact_E_workpiece = 0.;
-		double cumulative_contact_E_tool = 0.;
-		double cumulative_contact_E_limiter_suppressed = 0.;
-		double cumulative_tool_E_sources = 0.;
-		double cumulative_tool_E_conduction = 0.;
-		double cumulative_tool_E_convection = 0.;
-		double cumulative_tool_E_dirichlet = 0.;
+		// NOTE: cross-simulation cumulative totals are NOT stored here.
+		// They are accumulated correctly by the logger's private m_cum_* members
+		// (logger.h / logger.cpp) using += on the step_* fields above.
+		// Do not add cumulative_* fields back to this struct: they were previously
+		// reset to zero every step and therefore never actually accumulated.
 	};
 	void reset_thermal_energy_accounting_step(double dt);
 	void add_contact_thermal_diagnostics(double dt, unsigned int contact_count, double area_eff, double hA, double P_cond_pos_raw,
@@ -279,6 +273,8 @@ class fe_tool {
 									   double frac_tool);
 	thermal_energy_accounting get_thermal_energy_accounting() const;
 	double thermal_internal_energy() const;
+	// Returns sum(capacity_i * (T_i - T_ref)) — thermal energy above the given reference.
+	double thermal_internal_energy_above_ref(double T_ref) const;
 	double min_thermal_nodal_capacity() const;
 
 	fe_tool();

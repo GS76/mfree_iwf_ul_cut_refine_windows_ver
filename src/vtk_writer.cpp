@@ -198,6 +198,31 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
+	// Initial (reference-frame) particle positions and temperature.
+	// Written as double to preserve precision for post-processing.
+	// initial_y is the canonical source for chip-classification thresholds;
+	// initial_temperature enables per-particle delta-E without a global T_ref.
+	fprintf(fp, "SCALARS initial_x double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e\n", particles[i].X);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS initial_y double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e\n", particles[i].Y);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS initial_temperature double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e\n", particles[i].T_init);
+	}
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }
 

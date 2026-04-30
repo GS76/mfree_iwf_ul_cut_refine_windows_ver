@@ -76,10 +76,12 @@ private:
 	johnson_cook_Sima_2010 *m_plasticity_model = 0;
 	bool m_consider_dissipation = true;
 	void print_debug(const std::vector<particle> &particles, unsigned int num_part, unsigned int fail_idx);
-	void do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
+	double do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
 
 public:
-	void plastic_state_by_radial_return(body &b);
+	// Returns the total Taylor-Quinney plastic dissipation energy deposited
+	// to all particles this step (J, SI or model units).
+	double plastic_state_by_radial_return(body &b);
 	void set_tolerance(double tol);
 	void set_dissipation_considered(bool consider);
 	plasticity(johnson_cook_Sima_2010 *plasticity_model);

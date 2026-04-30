@@ -110,7 +110,7 @@ add_test(NAME mfree_iwf_validate COMMAND mfree_iwf_validate)
 add_test(NAME mfree_iwf_preprocess_model1_rigid COMMAND $<TARGET_FILE:mfree_iwf> -m 1)
 set_tests_properties(mfree_iwf_preprocess_model1_rigid PROPERTIES
   ENVIRONMENT
-    "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/model1_rigid"
+    "MFREE_PREPROCESS_ONLY=1;MFREE_CLEAN_RESULTS=1;MFREE_RESULTS_DIR=${CMAKE_BINARY_DIR}/ctest_results/model1_rigid;MFREE_FE_TOOL_MSH=${CMAKE_SOURCE_DIR}/snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh"
 )
 
 add_test(NAME mfree_iwf_preprocess_model1_fe_only COMMAND $<TARGET_FILE:mfree_iwf> -m 1)
