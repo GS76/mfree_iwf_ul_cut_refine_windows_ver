@@ -137,3 +137,9 @@ target_include_directories(mfree_geom_validation_math_test PRIVATE
 mfree_apply_warning_options(mfree_geom_validation_math_test)
 
 add_test(NAME mfree_geom_validation_math_test COMMAND mfree_geom_validation_math_test)
+
+add_executable(mfree_extract_final_chip
+  src/tools/extract_final_chip.cpp
+)
+
+mfree_apply_warning_options(mfree_extract_final_chip)
