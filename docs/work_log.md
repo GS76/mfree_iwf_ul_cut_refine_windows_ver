@@ -24,27 +24,53 @@
   - `docs/coupling_thermal_mechanical.md`: new "Known Approximations and Error Sources" section with 5 named approximations, quantitative estimates, measurement recipes, and a summary table.
   - `logger`: one-time stderr warning when `step_suppression_ratio > 0.10`, reset per results folder.
 
-  **Full-run baseline measurement (to be recorded after next production run):**
+  **Full-run baseline measurement — recorded 2026-04-30:**
 
+  Configuration: model 3 (`cutting_ref_multi_resol_dynamic`), explicit FE-tool coupling,
+  default 500 m/min cutting speed, `MFREE_T_FINAL_SCALE=0.05`, 12 000 steps at
+  dt = 5×10⁻¹⁰ s (6 µs physical time, 50 µm tool advance), 4 135 SPH particles.
   Run command:
   ```
-  $env:MFREE_RESULTS_DIR = "results/baseline_phase5"
-  $env:MFREE_LOG_ENERGY  = "1"
-  $env:MFREE_THERMAL_T_REF = "298.15"
-  .\build\Release\mfree_iwf.exe  # model 1, FE tool, explicit coupled, 100000 steps
+  MFREE_FE_TOOL_MSH=snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh \
+  MFREE_USE_FE_TOOL_FOR_CONTACT=1 MFREE_DEFORMABLE_FE_TOOL=1 \
+  MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=1 MFREE_FE_TOOL_FIX_TAGS=114 \
+  MFREE_FE_TOOL_RHO=14500 MFREE_FE_TOOL_CP=20 MFREE_FE_TOOL_K=80 \
+  MFREE_FE_TOOL_E=6e11 MFREE_FE_TOOL_NU=0.22 MFREE_FE_TOOL_ALPHA=4.5e-6 \
+  MFREE_T_FINAL_SCALE=0.05 MFREE_MAX_STEPS=100000 \
+  MFREE_THERMAL_T_REF=298.15 MFREE_LOG_ENERGY=1 \
+  MFREE_RESULTS_DIR=results/baseline_phase5 MFREE_CLEAN_RESULTS=1 \
+  ./build/Release/mfree_iwf.exe -m 3
   ```
 
-  Then read the final row of `results/baseline_phase5/cutting_energy.csv` and record:
+  Final-row values from `results/baseline_phase5/cutting_energy.csv` (step 12 000, t = 6.0×10⁻⁶ s):
 
-  | Metric | Column in `_energy.csv` | Measured value |
-  |---|---|---|
-  | Limiter suppression (cumulative) | `cum_suppression_ratio` | *(fill after run)* |
-  | Tool-source residual (cumulative) | `cum_tool_source_residual` | *(fill after run)* |
-  | Full-system closure residual % | `closure_residual_pct` | *(fill after run)* |
-  | Plastic dissipation fraction | `cum_plastic_dissipation / (cum_plastic_dissipation + cum_contact_E_fric_scaled)` | *(fill after run)* |
-  | Tool energy fraction | `delta_tool_internal_E / (cum_plastic_dissipation + cum_contact_E_fric_scaled)` | *(fill after run)* |
+  | Metric | Column | Measured value | Notes |
+  |---|---|---|---|
+  | Limiter suppression (cumulative) | `cum_suppression_ratio` | **0.000** | Limiter never fired; dt well within thermal stability |
+  | Tool-source residual (cumulative) | `cum_tool_source_residual` | **0.000 J** | Power mapping to FE nodes is perfectly conservative |
+  | Full-system closure residual % | `closure_residual_pct` | **0.021 %** | Energy balance closes to within 0.02% ✔ |
+  | Plastic dissipation fraction | `cum_plastic / (cum_plastic + cum_fric_scaled)` | **99.76 %** | Taylor-Quinney dominates; interface friction = 0.24% |
+  | Tool energy fraction | `delta_tool / (cum_plastic + cum_fric_scaled)` | **0.09 %** | Low due to very short run (50 µm cut) and low tool cp=20 J/kgK |
 
-  These numbers form the baseline for any future solver-tightening work (e.g., switching to a bidirectional thermal corrector or improving `A_eff`).
+  Additional derived values:
+  - Total thermal input: 9.139 J (plastic: 9.117 J + friction: 0.022 J)
+  - `delta_wp_internal_E` = 9.130 J (99.90% of input — workpiece retains nearly all heat)
+  - `delta_tool_internal_E` = 8.23×10⁻³ J
+  - `cum_tool_E_convection` = −8.28×10⁻⁴ J (small convective loss from tool surface)
+  - `cum_contact_E_cond_raw` = 4.59×10⁻³ J (conduction from hot workpiece to cooler tool)
+
+  Interpretation notes:
+  - The 0.09% tool fraction is lower than the literature range (10–15% for WC + Ti6Al4V dry cutting).
+    Two contributing factors: (a) this run covers only 50 µm of cut (6 µs), far too short for
+    thermal equilibration — heat has not had time to diffuse into the tool bulk; and
+    (b) `MFREE_FE_TOOL_CP=20 J/kgK` is 10× smaller than the physical value for WC (~200 J/kgK),
+    which reduces the tool’s thermal mass and suppresses long-term heat uptake.
+  - The near-perfect closure residual (0.021%) confirms the Phase 2 energy accounting is
+    internally consistent and all energy sources are correctly tracked.
+  - The zero suppression ratio confirms that at dt=5×10⁻¹⁰ s, the 1°C/step limiter is
+    never needed — thermal coupling is well-resolved at this timestep.
+  - These numbers form the baseline for any future solver-tightening work
+    (calibrated tool material properties, longer runs, bidirectional thermal corrector).
 
   **All changes are additive or corrective; no solver physics were changed. 5/5 CTest tests pass throughout.**
 
