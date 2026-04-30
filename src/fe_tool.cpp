@@ -358,8 +358,13 @@ bool fe_tool::is_mechanics_fixed_y(unsigned int node) const {
 }
 
 void fe_tool::set_initial_temperature(double T0) {
-	for (std::size_t i = 0; i < m_T.size(); i++)
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_T.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		m_T[i] = T0;
+	}
 	m_T_ref = T0;
 	m_thermal_energy.tool_internal_E = thermal_internal_energy();
 }
@@ -506,7 +511,11 @@ fe_tool::thermal_energy_accounting fe_tool::get_thermal_energy_accounting() cons
 double fe_tool::thermal_internal_energy() const {
 	double E = 0.;
 	const std::size_t n = std::min(m_T.size(), m_capacity.size());
-	for (std::size_t i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+:E) schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		if (!std::isfinite(m_T[i]) || !std::isfinite(m_capacity[i]))
 			continue;
 		E += m_capacity[i] * m_T[i];
@@ -656,8 +665,13 @@ double fe_tool::temperature_at_world_point_nearest_boundary(glm::dvec2 x_world) 
 }
 
 void fe_tool::clear_sources() {
-	for (std::size_t i = 0; i < m_power_sources.size(); i++)
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_power_sources.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		m_power_sources[i] = 0.;
+	}
 }
 
 void fe_tool::add_nodal_power(unsigned int node, double power) {
@@ -692,8 +706,13 @@ double fe_tool::nodal_power(unsigned int node) const {
 }
 
 void fe_tool::clear_forces() {
-	for (std::size_t i = 0; i < m_force_sources.size(); i++)
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_force_sources.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		m_force_sources[i] = glm::dvec2(0.);
+	}
 }
 
 void fe_tool::add_nodal_force(unsigned int node, glm::dvec2 force) {
@@ -924,7 +943,11 @@ void fe_tool::advance_explicit(double dt) {
 	std::vector<double> power_conduction(m_T.size(), 0.);
 	std::vector<double> power_convection(m_T.size(), 0.);
 
-	for (std::size_t i = 0; i < m_T.size(); i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_T.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		double pi = 0.;
 		for (const auto &kv : m_K_rows[i]) {
 			pi -= kv.second * m_T[kv.first];
@@ -981,7 +1004,11 @@ void fe_tool::advance_explicit(double dt) {
 	double E_convection = 0.;
 	double E_dirichlet = 0.;
 
-	for (std::size_t i = 0; i < m_T.size(); i++) {
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+:E_sources, E_conduction, E_convection, E_dirichlet) schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_T.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		power[i] += m_power_sources[i];
 
 		if (std::isfinite(m_power_sources[i]))
@@ -1005,7 +1032,11 @@ void fe_tool::advance_explicit(double dt) {
 	m_thermal_energy.cumulative_tool_E_convection = m_thermal_energy.step_tool_E_convection;
 	m_thermal_energy.cumulative_tool_E_dirichlet = m_thermal_energy.step_tool_E_dirichlet;
 
-	for (std::size_t i = 0; i < m_T.size(); i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_T.size()); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
 		if (is_fixed[i])
 			continue;
 		double cap = m_capacity[i];
@@ -1623,7 +1654,11 @@ void fe_tool::add_thermoelastic_rhs(std::vector<double> &rhs) const {
 
 void fe_tool::matvec_mechanics(const std::vector<char> &constrained, const std::vector<double> &x, std::vector<double> &y) const {
 	y.assign(x.size(), 0.);
-	for (unsigned int i = 0; i < m_Km_rows.size(); i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(m_Km_rows.size()); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		if (i < constrained.size() && constrained[i]) {
 			y[i] = x[i];
 			continue;

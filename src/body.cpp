@@ -55,10 +55,10 @@
 #include "simulation_time.h"
 #include "tool_adapter_poly.h"
 #include <cerrno>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <limits>
 #include <vector>
 
 namespace {

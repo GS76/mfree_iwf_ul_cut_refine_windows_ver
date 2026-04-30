@@ -55,8 +55,13 @@ void material_eos(body &b) {
 	double K    = b.get_sim_data().get_physical_constants().K();
 	double rho0 = b.get_sim_data().get_physical_constants().rho0();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		const double c0 = sqrt(K/rho0);
+	const unsigned int n = b.get_num_part();
+	const double c0 = sqrt(K/rho0);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].p = c0*c0*(particles[i].rho - rho0);
 	}
 }
@@ -65,7 +70,12 @@ void material_stress_rate_jaumann(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	double G = b.get_sim_data().get_physical_constants().G();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const glm::dmat3x3 epsdot = glm::dmat3x3(particles[i].vx_x, 0.5*(particles[i].vx_y + particles[i].vy_x), 0., 0.5*(particles[i].vx_y + particles[i].vy_x), particles[i].vy_y, 0., 0., 0., 0.);
 		const glm::dmat3x3 omega  = glm::dmat3x3(0.     , 0.5*(particles[i].vy_x - particles[i].vx_y), 0., 0.5*(particles[i].vx_y - particles[i].vy_x), 0., 0., 0., 0., 0.);
 		const glm::dmat3x3 S      = glm::dmat3x3(particles[i].Sxx, particles[i].Sxy, 0., particles[i].Sxy, particles[i].Syy, 0., 0., 0., particles[i].Szz);

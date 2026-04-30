@@ -56,7 +56,11 @@ void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
 
-	for (unsigned int i = 0; i < num_part; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double Ti = particles[i].T;
 		const double xi = particles[i].x;
 		const double yi = particles[i].y;
@@ -90,7 +94,11 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
 
-	for (unsigned int i = 0; i < num_part; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double Ti = particles[i].T;
 		double xi = particles[i].x;
 		double yi = particles[i].y;

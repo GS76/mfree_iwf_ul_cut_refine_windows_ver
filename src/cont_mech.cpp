@@ -53,7 +53,12 @@
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double rho  = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
@@ -66,7 +71,12 @@ void contmech_continuity(body &b) {
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double Sxx_x = particles[i].Sxx_x;
 		const double Sxy_y = particles[i].Sxy_y;
 		const double Sxy_x = particles[i].Sxy_x;
@@ -82,7 +92,12 @@ void contmech_momentum(body &b) {
 void contmech_advection(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
 	}
@@ -94,7 +109,12 @@ void do_boundary_conditions(body &b) {
 	// this enforces the fixed boundary conditions
 	// demonstrated in Fig. 10 of the manuscript
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		if(particles[i].fixed) {
 			particles[i].x    = particles[i].X;
 			particles[i].y    = particles[i].Y;

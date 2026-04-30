@@ -72,7 +72,11 @@ void correctors_mghn_artificial_viscosity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double xi   = particles[i].x;
 		const double yi   = particles[i].y;
 		const double vxi  = particles[i].vx;
@@ -141,7 +145,11 @@ void correctors_mghn_artificial_stress(body &b) {
 
 	const double eps = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_eps();
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double rhoi = particles[i].rho;
 		double rhoi21 = 1./(rhoi*rhoi);
 
@@ -180,7 +188,11 @@ void correctors_xsph(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double vxi = particles[i].vx;
 		const double vyi = particles[i].vy;
 		const double rhoi = particles[i].rho;

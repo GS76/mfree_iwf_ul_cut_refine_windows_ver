@@ -143,6 +143,187 @@ void logger::set_folder(const char *folder) {
 	}
 }
 
+void logger::log_time_step_data(const body &b, unsigned int step) {
+	static int thermal_cfg_init = 0;
+	static bool log_thermal = true;
+	if (thermal_cfg_init == 0) {
+		thermal_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_THERMAL"); s && std::atoi(s) == 0)
+			log_thermal = false;
+	}
+
+	const fe_tool *ft_log = b.get_fe_tool();
+	if (log_thermal && m_fp_thermal && ft_log) {
+		const fe_tool *ft = ft_log;
+		fe_tool::contact_energy_balance eb = ft->get_contact_energy_balance();
+		fe_tool::contact_convergence cc = ft->get_contact_convergence();
+		glm::dvec2 tool_pos = ft->get_pos();
+		glm::dvec2 tool_vel = ft->get_vel();
+
+		double wp_Tmin = std::numeric_limits<double>::infinity();
+		double wp_Tmax = -std::numeric_limits<double>::infinity();
+		double wp_Tsum = 0.0;
+		unsigned int wp_n = 0;
+		for (unsigned int i = 0; i < b.get_num_part(); i++) {
+			double T = b.get_particles()[i].T;
+			if (!std::isfinite(T))
+				continue;
+			wp_Tmin = std::min(wp_Tmin, T);
+			wp_Tmax = std::max(wp_Tmax, T);
+			wp_Tsum += T;
+			wp_n++;
+		}
+		if (!std::isfinite(wp_Tmin))
+			wp_Tmin = 0.0;
+		if (!std::isfinite(wp_Tmax))
+			wp_Tmax = 0.0;
+		double wp_Tavg = (wp_n > 0) ? (wp_Tsum / static_cast<double>(wp_n)) : 0.0;
+
+		simulation_time *time = &simulation_time::getInstance();
+		double cur_time = time->get_time();
+
+		std::fprintf(
+			m_fp_thermal,
+			"%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u,%.15e,%.15e\n",
+			cur_time, step, eb.P_cond, eb.P_fric, eb.scale, eb.frac_workpiece, eb.frac_tool, tool_pos.x, tool_pos.y, tool_vel.x, tool_vel.y,
+			ft->min_temperature(), ft->max_temperature(), wp_Tmin, wp_Tmax, wp_Tavg, cc.iters, cc.rel_force, cc.rel_power);
+		std::fflush(m_fp_thermal);
+	}
+
+	static int energy_cfg_init = 0;
+	static bool log_energy = true;
+	if (energy_cfg_init == 0) {
+		energy_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0)
+			log_energy = false;
+	}
+
+	if (log_energy && m_fp_energy && ft_log) {
+		const fe_tool *ft = ft_log;
+		fe_tool::thermal_energy_accounting ea = ft->get_thermal_energy_accounting();
+
+		const double cp_wp = b.get_sim_data().get_physical_constants().tc().cp();
+		double wp_internal_E = 0.;
+		if (std::isfinite(cp_wp) && cp_wp > 0.) {
+			for (unsigned int i = 0; i < b.get_num_part(); i++) {
+				const particle &pi = b.get_particles()[i];
+				if (!std::isfinite(pi.m) || !std::isfinite(pi.T))
+					continue;
+				wp_internal_E += pi.m * cp_wp * pi.T;
+			}
+		}
+
+		m_cum_contact_E_cond_raw += ea.step_contact_E_cond_raw;
+		m_cum_contact_E_fric_raw += ea.step_contact_E_fric_raw;
+		m_cum_contact_E_cond_scaled += ea.step_contact_E_cond_scaled;
+		m_cum_contact_E_fric_scaled += ea.step_contact_E_fric_scaled;
+		m_cum_contact_E_workpiece += ea.step_contact_E_workpiece;
+		m_cum_contact_E_tool += ea.step_contact_E_tool;
+		m_cum_contact_E_limiter_suppressed += ea.step_contact_E_limiter_suppressed;
+		m_cum_tool_E_sources += ea.step_tool_E_sources;
+		m_cum_tool_E_conduction += ea.step_tool_E_conduction;
+		m_cum_tool_E_convection += ea.step_tool_E_convection;
+		m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
+
+		const double step_interface_balance_residual =
+			(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
+		const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
+		const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
+		const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
+
+		simulation_time *time = &simulation_time::getInstance();
+		double cur_time = time->get_time();
+
+		std::fprintf(m_fp_energy,
+					 "%.15e,%u,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e,"
+					 "%.15e,%.15e,%.15e,%.15e\n",
+					 cur_time, step, ea.step_dt, wp_internal_E, ea.tool_internal_E, ea.step_contact_event_count, ea.step_contact_area_eff,
+					 ea.step_contact_hA, ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
+					 ea.step_contact_deltaT_mean, ea.step_contact_deltaT_max, ea.step_contact_h_c_mean, ea.step_contact_h_c_max,
+					 ea.step_contact_max_pred_dT, ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled,
+					 ea.step_contact_E_fric_scaled, ea.step_contact_E_workpiece, ea.step_contact_E_tool,
+					 ea.step_contact_E_limiter_suppressed, ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection,
+					 ea.step_tool_E_dirichlet, m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled,
+					 m_cum_contact_E_fric_scaled, m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
+					 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
+					 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual);
+		std::fflush(m_fp_energy);
+	}
+
+	static int metrics_cfg_init = 0;
+	static bool log_metrics = true;
+	if (metrics_cfg_init == 0) {
+		metrics_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_METRICS"); s && std::atoi(s) == 0)
+			log_metrics = false;
+	}
+
+	if (log_metrics && m_fp_metrics) {
+		double wp_Tmin = std::numeric_limits<double>::infinity();
+		double wp_Tmax = -std::numeric_limits<double>::infinity();
+		double wp_Tsum = 0.0;
+		unsigned int wp_n = 0;
+		double umax = 0.0;
+		double svm_max = 0.0;
+		double epspl_max = 0.0;
+		double pmax = 0.0;
+		unsigned int pcount = 0;
+		for (unsigned int i = 0; i < b.get_num_part(); i++) {
+			const particle &pi = b.get_particles()[i];
+			if (std::isfinite(pi.T)) {
+				wp_Tmin = std::min(wp_Tmin, pi.T);
+				wp_Tmax = std::max(wp_Tmax, pi.T);
+				wp_Tsum += pi.T;
+				wp_n++;
+			}
+			double dx = pi.x - pi.X;
+			double dy = pi.y - pi.Y;
+			double u = std::sqrt(dx * dx + dy * dy);
+			if (std::isfinite(u))
+				umax = std::max(umax, u);
+			double sxx = pi.Sxx - pi.p;
+			double sxy = pi.Sxy;
+			double syy = pi.Syy - pi.p;
+			double szz = pi.Szz - pi.p;
+			double svm = std::sqrt(std::abs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
+			if (std::isfinite(svm))
+				svm_max = std::max(svm_max, svm);
+			if (std::isfinite(pi.eps_pl_equiv))
+				epspl_max = std::max(epspl_max, pi.eps_pl_equiv);
+			double Fn = std::sqrt(pi.fcx * pi.fcx + pi.fcy * pi.fcy);
+			double p = 0.0;
+			if (Fn > 0.0 && pi.m > 0.0 && pi.rho > 0.0) {
+				p = Fn * pi.rho / pi.m;
+			}
+			if (std::isfinite(p) && p > 0.0) {
+				pmax = std::max(pmax, p);
+				pcount++;
+			}
+		}
+		if (!std::isfinite(wp_Tmin))
+			wp_Tmin = 0.0;
+		if (!std::isfinite(wp_Tmax))
+			wp_Tmax = 0.0;
+		double wp_Tavg = (wp_n > 0) ? (wp_Tsum / static_cast<double>(wp_n)) : 0.0;
+
+		simulation_time *time = &simulation_time::getInstance();
+		double cur_time = time->get_time();
+		std::fprintf(m_fp_metrics, "%.15e,%u,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%.15e,%u\n", cur_time, step, wp_Tmin,
+					 wp_Tmax, wp_Tavg, umax, svm_max, epspl_max, pmax, pcount);
+		std::fflush(m_fp_metrics);
+	}
+}
+
 void logger::log(const body &b, unsigned int step) {
 	static int cfg_init = 0;
 	static bool log_vtk_workpiece = true;
@@ -204,6 +385,16 @@ void logger::log(const body &b, unsigned int step) {
 				vtk_writer_write(b.get_fe_tool(), step, m_folder);
 		}
 	}
+
+	static int step_data_cfg_init = 0;
+	static bool log_time_step_data_every_step = true;
+	if (step_data_cfg_init == 0) {
+		step_data_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_TIME_STEP_DATA_EVERY_STEP"); s && std::atoi(s) == 0)
+			log_time_step_data_every_step = false;
+	}
+	if (log_time_step_data_every_step)
+		return;
 
 	static int thermal_cfg_init = 0;
 	static bool log_thermal = true;

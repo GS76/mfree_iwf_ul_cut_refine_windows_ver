@@ -9,12 +9,9 @@ Meshing/gmsh-*/
 .vs/
 .vscode/ipch/
 .vscode/settings.json
-results/**
 docs/*tree*.txt
 s\ -File\ .scriptsgit_checkpoint.ps1*
 **/*.exe
-*.vtk
-*.csv
 .tmp.drivedownload/
 .tmp.driveupload/
 __pycache__/

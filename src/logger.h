@@ -105,6 +105,7 @@ public:
 	void set_folder(const char* folder);
 
 	void log(const body &body, unsigned int step);
+	void log_time_step_data(const body &body, unsigned int step);
 };
 
 #endif /* LOGGER_H_ */

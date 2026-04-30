@@ -48,20 +48,25 @@
  *
  */
 
-#include <iostream>
-#include <stdlib.h>
-#include <fenv.h>
+#include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <cerrno>
+#include <cstdlib>
 #include <filesystem>
 #include <limits>
 #include <string>
-#include <omp.h>
-#include <vector>
 #include <unordered_set>
-#include <algorithm>
+#include <vector>
+
+#if defined(__GLIBC__)
+#include <fenv.h>
+#endif
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #include "particle.h"
 #include "contact.h"
@@ -77,10 +82,6 @@
 #include "body.h"
 
 logger *global_logger;
-
-#include <algorithm>
-#include <set>
-#include <iterator>
 
 #ifdef __FAST_MATH__
 #error "Do NOT compile using -ffast-math"
@@ -908,18 +909,22 @@ int main(int argc, char * argv[]) {
 	const std::string results_dir = (results_dir_env && results_dir_env[0] != '\0') ? std::string(results_dir_env) : std::string("results");
 
 	#ifdef _OPENMP
+	omp_set_dynamic(0);
+	int omp_threads = omp_get_num_procs();
 	if (const char *s = std::getenv("MFREE_OMP_THREADS"); s && s[0] != '\0') {
 		errno = 0;
 		char *end = nullptr;
 		long n = std::strtol(s, &end, 10);
 		bool ok = (end != s && end != nullptr && *end == '\0' && errno == 0);
 		if (ok && n > 0 && n <= std::numeric_limits<int>::max()) {
-			omp_set_dynamic(0);
-			omp_set_num_threads(static_cast<int>(n));
+			omp_threads = static_cast<int>(n);
 		} else {
 			std::fprintf(stderr, "warning: invalid MFREE_OMP_THREADS=\"%s\"; expected positive integer\n", s);
 		}
 	}
+	if (omp_threads > 0)
+		omp_set_num_threads(omp_threads);
+	std::fprintf(stdout, "OpenMP enabled: threads=%d processors=%d\n", omp_get_max_threads(), omp_get_num_procs());
 	#endif
 
 	std::filesystem::create_directories(results_dir);
@@ -976,6 +981,8 @@ int main(int argc, char * argv[]) {
 		break;
 	}
 
+	const bool log_time_step_data_every_step = env_flag("MFREE_LOG_TIME_STEP_DATA_EVERY_STEP", true);
+
 	if (env_flag("MFREE_PREPROCESS_ONLY", false)) {
 		b->construct_verlet_lists();
 		{
@@ -991,7 +998,11 @@ int main(int argc, char * argv[]) {
 		write_geom_validation_report(*b, results_dir.c_str(), model);
 		write_fe_tool_bc_validation_reports(*b, results_dir.c_str(), model);
 		b->apply_contact();
-		if (global_logger) global_logger->log(*b, 0);
+		if (global_logger) {
+			if (log_time_step_data_every_step)
+				global_logger->log_time_step_data(*b, 0);
+			global_logger->log(*b, 0);
+		}
 		write_precheck_report(*b, results_dir.c_str());
 		write_validation_summary(*b, results_dir.c_str(), model);
 		return EXIT_SUCCESS;
@@ -1058,6 +1069,8 @@ int main(int argc, char * argv[]) {
 	  ========================
 	 */
 	leap_frog stepper((*b).get_num_part());
+	if (global_logger && log_time_step_data_every_step)
+		global_logger->log_time_step_data(*b, time->get_step());
 
 	/*
 	 * This is the implementation of the main time-loop,
@@ -1099,6 +1112,8 @@ int main(int argc, char * argv[]) {
 
 		time->increment_step();
 		time->increment_time();
+		if (global_logger && log_time_step_data_every_step)
+			global_logger->log_time_step_data(*b, time->get_step());
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();

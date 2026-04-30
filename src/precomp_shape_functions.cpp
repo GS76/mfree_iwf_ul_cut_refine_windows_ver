@@ -52,7 +52,11 @@
 
 void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
@@ -71,7 +75,11 @@ void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
 void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 

@@ -60,7 +60,12 @@ void leap_frog::init(body &body) {
 		m_init.resize(particles.size());
 	}
 
-	for (unsigned int i = 0; i < body.get_num_part(); i++) {
+	const unsigned int n = body.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		m_init[i] = particles[i];
 	}
 }
@@ -70,7 +75,12 @@ void leap_frog::predict(body &body) const {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
-	for (unsigned int i = 0; i < body.get_num_part(); i++) {
+	const unsigned int n = body.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].x   = m_init[i].x   + 0.5*dt*particles[i].x_t;
 		particles[i].y   = m_init[i].y   + 0.5*dt*particles[i].y_t;
 		particles[i].rho = m_init[i].rho + 0.5*dt*particles[i].rho_t;
@@ -90,7 +100,12 @@ void leap_frog::correct(body &body) const {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
-	for (unsigned int i = 0; i < body.get_num_part(); i++) {
+	const unsigned int n = body.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].x   = m_init[i].x   + dt*particles[i].x_t;
 		particles[i].y   = m_init[i].y   + dt*particles[i].y_t;
 		particles[i].rho = m_init[i].rho + dt*particles[i].rho_t;
@@ -115,8 +130,16 @@ void leap_frog::step(body &body) {
 	predict(body);
 
 	// compute temporal derivatives
-	for (unsigned int i = 0; i < body.get_num_part(); i++) {
-		body.get_particles()[i].reset();
+	{
+		std::vector<particle> &particles = body.get_particles();
+		const unsigned int n = body.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+		for (int ii = 0; ii < static_cast<int>(n); ii++) {
+			const unsigned int i = static_cast<unsigned int>(ii);
+			particles[i].reset();
+		}
 	}
 
 	// move the tool & do penalty contact

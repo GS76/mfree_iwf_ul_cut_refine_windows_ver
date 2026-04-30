@@ -54,7 +54,11 @@ void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
 
@@ -92,7 +96,11 @@ void derive_stress_monaghan(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double Sxxi = particles[i].Sxx - particles[i].p;
 		double Sxyi = particles[i].Sxy;
 		double Syyi = particles[i].Syy - particles[i].p;
