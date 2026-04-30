@@ -81,6 +81,9 @@ void logger::add_tracer_particle(unsigned int tracer_idx) { m_trace_p.push_back(
 void logger::set_folder(const char *folder) {
 	std::snprintf(m_folder, sizeof(m_folder), "%s", folder ? folder : "");
 
+	m_wp_internal_E_init = -1.;
+	m_tool_internal_E_init = -1.;
+	m_cum_plastic_dissipation = 0.;
 	m_cum_contact_E_cond_raw = 0.;
 	m_cum_contact_E_fric_raw = 0.;
 	m_cum_contact_E_cond_scaled = 0.;
@@ -127,7 +130,7 @@ void logger::set_folder(const char *folder) {
 	m_fp_energy = fopen(energy.string().c_str(), "w+");
 	if (m_fp_energy) {
 		std::fprintf(m_fp_energy,
-					 "time,step,step_dt,wp_internal_E,tool_internal_E,"
+					 "time,step,step_dt,wp_internal_E_above_ref,tool_internal_E_above_ref,"
 					 "step_contact_event_count,step_contact_area_eff,step_contact_hA,"
 					 "step_contact_P_cond_pos_raw,step_contact_P_cond_neg_raw,step_contact_P_cond_net_raw,"
 					 "step_contact_deltaT_mean,step_contact_deltaT_max,step_contact_h_c_mean,step_contact_h_c_max,"
@@ -138,7 +141,9 @@ void logger::set_folder(const char *folder) {
 					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
 					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
+					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual,"
+					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
+					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
 		std::fflush(m_fp_energy);
 	}
 }
@@ -190,75 +195,7 @@ void logger::log_time_step_data(const body &b, unsigned int step) {
 		std::fflush(m_fp_thermal);
 	}
 
-	static int energy_cfg_init = 0;
-	static bool log_energy = true;
-	if (energy_cfg_init == 0) {
-		energy_cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0)
-			log_energy = false;
-	}
-
-	if (log_energy && m_fp_energy && ft_log) {
-		const fe_tool *ft = ft_log;
-		fe_tool::thermal_energy_accounting ea = ft->get_thermal_energy_accounting();
-
-		const double cp_wp = b.get_sim_data().get_physical_constants().tc().cp();
-		double wp_internal_E = 0.;
-		if (std::isfinite(cp_wp) && cp_wp > 0.) {
-			for (unsigned int i = 0; i < b.get_num_part(); i++) {
-				const particle &pi = b.get_particles()[i];
-				if (!std::isfinite(pi.m) || !std::isfinite(pi.T))
-					continue;
-				wp_internal_E += pi.m * cp_wp * pi.T;
-			}
-		}
-
-		m_cum_contact_E_cond_raw += ea.step_contact_E_cond_raw;
-		m_cum_contact_E_fric_raw += ea.step_contact_E_fric_raw;
-		m_cum_contact_E_cond_scaled += ea.step_contact_E_cond_scaled;
-		m_cum_contact_E_fric_scaled += ea.step_contact_E_fric_scaled;
-		m_cum_contact_E_workpiece += ea.step_contact_E_workpiece;
-		m_cum_contact_E_tool += ea.step_contact_E_tool;
-		m_cum_contact_E_limiter_suppressed += ea.step_contact_E_limiter_suppressed;
-		m_cum_tool_E_sources += ea.step_tool_E_sources;
-		m_cum_tool_E_conduction += ea.step_tool_E_conduction;
-		m_cum_tool_E_convection += ea.step_tool_E_convection;
-		m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
-
-		const double step_interface_balance_residual =
-			(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
-		const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
-		const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
-		const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
-
-		simulation_time *time = &simulation_time::getInstance();
-		double cur_time = time->get_time();
-
-		std::fprintf(m_fp_energy,
-					 "%.15e,%u,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e\n",
-					 cur_time, step, ea.step_dt, wp_internal_E, ea.tool_internal_E, ea.step_contact_event_count, ea.step_contact_area_eff,
-					 ea.step_contact_hA, ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
-					 ea.step_contact_deltaT_mean, ea.step_contact_deltaT_max, ea.step_contact_h_c_mean, ea.step_contact_h_c_max,
-					 ea.step_contact_max_pred_dT, ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled,
-					 ea.step_contact_E_fric_scaled, ea.step_contact_E_workpiece, ea.step_contact_E_tool,
-					 ea.step_contact_E_limiter_suppressed, ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection,
-					 ea.step_tool_E_dirichlet, m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled,
-					 m_cum_contact_E_fric_scaled, m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
-					 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
-					 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual);
-		std::fflush(m_fp_energy);
-	}
+	log_energy_block(b, step, ft_log);
 
 	static int metrics_cfg_init = 0;
 	static bool log_metrics = true;
@@ -441,75 +378,7 @@ void logger::log(const body &b, unsigned int step) {
 		std::fflush(m_fp_thermal);
 	}
 
-	static int energy_cfg_init = 0;
-	static bool log_energy = true;
-	if (energy_cfg_init == 0) {
-		energy_cfg_init = 1;
-		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0)
-			log_energy = false;
-	}
-
-	if (log_energy && m_fp_energy && ft_log) {
-		const fe_tool *ft = ft_log;
-		fe_tool::thermal_energy_accounting ea = ft->get_thermal_energy_accounting();
-
-		const double cp_wp = b.get_sim_data().get_physical_constants().tc().cp();
-		double wp_internal_E = 0.;
-		if (std::isfinite(cp_wp) && cp_wp > 0.) {
-			for (unsigned int i = 0; i < b.get_num_part(); i++) {
-				const particle &pi = b.get_particles()[i];
-				if (!std::isfinite(pi.m) || !std::isfinite(pi.T))
-					continue;
-				wp_internal_E += pi.m * cp_wp * pi.T;
-			}
-		}
-
-		m_cum_contact_E_cond_raw += ea.step_contact_E_cond_raw;
-		m_cum_contact_E_fric_raw += ea.step_contact_E_fric_raw;
-		m_cum_contact_E_cond_scaled += ea.step_contact_E_cond_scaled;
-		m_cum_contact_E_fric_scaled += ea.step_contact_E_fric_scaled;
-		m_cum_contact_E_workpiece += ea.step_contact_E_workpiece;
-		m_cum_contact_E_tool += ea.step_contact_E_tool;
-		m_cum_contact_E_limiter_suppressed += ea.step_contact_E_limiter_suppressed;
-		m_cum_tool_E_sources += ea.step_tool_E_sources;
-		m_cum_tool_E_conduction += ea.step_tool_E_conduction;
-		m_cum_tool_E_convection += ea.step_tool_E_convection;
-		m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
-
-		const double step_interface_balance_residual =
-			(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
-		const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
-		const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
-		const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
-
-		simulation_time *time = &simulation_time::getInstance();
-		double cur_time = time->get_time();
-
-		std::fprintf(m_fp_energy,
-					 "%.15e,%u,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e,"
-					 "%.15e,%.15e,%.15e,%.15e\n",
-					 cur_time, step, ea.step_dt, wp_internal_E, ea.tool_internal_E, ea.step_contact_event_count, ea.step_contact_area_eff,
-					 ea.step_contact_hA, ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
-					 ea.step_contact_deltaT_mean, ea.step_contact_deltaT_max, ea.step_contact_h_c_mean, ea.step_contact_h_c_max,
-					 ea.step_contact_max_pred_dT, ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled,
-					 ea.step_contact_E_fric_scaled, ea.step_contact_E_workpiece, ea.step_contact_E_tool,
-					 ea.step_contact_E_limiter_suppressed, ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection,
-					 ea.step_tool_E_dirichlet, m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled,
-					 m_cum_contact_E_fric_scaled, m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
-					 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
-					 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual);
-		std::fflush(m_fp_energy);
-	}
+	log_energy_block(b, step, ft_log);
 
 	static int metrics_cfg_init = 0;
 	static bool log_metrics = true;
@@ -575,6 +444,121 @@ void logger::log(const body &b, unsigned int step) {
 	}
 }
 
+void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *ft_log) {
+	static int energy_cfg_init = 0;
+	static bool log_energy = true;
+	if (energy_cfg_init == 0) {
+		energy_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_LOG_ENERGY"); s && std::atoi(s) == 0)
+			log_energy = false;
+	}
+
+	// Read reference temperature once (default 298.15 K = 25 degC).
+	static int T_ref_cfg_init = 0;
+	if (T_ref_cfg_init == 0) {
+		T_ref_cfg_init = 1;
+		if (const char *s = std::getenv("MFREE_THERMAL_T_REF")) {
+			double v = std::atof(s);
+			if (std::isfinite(v) && v >= 0.)
+				m_T_ref = v;
+		}
+	}
+
+	if (!log_energy || !m_fp_energy || !ft_log)
+		return;
+
+	const fe_tool *ft = ft_log;
+	fe_tool::thermal_energy_accounting ea = ft->get_thermal_energy_accounting();
+
+	// Workpiece internal energy above T_ref: sum(m_i * cp * (T_i - T_ref))
+	const double cp_wp = b.get_sim_data().get_physical_constants().tc().cp();
+	double wp_internal_E = 0.;
+	if (std::isfinite(cp_wp) && cp_wp > 0.) {
+		for (unsigned int i = 0; i < b.get_num_part(); i++) {
+			const particle &pi = b.get_particles()[i];
+			if (!std::isfinite(pi.m) || !std::isfinite(pi.T))
+				continue;
+			wp_internal_E += pi.m * cp_wp * (pi.T - m_T_ref);
+		}
+	}
+
+	// Tool internal energy above T_ref: sum(capacity_i * (T_i - T_ref))
+	const double tool_internal_E = ft->thermal_internal_energy_above_ref(m_T_ref);
+
+	// Capture initial-state baselines on the very first logged step.
+	if (m_wp_internal_E_init < 0.) {
+		m_wp_internal_E_init = wp_internal_E;
+		m_tool_internal_E_init = tool_internal_E;
+	}
+
+	// Accumulate step values.
+	m_cum_contact_E_cond_raw += ea.step_contact_E_cond_raw;
+	m_cum_contact_E_fric_raw += ea.step_contact_E_fric_raw;
+	m_cum_contact_E_cond_scaled += ea.step_contact_E_cond_scaled;
+	m_cum_contact_E_fric_scaled += ea.step_contact_E_fric_scaled;
+	m_cum_contact_E_workpiece += ea.step_contact_E_workpiece;
+	m_cum_contact_E_tool += ea.step_contact_E_tool;
+	m_cum_contact_E_limiter_suppressed += ea.step_contact_E_limiter_suppressed;
+	m_cum_tool_E_sources += ea.step_tool_E_sources;
+	m_cum_tool_E_conduction += ea.step_tool_E_conduction;
+	m_cum_tool_E_convection += ea.step_tool_E_convection;
+	m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
+	m_cum_plastic_dissipation += b.get_step_plastic_dissipation();
+
+	// Existing interface / tool-source residuals.
+	const double step_interface_balance_residual =
+		(ea.step_contact_E_workpiece + ea.step_contact_E_tool) - ea.step_contact_E_fric_scaled;
+	const double step_tool_source_residual = ea.step_tool_E_sources - ea.step_contact_E_tool;
+	const double cum_interface_balance_residual = (m_cum_contact_E_workpiece + m_cum_contact_E_tool) - m_cum_contact_E_fric_scaled;
+	const double cum_tool_source_residual = m_cum_tool_E_sources - m_cum_contact_E_tool;
+
+	// Full-system energy closure.
+	// Identity: cum_plastic_dissipation + cum_fric_scaled
+	//         = delta_wp + delta_tool + cum_convection + cum_suppressed
+	const double delta_wp = wp_internal_E - m_wp_internal_E_init;
+	const double delta_tool = tool_internal_E - m_tool_internal_E_init;
+	const double total_input = m_cum_plastic_dissipation + m_cum_contact_E_fric_scaled;
+	const double total_stored_and_lost =
+		delta_wp + delta_tool + m_cum_tool_E_convection + m_cum_contact_E_limiter_suppressed;
+	const double closure_residual = total_input - total_stored_and_lost;
+	const double closure_residual_pct =
+		(total_input > 1e-30) ? (closure_residual / total_input * 100.) : 0.;
+
+	simulation_time *time = &simulation_time::getInstance();
+	double cur_time = time->get_time();
+
+	std::fprintf(m_fp_energy,
+				 "%.15e,%u,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e,%.15e,%.15e\n",
+				 cur_time, step, ea.step_dt, wp_internal_E, tool_internal_E,
+				 ea.step_contact_event_count, ea.step_contact_area_eff, ea.step_contact_hA,
+				 ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
+				 ea.step_contact_deltaT_mean, ea.step_contact_deltaT_max, ea.step_contact_h_c_mean, ea.step_contact_h_c_max,
+				 ea.step_contact_max_pred_dT,
+				 ea.step_contact_E_cond_raw, ea.step_contact_E_fric_raw, ea.step_contact_E_cond_scaled, ea.step_contact_E_fric_scaled,
+				 ea.step_contact_E_workpiece, ea.step_contact_E_tool, ea.step_contact_E_limiter_suppressed,
+				 ea.step_tool_E_sources, ea.step_tool_E_conduction, ea.step_tool_E_convection, ea.step_tool_E_dirichlet,
+				 m_cum_contact_E_cond_raw, m_cum_contact_E_fric_raw, m_cum_contact_E_cond_scaled, m_cum_contact_E_fric_scaled,
+				 m_cum_contact_E_workpiece, m_cum_contact_E_tool, m_cum_contact_E_limiter_suppressed,
+				 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
+				 step_interface_balance_residual, step_tool_source_residual, cum_interface_balance_residual, cum_tool_source_residual,
+				 m_T_ref, b.get_step_plastic_dissipation(), m_cum_plastic_dissipation,
+				 delta_wp, delta_tool, closure_residual, closure_residual_pct);
+	std::fflush(m_fp_energy);
+}
+
 logger::logger(const char *case_name, const char *foldername) {
 	const char *results_dir_env = std::getenv("MFREE_RESULTS_DIR");
 	const char *folder = (results_dir_env && results_dir_env[0] != '\0') ? results_dir_env : foldername;
@@ -604,7 +588,7 @@ logger::logger(const char *case_name, const char *foldername) {
 	m_fp_energy = fopen(energy.string().c_str(), "w+");
 	if (m_fp_energy) {
 		std::fprintf(m_fp_energy,
-					 "time,step,step_dt,wp_internal_E,tool_internal_E,"
+					 "time,step,step_dt,wp_internal_E_above_ref,tool_internal_E_above_ref,"
 					 "step_contact_event_count,step_contact_area_eff,step_contact_hA,"
 					 "step_contact_P_cond_pos_raw,step_contact_P_cond_neg_raw,step_contact_P_cond_net_raw,"
 					 "step_contact_deltaT_mean,step_contact_deltaT_max,step_contact_h_c_mean,step_contact_h_c_max,"
@@ -615,7 +599,9 @@ logger::logger(const char *case_name, const char *foldername) {
 					 "cum_contact_E_cond_raw,cum_contact_E_fric_raw,cum_contact_E_cond_scaled,cum_contact_E_fric_scaled,"
 					 "cum_contact_E_workpiece,cum_contact_E_tool,cum_contact_E_limiter_suppressed,"
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
-					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual\n");
+					 "step_interface_balance_residual,step_tool_source_residual,cum_interface_balance_residual,cum_tool_source_residual,"
+					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
+					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
 		std::fflush(m_fp_energy);
 	}
 }

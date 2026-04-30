@@ -273,6 +273,8 @@ class fe_tool {
 									   double frac_tool);
 	thermal_energy_accounting get_thermal_energy_accounting() const;
 	double thermal_internal_energy() const;
+	// Returns sum(capacity_i * (T_i - T_ref)) — thermal energy above the given reference.
+	double thermal_internal_energy_above_ref(double T_ref) const;
 	double min_thermal_nodal_capacity() const;
 
 	fe_tool();

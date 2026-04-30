@@ -82,6 +82,7 @@ private:
 	std::vector<particle> m_particles;  // workpiece particles
 	simulation_data m_simulation_data;  // all physical constants
 	void (*m_basis_fun)(std::vector<particle> &particles, unsigned int) = &precomp_sph; // basis function chosen SPH
+	double m_step_plastic_dissipation = 0.; // Taylor-Quinney energy deposited this step (J)
 
 public:
 	void set_plasticity(plasticity *plasticity);
@@ -101,6 +102,10 @@ public:
 	glm::dvec2 edge_tool();
 	const fe_tool *get_fe_tool() const;
 	fe_tool *get_fe_tool();
+
+	// Returns the total Taylor-Quinney plastic dissipation energy deposited
+	// to SPH particles during the most recently completed apply_plasticity() call.
+	double get_step_plastic_dissipation() const;
 
 	void construct_verlet_lists();
 	void restore_order();

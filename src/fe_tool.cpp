@@ -504,6 +504,21 @@ double fe_tool::thermal_internal_energy() const {
 	return E;
 }
 
+double fe_tool::thermal_internal_energy_above_ref(double T_ref) const {
+	double E = 0.;
+	const std::size_t n = std::min(m_T.size(), m_capacity.size());
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+:E) schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const std::size_t i = static_cast<std::size_t>(ii);
+		if (!std::isfinite(m_T[i]) || !std::isfinite(m_capacity[i]))
+			continue;
+		E += m_capacity[i] * (m_T[i] - T_ref);
+	}
+	return E;
+}
+
 double fe_tool::min_thermal_nodal_capacity() const {
 	double cmin = std::numeric_limits<double>::infinity();
 	for (double c : m_capacity) {

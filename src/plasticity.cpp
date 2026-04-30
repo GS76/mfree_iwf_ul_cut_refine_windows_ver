@@ -51,9 +51,9 @@
 #include "plasticity.h"
 #include "body.h"
 
-void plasticity::plastic_state_by_radial_return(body &b) {
-	if (!b.get_sim_data().get_physical_constants().jc().valid()) return;
-	do_radial_return(b.get_particles(), b.get_num_part(), b.get_sim_data());
+double plasticity::plastic_state_by_radial_return(body &b) {
+	if (!b.get_sim_data().get_physical_constants().jc().valid()) return 0.;
+	return do_radial_return(b.get_particles(), b.get_num_part(), b.get_sim_data());
 }
 
 void plasticity::set_tolerance(double tol) {
@@ -80,13 +80,15 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 	fclose(fp);
 }
 
-void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) {			// 2D
+double plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) {			// 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
 	double mu = data.get_physical_constants().G();
 
 	double cp = data.get_physical_constants().tc().cp();
 	double tq = data.get_physical_constants().tc().Taylor_Quinney();
+
+	double step_plastic_dissipation = 0.;
 
 	for (unsigned int i = 0; i < num_part; i++) {
 				// deviatoric stress (trial)
@@ -157,6 +159,11 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 			double sigmaY = m_plasticity_model->sigma_yield(particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot, particles[i].T);
 			double delta_T = tq/(cp*particles[i].rho)*delta_eps_pl*sigmaY;
 			particles[i].T += delta_T;
+
+			// Accumulate dissipation energy: E = delta_T * m * cp
+			if (std::isfinite(delta_T) && std::isfinite(particles[i].m) && particles[i].m > 0.)
+				step_plastic_dissipation += delta_T * particles[i].m * cp;
 		}
 	}
+	return step_plastic_dissipation;
 }

@@ -79,6 +79,15 @@ private:
 	FILE *m_fp_thermal = 0;
 	FILE *m_fp_metrics = 0;
 	FILE *m_fp_energy = 0;
+	// Reference temperature for above-ref energy computations (K).
+	// Read once from MFREE_THERMAL_T_REF; default 298.15 K (25 degC).
+	double m_T_ref = 298.15;
+	// Baseline above-ref internal energies captured on the first logged step.
+	// Negative sentinel means "not yet captured".
+	double m_wp_internal_E_init = -1.;
+	double m_tool_internal_E_init = -1.;
+	// Running total of Taylor-Quinney plastic dissipation energy (J).
+	double m_cum_plastic_dissipation = 0.;
 	double m_cum_contact_E_cond_raw = 0.;
 	double m_cum_contact_E_fric_raw = 0.;
 	double m_cum_contact_E_cond_scaled = 0.;
@@ -106,6 +115,10 @@ public:
 
 	void log(const body &body, unsigned int step);
 	void log_time_step_data(const body &body, unsigned int step);
+
+private:
+	// Shared energy-accounting block called by both log() and log_time_step_data().
+	void log_energy_block(const body &b, unsigned int step, const fe_tool *ft_log);
 };
 
 #endif /* LOGGER_H_ */
