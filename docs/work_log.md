@@ -1,5 +1,14 @@
 # Work Log
 
+- 2026-04-30: branch `feat/tighten-fe-sph-thermal-energy-accounting` created from `1-thermal-mechanical-solver-fea-tool-and-sph-workpiece-should-be-coupled` (commit `60b5912c`)
+  - Scope: accounting correctness and diagnostic output improvements only — no solver physics changes.
+  - Phase 1: remove dead `cumulative_*` fields from `fe_tool::thermal_energy_accounting` (they are reset to zero each step and then assigned `=` rather than accumulated `+=`, making them identical to the current-step values; the canonical cumulative source is the `logger` private accumulators).
+  - Phase 2: capture initial-state baseline (`wp_internal_E_init`, `tool_internal_E_init`) in the logger on the first logged step; add `delta_wp_internal_E`, `delta_tool_internal_E`, `closure_residual`, and `closure_residual_pct` columns to `_energy.csv` so energy conservation can be verified from the CSV alone.
+  - Phase 3: write `initial_x`, `initial_y`, and `initial_temperature` per-particle fields to VTK output; update `extract_final_chip` post-processor to derive the chip threshold and energy delta from these fields rather than assuming external geometry and a global `T_ref`.
+  - Phase 4: fix the `step_interface_balance_residual` formula to include limiter-suppressed energy; add a validation test for energy-balance closure.
+  - Phase 5: document known coupling approximations (operator-splitting lag, one-way-thermal lag, limiter suppression fraction) in `docs/coupling_thermal_mechanical.md`; add per-step suppression-ratio column to the energy log.
+  - All changes are additive or corrective; CTest suite, clang-format, and EditorConfig gates must remain green throughout.
+
 - 2026-04-20: repo hygiene + workflow docs: establish repeatable commit/PR/CI gates and document them so future work can continue without ambiguity
   - Completed (repo policy / hygiene)
     - Stopped tracking build/results artifacts and ensured they remain ignored (`build/`, `results/**`).
