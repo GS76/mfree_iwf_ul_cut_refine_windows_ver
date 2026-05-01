@@ -1254,7 +1254,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	double beta = 1.;
 	double eta = 0.1;
 
-	double art_stress_eps = 0.3;
+	double art_stress_eps = 0.2;
 	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
@@ -1571,7 +1571,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	double beta = 1.;
 	double eta = 0.1;
 
-	double art_stress_eps = 0.3;
+	double art_stress_eps = 0.2;
 	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
