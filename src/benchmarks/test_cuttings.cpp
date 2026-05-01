@@ -771,7 +771,7 @@ body *cutting_ref_mr(unsigned int ny) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
@@ -935,7 +935,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data
@@ -1243,7 +1243,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data
@@ -1551,7 +1551,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data

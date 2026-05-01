@@ -204,10 +204,21 @@ double constants_monaghan::mghn_eps() const {
 	return m_mghn_eps;
 }
 
+double constants_monaghan::mghn_hdx() const {
+	return m_hdx;
+}
+
 constants_monaghan::constants_monaghan(double wdeltap, unsigned int corr_exp, double eps) :
 				m_mghn_wdeltap(wdeltap),
 				m_mghn_corr_exp(corr_exp),
-				m_mghn_eps(eps) {}
+				m_mghn_eps(eps),
+				m_hdx(0.) {}
+
+constants_monaghan::constants_monaghan(double wdeltap, unsigned int corr_exp, double eps, double hdx) :
+				m_mghn_wdeltap(wdeltap),
+				m_mghn_corr_exp(corr_exp),
+				m_mghn_eps(eps),
+				m_hdx(hdx) {}
 
 constants_monaghan::constants_monaghan() {}
 

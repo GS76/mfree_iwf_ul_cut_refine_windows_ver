@@ -100,7 +100,7 @@ static body *test_bench_setup_refine_density(unsigned int nbox) {
 
 	physical_constants physical_constants(0, 1, rho0);
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
