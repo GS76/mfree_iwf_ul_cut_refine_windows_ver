@@ -49,6 +49,7 @@
  */
 
 #include "correctors.h"
+#include "simulation_time.h"
 
 static double stress_angle(double sxx, double sxy, double syy, double eps) {
 	double numer = 2.*sxy;
@@ -106,7 +107,18 @@ void correctors_mghn_artificial_viscosity(body &b) {
 			const double rhoi = particles[i].rho;
 
 			if (rhoi < 0.) {
-				printf("neg density!\n");
+				unsigned int step = simulation_time::getInstance().get_step();
+				printf("[NEG DENSITY] step=%u  source=rhoi\n", step);
+				printf("  particle i : idx=%u  rho=%e  h=%e  m=%e\n",
+					particles[i].idx, rhoi, particles[i].h, particles[i].m);
+				printf("  position   : x=%e  y=%e\n", particles[i].x, particles[i].y);
+				printf("  velocity   : vx=%e  vy=%e\n", particles[i].vx, particles[i].vy);
+				printf("  stress     : Sxx=%e  Sxy=%e  Syy=%e  p=%e\n",
+					particles[i].Sxx, particles[i].Sxy, particles[i].Syy, particles[i].p);
+				printf("  refine_step=%u  last_refine_at=%u  steps_since_split=%u  num_nbh=%u\n",
+					particles[i].refine_step, particles[i].last_refine_at,
+					step - particles[i].last_refine_at, particles[i].num_nbh);
+				fflush(stdout);
 				exit(-1);
 			}
 
@@ -118,7 +130,21 @@ void correctors_mghn_artificial_viscosity(body &b) {
 			const double rhoj = particles[jdx].rho;
 
 			if (rhoj < 0.) {
-				printf("neg density!\n");
+				unsigned int step = simulation_time::getInstance().get_step();
+				printf("[NEG DENSITY] step=%u  source=rhoj\n", step);
+				printf("  neighbour j: idx=%u  rho=%e  h=%e  m=%e\n",
+					particles[jdx].idx, rhoj, particles[jdx].h, particles[jdx].m);
+				printf("  position   : x=%e  y=%e\n", particles[jdx].x, particles[jdx].y);
+				printf("  velocity   : vx=%e  vy=%e\n", particles[jdx].vx, particles[jdx].vy);
+				printf("  stress     : Sxx=%e  Sxy=%e  Syy=%e  p=%e\n",
+					particles[jdx].Sxx, particles[jdx].Sxy, particles[jdx].Syy, particles[jdx].p);
+				printf("  refine_step=%u  last_refine_at=%u  steps_since_split=%u  num_nbh=%u\n",
+					particles[jdx].refine_step, particles[jdx].last_refine_at,
+					step - particles[jdx].last_refine_at, particles[jdx].num_nbh);
+				printf("  seen by i  : idx=%u  x=%e  y=%e  h=%e  rho=%e  refine_step=%u\n",
+					particles[i].idx, particles[i].x, particles[i].y,
+					particles[i].h, particles[i].rho, particles[i].refine_step);
+				fflush(stdout);
 				exit(-1);
 			}
 

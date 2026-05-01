@@ -142,7 +142,14 @@ void derive_stress_monaghan(body &b) {
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx) {
+			// Apply artificial stress only to same-resolution pairs.
+			// Cross-resolution pairs (coarse<->fine) are skipped: with per-particle
+			// wdeltap normalization, a coarse particle observing fine neighbours at
+			// half its own equilibrium spacing produces fab^4 ~ 5.7 (>1), giving an
+			// over-corrected repulsion that drives runaway oscillations.  Same-level
+			// pairs retain full tensile-instability protection.
+			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx
+					&& particles[i].refine_step == particles[jdx].refine_step) {
 				double fab = w.w/wdeltap_i;
 //				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
