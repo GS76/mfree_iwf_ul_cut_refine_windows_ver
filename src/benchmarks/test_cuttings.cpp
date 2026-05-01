@@ -865,9 +865,10 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = (hi_x - lo_x) / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -878,7 +879,15 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1055,7 +1064,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	 * ===========================================================
 	 */
 
-	// MODEL 3 from the paper
+	// MODEL 3 from the paper (a-priori refinement)
 	// ----------------------------------------------------------
 	// choose your desired material model as the following:
 	// ----------------------------------------------------------
@@ -1107,9 +1116,10 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -1134,7 +1144,15 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1413,9 +1431,10 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -1440,7 +1459,15 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();

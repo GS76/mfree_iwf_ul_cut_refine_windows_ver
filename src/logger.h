@@ -119,6 +119,11 @@ public:
 	void log(const body &body, unsigned int step);
 	void log_time_step_data(const body &body, unsigned int step);
 
+	// Must be called every solver step (after apply_plasticity) regardless of
+	// logging frequency.  Accumulates Taylor-Quinney plastic dissipation so
+	// cum_plastic_dissipation in the energy CSV is always correct.
+	void accumulate_plastic_dissipation(const body &b);
+
 private:
 	// Shared energy-accounting block called by both log() and log_time_step_data().
 	void log_energy_block(const body &b, unsigned int step, const fe_tool *ft_log);

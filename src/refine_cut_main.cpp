@@ -950,9 +950,36 @@ int main(int argc, char * argv[]) {
 	}
 	printf("running model %d\n", model);
 
-	int nx = 31;
 	assert(model >= 1);
 	assert(model <= 4);
+
+	// Number of particle layers through the workpiece thickness (nbox).
+	// With default thickness 0.5 mm: dx = 0.5 mm / (nbox - 1).
+	// Per-model defaults: model 1 uses 31 (coarser, faster baseline);
+	// models 2-4 use 61 (standard production resolution).
+	// Override at runtime via MFREE_NBOX.
+	//
+	// Practical range [20, 201]:
+	//   20  -> dx ~ 26 um   (debugging / quick feasibility only)
+	//   31  -> dx ~ 17 um   (model 1 default)
+	//   61  -> dx ~  8 um   (models 2-4 default, standard production)
+	//   91  -> dx ~  6 um   (high-fidelity DOE)
+	//  121  -> dx ~  4 um   (maximum practical on a workstation)
+	//  201  -> dx ~  2.5 um (HPC cluster only)
+	// Note: compute cost scales as ~nbox^3 (2-D particle count x timestep halving).
+	const int nbox_default = (model == 1) ? 31 : 61;
+	const int NBOX_MIN = 20;
+	const int NBOX_MAX = 201;
+	int nx = env_int("MFREE_NBOX", nbox_default);
+	if (nx < NBOX_MIN || nx > NBOX_MAX) {
+		std::fprintf(stderr,
+			"WARNING: MFREE_NBOX=%d is outside the practical range [%d, %d]; "
+			"clamping to nearest bound.\n",
+			nx, NBOX_MIN, NBOX_MAX);
+		nx = std::max(NBOX_MIN, std::min(NBOX_MAX, nx));
+	}
+	printf("nbox=%d (particle layers through thickness, dx ~ %.1f um)\n",
+		nx, 500.0 / static_cast<double>(nx - 1));
 
 	/*
 	 ==========================
@@ -968,15 +995,12 @@ int main(int argc, char * argv[]) {
 		b = cutting_ref_single_resol(nx);
 		break;
 	case 2:
-		nx = 61;
 		b = cutting_ref_multi_resol_apriori(nx);
 		break;
 	case 3:
-		nx = 61;
 		b = cutting_ref_multi_resol_dynamic(nx);
 		break;
 	case 4:
-		nx = 61;
 		b = cutting_ref_single_resol(nx);
 		break;
 	}
@@ -1112,6 +1136,12 @@ int main(int argc, char * argv[]) {
 
 		time->increment_step();
 		time->increment_time();
+
+		// Always accumulate plastic dissipation so cum_plastic_dissipation in
+		// the energy CSV is correct regardless of MFREE_LOG_TIME_STEP_DATA_EVERY_STEP.
+		if (global_logger)
+			global_logger->accumulate_plastic_dissipation(*b);
+
 		if (global_logger && log_time_step_data_every_step)
 			global_logger->log_time_step_data(*b, time->get_step());
 	}
