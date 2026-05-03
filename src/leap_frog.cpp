@@ -101,6 +101,7 @@ void leap_frog::predict(body &body) const {
 	double dt = time->get_dt();
 
 	const double rho_min = density_floor(body.get_sim_data().get_physical_constants().rho0());
+	const double T_min = body.get_sim_data().get_physical_constants().jc().Tref();
 
 	const unsigned int n = body.get_num_part();
 #ifdef _OPENMP
@@ -121,6 +122,8 @@ void leap_frog::predict(body &body) const {
 		particles[i].Syy = m_init[i].Syy + 0.5*dt*particles[i].Syy_t;
 		particles[i].Szz = m_init[i].Szz + 0.5*dt*particles[i].Szz_t;
 		particles[i].T   = m_init[i].T   + 0.5*dt*particles[i].T_t;
+		if (particles[i].T < T_min)
+			particles[i].T = T_min;
 	}
 }
 
@@ -130,6 +133,7 @@ void leap_frog::correct(body &body) const {
 	double dt = time->get_dt();
 
 	const double rho_min = density_floor(body.get_sim_data().get_physical_constants().rho0());
+	const double T_min = body.get_sim_data().get_physical_constants().jc().Tref();
 
 	const unsigned int n = body.get_num_part();
 #ifdef _OPENMP
@@ -150,6 +154,8 @@ void leap_frog::correct(body &body) const {
 		particles[i].Syy = m_init[i].Syy + dt*particles[i].Syy_t;
 		particles[i].Szz = m_init[i].Szz + dt*particles[i].Szz_t;
 		particles[i].T   = m_init[i].T   + dt*particles[i].T_t;
+		if (particles[i].T < T_min)
+			particles[i].T = T_min;
 	}
 }
 

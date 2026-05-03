@@ -825,7 +825,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
@@ -1074,7 +1074,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
@@ -1389,7 +1389,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
