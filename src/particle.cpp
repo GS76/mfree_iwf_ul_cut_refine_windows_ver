@@ -105,6 +105,7 @@ particle::particle(const particle &other) {
 	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
 
 	T = other.T;
+	T_init = other.T_init;
 
 	contact_lambda_n = other.contact_lambda_n;
 
@@ -146,6 +147,7 @@ particle &particle::operator=(const particle &other) {
 	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
 
 	T = other.T;
+	T_init = other.T_init;
 
 	contact_lambda_n = other.contact_lambda_n;
 
