@@ -603,7 +603,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	fe_tool::convection_bc air;
 	air.h = 20.0;
-	air.T_inf = 298.15;
+	air.T_inf = 298.0;
 
 	fe_tool::convection_bc water;
 	water.h = 5000.0;
@@ -617,6 +617,34 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target_m, 5);
 
+	// Always apply thermal Dirichlet BCs on tool top and rear boundaries.
+	// These surfaces represent far-field bulk tool material held at the
+	// reference temperature (298 K).  Applied unconditionally so the tool
+	// never acts as a thermal sink/source at its edges.
+	{
+		int top_tag = 110;
+		int rear_tag = 114;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_BC_TOP_TAG", v))
+				top_tag = v;
+			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v))
+				rear_tag = v;
+		}
+		bool top_found = false;
+		bool rear_found = false;
+		for (const auto &e : ft->boundary_edges()) {
+			if (e.physical_tag == top_tag)
+				top_found = true;
+			if (e.physical_tag == rear_tag)
+				rear_found = true;
+		}
+		if (top_found)
+			ft->set_dirichlet_on_physical(top_tag, T0);
+		if (rear_found)
+			ft->set_dirichlet_on_physical(rear_tag, T0);
+	}
+
 	if (bc_validate) {
 		int top_tag = 110;
 		int rear_tag = 114;
@@ -627,9 +655,6 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v))
 				rear_tag = v;
 		}
-		double Tamb_C = 25.0;
-		try_read_env_double("MFREE_FE_BC_AMBIENT_C", Tamb_C);
-		double Tamb_K = Tamb_C + 273.15;
 
 		ft->clear_mechanics_fixed();
 		ft->clear_mechanics_fixed_nodes();
@@ -683,9 +708,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		}
 
 		if (top_found)
-			ft->set_dirichlet_on_physical(top_tag, Tamb_K);
+			ft->set_dirichlet_on_physical(top_tag, T0);
 		if (rear_found)
-			ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
+			ft->set_dirichlet_on_physical(rear_tag, T0);
 	}
 
 	return ft;
