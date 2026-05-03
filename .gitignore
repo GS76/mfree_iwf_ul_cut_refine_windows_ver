@@ -15,3 +15,5 @@ s\ -File\ .scriptsgit_checkpoint.ps1*
 .tmp.drivedownload/
 .tmp.driveupload/
 __pycache__/
+results/
+results_*/

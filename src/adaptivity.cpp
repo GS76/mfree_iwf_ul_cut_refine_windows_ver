@@ -102,6 +102,18 @@ void copy_dad_to_son(const particle &dad, particle &son) {
 	son.T_init  = dad.T_init;
 	son.vx      = dad.vx;
 	son.vy      = dad.vy;
+	son.p       = dad.p;
+	son.Sxx     = dad.Sxx;
+	son.Sxy     = dad.Sxy;
+	son.Syy     = dad.Syy;
+	son.Szz     = dad.Szz;
+	son.eps_plxx = dad.eps_plxx;
+	son.eps_plxy = dad.eps_plxy;
+	son.eps_plyy = dad.eps_plyy;
+	son.eps_plzz = dad.eps_plzz;
+	son.eps_pl_equiv = dad.eps_pl_equiv;
+	son.fixed   = dad.fixed;
+	son.refine_step = dad.refine_step;
 }
 
 void adaptivity::dens_before_approx_N2(body &b) const {
@@ -430,6 +442,10 @@ int adaptivity::scan_mark_moving_frame(body &b) const {
 	unsigned int iter = 0;
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		if((particles[i].x > m_l_eff) || particles[i].refine_step>=MAX_REFINE_STEP) continue;
+		// Never split particles that carry Dirichlet velocity BCs (bottom/right
+		// fixtures).  copy_dad_to_son does not propagate the fixed flag, so child
+		// particles would be unconstrained and drift away from the boundary.
+		if(particles[i].fixed) continue;
 
 		// SCAN
 		glm::dvec2 pos(particles[i].x,particles[i].y);
@@ -562,9 +578,13 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 			std::array<double, max_SON2D> m_SON{};
 
 			// 0. call your DAD
+			// Use the CURRENT position (x, y), not the reference/initial position
+			// (X, Y).  Using X/Y would teleport the dad back to its initial lattice
+			// site on every split, slamming it into bulk particles that have not
+			// moved, which drives local density to zero and crashes T to near-zero.
 			double dx = sqrt(particles[i].m/particles[i].rho);
-			double x_DAD = particles[i].X; // or x if ~regular arrangement
-			double y_DAD = particles[i].Y; // or y if ~regular arrangement
+			double x_DAD = particles[i].x;
+			double y_DAD = particles[i].y;
 			double h_DAD = particles[i].h;
 			double m_DAD = particles[i].m;
 
@@ -635,7 +655,6 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 				son_particle.Y = son_particle.y;
 				son_particle.m = m_SON[ii];
 				son_particle.h = h_SON[ii];
-				son_particle.refine_step = 1;
 				son_particle.last_refine_at = step;
 				son_particle.split = false;
 				son_particle.merge = false;
@@ -752,7 +771,6 @@ void adaptivity::perform_split_cubic(body &b) const {
 				son_particle.Y = son_particle.y;
 				son_particle.m = m_SON[ii];
 				son_particle.h = h_SON[ii];
-				son_particle.refine_step = 1;
 				son_particle.last_refine_at = step;
 				son_particle.split = false;
 				son_particle.merge = false;
@@ -1017,7 +1035,6 @@ particle adaptivity::create_son_particle(unsigned int son_idx, double x, double 
 	son.Y = y;
 	son.m = m;
 	son.h = h;
-	son.refine_step = 1;
 	son.last_refine_at = step;
 	son.split = false;
 	son.merge = false;

@@ -124,6 +124,14 @@ void do_boundary_conditions(body &b) {
 			particles[i].vy   = 0.;
 			particles[i].vx_t = 0.;
 			particles[i].vy_t = 0.;
+			// Dirichlet thermal BC: fixed boundary particles (bottom row, right column)
+			// represent far-field bulk material and must remain at ambient temperature.
+			// Without this, the PSE heat equation freely advances T each step and the
+			// boundary acts as an insulating wall, creating spurious thermal pockets.
+			// T_init holds the initial/ambient temperature (300 K) set at particle
+			// creation and propagated to refined child particles by copy_dad_to_son.
+			particles[i].T    = particles[i].T_init;  // hold at ambient temperature
+			particles[i].T_t  = 0.;                   // zero rate so next predict step is clean
 		}
 	}
 }

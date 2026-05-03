@@ -50,7 +50,30 @@
 
 #include "material.h"
 
+#include <cstdlib>
+#include <cstdio>
+
 void material_eos(body &b) {
+	// Tension cutoff: read the limit once at first call (Pa; 0 = disabled).
+	// When MFREE_TENSION_CUTOFF is set the EOS pressure is clamped so that
+	// p >= -p_tensile_cutoff.  This breaks the positive-feedback loop that
+	// occurs at free surfaces and chip boundaries:
+	//   small density undershoot -> huge tensile p -> particle diverges ->
+	//   lower density -> even larger tensile p -> divergent runaway.
+	// Physically equivalent to a maximum-tensile-stress / tension-cutoff
+	// fracture criterion.  For Ti-6Al-4V a value of 3e9 Pa (3 GPa, ~4xJC_A)
+	// is above the UTS (~950 MPa) so normal tensile yielding is unaffected.
+	static const double p_tensile_cutoff = []() -> double {
+		const char *s = std::getenv("MFREE_TENSION_CUTOFF");
+		if (!s || s[0] == '\0') return 0.0;
+		char *end = nullptr;
+		double v = std::strtod(s, &end);
+		if (end == s || !std::isfinite(v) || v <= 0.) return 0.0;
+		std::printf("[material_eos] tension cutoff enabled: %.6g Pa (%.4g GPa)\n", v, v * 1e-9);
+		std::fflush(stdout);
+		return v;
+	}();
+
 	std::vector<particle> &particles = b.get_particles();
 	double K    = b.get_sim_data().get_physical_constants().K();
 	double rho0 = b.get_sim_data().get_physical_constants().rho0();
@@ -63,6 +86,9 @@ void material_eos(body &b) {
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].p = c0*c0*(particles[i].rho - rho0);
+		// Clamp: no material sustains hundreds of GPa in tension.
+		if (p_tensile_cutoff > 0. && particles[i].p < -p_tensile_cutoff)
+			particles[i].p = -p_tensile_cutoff;
 	}
 }
 

@@ -1598,7 +1598,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 
 	// adaptivity settings
 
-	// default settings +-+-++-+-+-+-+-+-+-+-+-+-+-
+	// default settings +-+-++-+-+-+-+-+-+-+-+-+-+
 	double alpha_dx = 0.50;
 	double beta_h = 0.50;
 	double v_cr = 0.40;
@@ -1610,6 +1610,50 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	glm::dvec2 xy_max = {0.75, 0.75};
 	double frame_width = 0.000350;
 	double frame_height = 0.000060;
+
+	// Model 3 refinement-frame controls.  The historical moving frame was shallow
+	// (60 µm), which can place the coarse/fine boundary inside the active shear
+	// and chip-formation zone.  These environment controls allow moving that
+	// boundary below/ahead of the high-gradient region without recompilation.
+	// Defaults preserve the historical geometry unless the run script opts in.
+	double refine_depth_factor = 0.;
+	if (try_read_env_double("MFREE_REFINE_DEPTH_FACTOR", refine_depth_factor) && std::isfinite(refine_depth_factor) && refine_depth_factor > 0.) {
+		refine_depth_factor = std::max(1.5, std::min(3.0, refine_depth_factor));
+		// Base depth on the actual cut/feed depth (feed_per_rev_mm), not target_feed
+		// (which includes the base-target offset and would reach full workpiece depth).
+		frame_height = refine_depth_factor * (feed_per_rev_mm * 1e-3);
+	}
+	// Cap: never allow the moving frame to reach the fixed bottom boundary.
+	// Leave at least 2 coarse layers (2*dxl) below the lowest frame position.
+	// Lowest frame y = tool_tip_y - frame_height >= lo_y + 2*dxl.
+	// A conservative upper bound on tool_tip_y is hi_y, so:
+	const double max_frame_height = (hi_y - lo_y) - 2.0 * dxl;
+	if (frame_height > max_frame_height) {
+		std::printf("[adaptivity] frame_height capped %.4f mm -> %.4f mm (2 coarse layers from bottom)\n",
+		            frame_height * 1e3, max_frame_height * 1e3);
+		frame_height = max_frame_height;
+	}
+	double frame_width_mm = frame_width * 1e3;
+	if (try_read_env_double("MFREE_REFINE_FRAME_WIDTH_MM", frame_width_mm) && std::isfinite(frame_width_mm) && frame_width_mm > 0.) {
+		frame_width = frame_width_mm * 1e-3;
+	}
+	double frame_height_mm = frame_height * 1e3;
+	if (try_read_env_double("MFREE_REFINE_FRAME_HEIGHT_MM", frame_height_mm) && std::isfinite(frame_height_mm) && frame_height_mm > 0.) {
+		frame_height = frame_height_mm * 1e-3;
+	}
+	int refine_halo_layers = 0;
+	if (try_read_env_int("MFREE_REFINE_HALO_LAYERS", refine_halo_layers)) {
+		refine_halo_layers = std::max(0, std::min(10, refine_halo_layers));
+	}
+	frame_width += static_cast<double>(refine_halo_layers) * dxl;
+	frame_height += static_cast<double>(refine_halo_layers) * dxl;
+	if (dxl > 0.) {
+		frame_width = std::ceil((frame_width - 1e-12) / dxl) * dxl;
+		frame_height = std::ceil((frame_height - 1e-12) / dxl) * dxl;
+	}
+	std::printf("refinement frame: width=%.6e m height=%.6e m depth_factor=%.3f halo_layers=%d coarse_dx=%.6e m\n",
+	            frame_width, frame_height, refine_depth_factor, refine_halo_layers, dxl);
+
 	unsigned int n_nbh = 10;
 	double l_eff = lc + 0.1 * lx;
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
