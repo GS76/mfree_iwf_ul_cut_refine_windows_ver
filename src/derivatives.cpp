@@ -50,6 +50,24 @@
 
 #include "derivatives.h"
 
+#include <algorithm>
+#include <cstdlib>
+
+namespace {
+	double mixed_level_artificial_stress_scale() {
+		static const double scale = []() {
+			double value = 0.20;
+			if (const char *env = std::getenv("MFREE_ART_STRESS_MIXED_LEVEL_SCALE")) {
+				char *end = nullptr;
+				double parsed = std::strtod(env, &end);
+				if (end != env && std::isfinite(parsed)) value = parsed;
+			}
+			return std::max(0., std::min(1., value));
+		}();
+		return scale;
+	}
+}
+
 void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
@@ -142,14 +160,14 @@ void derive_stress_monaghan(body &b) {
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			// Apply artificial stress only to same-resolution pairs.
-			// Cross-resolution pairs (coarse<->fine) are skipped: with per-particle
-			// wdeltap normalization, a coarse particle observing fine neighbours at
-			// half its own equilibrium spacing produces fab^4 ~ 5.7 (>1), giving an
-			// over-corrected repulsion that drives runaway oscillations.  Same-level
-			// pairs retain full tensile-instability protection.
+			// Same-resolution pairs retain full tensile-instability protection.  Mixed
+			// refined<->coarse pairs receive a conservative, env-configurable blend so
+			// the refinement interface is not left completely unstabilized in tension.
+			// The default scale is intentionally small because coarse particles observing
+			// fine neighbours at roughly half their own equilibrium spacing can otherwise
+			// over-correct (large fab^corr_exp) and drive repulsive oscillations.
 			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx
-					&& particles[i].refine_step == particles[jdx].refine_step) {
+					&& (particles[i].refine_step == particles[jdx].refine_step || mixed_level_artificial_stress_scale() > 0.)) {
 				double fab = w.w/wdeltap_i;
 //				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
@@ -157,6 +175,7 @@ void derive_stress_monaghan(body &b) {
 					t = t*fab;
 				}
 				fab = t;
+				if (particles[i].refine_step != particles[jdx].refine_step) fab *= mixed_level_artificial_stress_scale();
 
 				Rxx = fab*(Rxxi + Rxxj);
 				Rxy = fab*(Rxyi + Rxyj);
