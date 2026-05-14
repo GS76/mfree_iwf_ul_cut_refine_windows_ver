@@ -76,9 +76,15 @@ static std::vector<std::string> split_csv_line(const std::string &line) {
 	std::string cur;
 	bool quoted = false;
 	for (char c : line) {
-		if (c == '"') { quoted = !quoted; continue; }
-		if (c == ',' && !quoted) { out.push_back(cur); cur.clear(); }
-		else cur.push_back(c);
+		if (c == '"') {
+			quoted = !quoted;
+			continue;
+		}
+		if (c == ',' && !quoted) {
+			out.push_back(cur);
+			cur.clear();
+		} else
+			cur.push_back(c);
 	}
 	out.push_back(cur);
 	return out;
@@ -86,30 +92,31 @@ static std::vector<std::string> split_csv_line(const std::string &line) {
 
 static double env_double(const char *name, double fallback) {
 	const char *s = std::getenv(name);
-	if (!s || s[0] == '\0') return fallback;
+	if (!s || s[0] == '\0')
+		return fallback;
 	char *end = nullptr;
 	double v = std::strtod(s, &end);
-	if (end == s || !std::isfinite(v)) return fallback;
+	if (end == s || !std::isfinite(v))
+		return fallback;
 	return v;
 }
 
-static double scalar_at(const vtk_data &data, const std::string &name,
-                        std::size_t i, double fallback) {
+static double scalar_at(const vtk_data &data, const std::string &name, std::size_t i, double fallback) {
 	auto it = data.scalars.find(name);
-	if (it == data.scalars.end() || i >= it->second.size()) return fallback;
+	if (it == data.scalars.end() || i >= it->second.size())
+		return fallback;
 	return it->second[i];
 }
 
-static bool has_scalar(const vtk_data &data, const std::string &name) {
-	return data.scalars.count(name) > 0;
-}
+static bool has_scalar(const vtk_data &data, const std::string &name) { return data.scalars.count(name) > 0; }
 
 // ---------------------------------------------------------------------------
 // VTK reader (legacy ASCII unstructured particle VTK)
 // ---------------------------------------------------------------------------
 static bool read_legacy_particle_vtk(const fs::path &path, vtk_data &data) {
 	std::ifstream in(path);
-	if (!in) return false;
+	if (!in)
+		return false;
 
 	std::string line;
 	std::size_t point_count = 0;
@@ -136,11 +143,15 @@ static bool read_legacy_particle_vtk(const fs::path &path, vtk_data &data) {
 				std::getline(in, line);
 				std::istringstream vss(line);
 				vss >> values[i];
-				for (int c = 1; c < comps; c++) { double ign = 0.0; vss >> ign; }
+				for (int c = 1; c < comps; c++) {
+					double ign = 0.0;
+					vss >> ign;
+				}
 			}
 			data.scalars[name] = std::move(values);
 		} else if (key == "VECTORS") {
-			for (std::size_t i = 0; i < point_count; i++) std::getline(in, line);
+			for (std::size_t i = 0; i < point_count; i++)
+				std::getline(in, line);
 		}
 	}
 	return !data.points.empty();
@@ -153,17 +164,19 @@ static double estimate_spacing(const vtk_data &data) {
 	std::vector<double> xs, ys;
 	xs.reserve(data.points.size());
 	ys.reserve(data.points.size());
-	for (const auto &p : data.points) { xs.push_back(p[0]); ys.push_back(p[1]); }
+	for (const auto &p : data.points) {
+		xs.push_back(p[0]);
+		ys.push_back(p[1]);
+	}
 
 	auto min_spacing = [](std::vector<double> v) {
 		std::sort(v.begin(), v.end());
-		v.erase(std::unique(v.begin(), v.end(),
-		                    [](double a, double b) { return std::abs(a - b) < 1.0e-14; }),
-		        v.end());
+		v.erase(std::unique(v.begin(), v.end(), [](double a, double b) { return std::abs(a - b) < 1.0e-14; }), v.end());
 		double best = std::numeric_limits<double>::infinity();
 		for (std::size_t i = 1; i < v.size(); i++) {
 			double d = v[i] - v[i - 1];
-			if (std::isfinite(d) && d > 1.0e-14) best = std::min(best, d);
+			if (std::isfinite(d) && d > 1.0e-14)
+				best = std::min(best, d);
 		}
 		return best;
 	};
@@ -180,13 +193,22 @@ static fs::path find_latest_particle_vtk(const fs::path &dir) {
 	fs::path best;
 	int best_id = -1;
 	for (const auto &entry : fs::directory_iterator(dir)) {
-		if (!entry.is_regular_file()) continue;
+		if (!entry.is_regular_file())
+			continue;
 		std::string name = entry.path().filename().string();
-		if (name.rfind("out_", 0) != 0 || entry.path().extension() != ".vtk") continue;
+		if (name.rfind("out_", 0) != 0 || entry.path().extension() != ".vtk")
+			continue;
 		std::string id_s = name.substr(4, 6);
 		int id = -1;
-		try { id = std::stoi(id_s); } catch (...) { continue; }
-		if (id > best_id) { best_id = id; best = entry.path(); }
+		try {
+			id = std::stoi(id_s);
+		} catch (...) {
+			continue;
+		}
+		if (id > best_id) {
+			best_id = id;
+			best = entry.path();
+		}
 	}
 	return best;
 }
@@ -199,14 +221,16 @@ static fs::path find_energy_csv(const fs::path &dir) {
 	fs::path legacy = dir / "cutting_energy.csv";
 	fs::path best;
 	for (const auto &entry : fs::directory_iterator(dir)) {
-		if (!entry.is_regular_file()) continue;
+		if (!entry.is_regular_file())
+			continue;
 		std::string name = entry.path().filename().string();
-		if (name.size() > 11 &&
-		    name.substr(name.size() - 11) == "_energy.csv")
+		if (name.size() > 11 && name.substr(name.size() - 11) == "_energy.csv")
 			best = entry.path();
 	}
-	if (!best.empty()) return best;
-	if (fs::exists(legacy)) return legacy;
+	if (!best.empty())
+		return best;
+	if (fs::exists(legacy))
+		return legacy;
 	return {};
 }
 
@@ -214,11 +238,11 @@ static fs::path find_energy_csv(const fs::path &dir) {
 // Read the last row of the energy CSV into a column-name → value map.
 // Also optionally reads the first data row (for backward-compat fallback).
 // ---------------------------------------------------------------------------
-static bool read_energy_csv(const fs::path &path,
-                            std::map<std::string, double> &last_row,
-                            std::map<std::string, double> *first_row = nullptr) {
+static bool read_energy_csv(const fs::path &path, std::map<std::string, double> &last_row,
+							std::map<std::string, double> *first_row = nullptr) {
 	std::ifstream in(path);
-	if (!in) return false;
+	if (!in)
+		return false;
 	std::string header;
 	std::getline(in, header);
 	auto cols = split_csv_line(header);
@@ -229,18 +253,22 @@ static bool read_energy_csv(const fs::path &path,
 		for (std::size_t i = 0; i < cols.size() && i < vals.size(); i++) {
 			char *end = nullptr;
 			double v = std::strtod(vals[i].c_str(), &end);
-			if (end != vals[i].c_str()) row[cols[i]] = v;
+			if (end != vals[i].c_str())
+				row[cols[i]] = v;
 		}
 		return row;
 	};
 
 	std::string line, first_line, last_line;
 	while (std::getline(in, line)) {
-		if (line.empty()) continue;
-		if (first_line.empty()) first_line = line;
+		if (line.empty())
+			continue;
+		if (first_line.empty())
+			first_line = line;
 		last_line = line;
 	}
-	if (last_line.empty()) return false;
+	if (last_line.empty())
+		return false;
 
 	last_row = parse_row(last_line);
 	if (first_row && !first_line.empty())
@@ -256,13 +284,13 @@ static bool read_energy_csv(const fs::path &path,
 // The thermal_energy_delta field uses initial_temperature per particle when
 // available, otherwise falls back to the global tref.
 // ---------------------------------------------------------------------------
-static void write_vtk_subset(const fs::path &path, const vtk_data &data,
-                             const std::vector<char> &include,
-                             double cp, double tref, bool all_points) {
+static void write_vtk_subset(const fs::path &path, const vtk_data &data, const std::vector<char> &include, double cp, double tref,
+							 bool all_points) {
 	std::vector<std::size_t> ids;
 	ids.reserve(data.points.size());
 	for (std::size_t i = 0; i < data.points.size(); i++) {
-		if (all_points || include[i]) ids.push_back(i);
+		if (all_points || include[i])
+			ids.push_back(i);
 	}
 
 	const bool has_T_init = has_scalar(data, "initial_temperature");
@@ -274,34 +302,35 @@ static void write_vtk_subset(const fs::path &path, const vtk_data &data,
 	out << "DATASET UNSTRUCTURED_GRID\n";
 	out << "POINTS " << ids.size() << " float\n";
 	for (std::size_t id : ids)
-		out << data.points[id][0] << " " << data.points[id][1] << " "
-		    << data.points[id][2] << "\n";
+		out << data.points[id][0] << " " << data.points[id][1] << " " << data.points[id][2] << "\n";
 	out << "\nCELLS " << ids.size() << " " << 2 * ids.size() << "\n";
-	for (std::size_t i = 0; i < ids.size(); i++) out << "1 " << i << "\n";
+	for (std::size_t i = 0; i < ids.size(); i++)
+		out << "1 " << i << "\n";
 	out << "\nCELL_TYPES " << ids.size() << "\n";
-	for (std::size_t i = 0; i < ids.size(); i++) out << "1\n";
+	for (std::size_t i = 0; i < ids.size(); i++)
+		out << "1\n";
 	out << "\nPOINT_DATA " << ids.size() << "\n";
 
 	for (const auto &kv : data.scalars) {
 		out << "SCALARS " << kv.first << " double 1\n";
 		out << "LOOKUP_TABLE default\n";
-		for (std::size_t id : ids) out << kv.second[id] << "\n";
+		for (std::size_t id : ids)
+			out << kv.second[id] << "\n";
 		out << "\n";
 	}
 
 	out << "SCALARS chip_flag int 1\nLOOKUP_TABLE default\n";
-	for (std::size_t id : ids) out << (include[id] ? 1 : 0) << "\n";
+	for (std::size_t id : ids)
+		out << (include[id] ? 1 : 0) << "\n";
 	out << "\n";
 
 	// Per-particle thermal energy delta above the particle's own initial
 	// temperature (when available) or the global tref fallback.
 	out << "SCALARS thermal_energy_delta double 1\nLOOKUP_TABLE default\n";
 	for (std::size_t id : ids) {
-		double m  = scalar_at(data, "mass",                id, 0.0);
-		double T  = scalar_at(data, "temperature",         id, tref);
-		double T0 = has_T_init
-		                ? scalar_at(data, "initial_temperature", id, tref)
-		                : tref;
+		double m = scalar_at(data, "mass", id, 0.0);
+		double T = scalar_at(data, "temperature", id, tref);
+		double T0 = has_T_init ? scalar_at(data, "initial_temperature", id, tref) : tref;
 		out << m * cp * (T - T0) << "\n";
 	}
 	out << "\n";
@@ -311,11 +340,10 @@ static void write_vtk_subset(const fs::path &path, const vtk_data &data,
 // main
 // ---------------------------------------------------------------------------
 int main(int argc, char **argv) {
-	fs::path results_dir = argc > 1
-	                           ? fs::path(argv[1])
-	                           : fs::path("D:/mfree_results/"
-	                                      "tool_plane_strain_explicit_coupled_"
-	                                      "100000steps_threads_logical_minus_1");
+	fs::path results_dir = argc > 1 ? fs::path(argv[1])
+									: fs::path("D:/mfree_results/"
+											   "tool_plane_strain_explicit_coupled_"
+											   "100000steps_threads_logical_minus_1");
 	if (const char *s = std::getenv("MFREE_CHIP_RESULTS_DIR"); s && s[0] != '\0')
 		results_dir = fs::path(s);
 
@@ -332,26 +360,25 @@ int main(int argc, char **argv) {
 	}
 
 	// ---- Determine whether the new per-particle fields are present ----
-	const bool has_initial_pos  = has_scalar(final_data, "initial_x") &&
-	                               has_scalar(final_data, "initial_y");
+	const bool has_initial_pos = has_scalar(final_data, "initial_x") && has_scalar(final_data, "initial_y");
 	const bool has_initial_temp = has_scalar(final_data, "initial_temperature");
 
 	if (has_initial_pos)
 		std::cout << "Phase-3 fields detected: using initial_x/initial_y "
-		             "from final VTK for chip threshold.\n";
+					 "from final VTK for chip threshold.\n";
 	else
 		std::cout << "Phase-3 fields absent: falling back to out_000000.vtk "
-		             "for top_y / spacing.\n";
+					 "for top_y / spacing.\n";
 
 	if (has_initial_temp)
 		std::cout << "Phase-3 fields detected: using per-particle "
-		             "initial_temperature for dE.\n";
+					 "initial_temperature for dE.\n";
 	else
 		std::cout << "Phase-3 fields absent: using global MFREE_CHIP_T_REF "
-		             "as energy reference.\n";
+					 "as energy reference.\n";
 
 	// ---- Derive top_y and inter-particle spacing -----------------------
-	double top_y   = -std::numeric_limits<double>::infinity();
+	double top_y = -std::numeric_limits<double>::infinity();
 	double spacing = 0.0;
 
 	if (has_initial_pos) {
@@ -370,30 +397,32 @@ int main(int argc, char **argv) {
 		fs::path initial_path = results_dir / "out_000000.vtk";
 		vtk_data initial;
 		if (read_legacy_particle_vtk(initial_path, initial)) {
-			for (const auto &p : initial.points) top_y = std::max(top_y, p[1]);
+			for (const auto &p : initial.points)
+				top_y = std::max(top_y, p[1]);
 			spacing = estimate_spacing(initial);
 		} else {
 			std::cerr << "Warning: out_000000.vtk not found and initial_y "
-			             "absent. Estimating top_y from final particle "
-			             "positions.\n";
-			for (const auto &p : final_data.points) top_y = std::max(top_y, p[1]);
+						 "absent. Estimating top_y from final particle "
+						 "positions.\n";
+			for (const auto &p : final_data.points)
+				top_y = std::max(top_y, p[1]);
 			spacing = estimate_spacing(final_data);
 		}
 	}
 
 	// Allow env-var overrides regardless of which path was taken.
-	top_y   = env_double("MFREE_CHIP_TOP_Y",  top_y);
+	top_y = env_double("MFREE_CHIP_TOP_Y", top_y);
 	spacing = std::isfinite(spacing) && spacing > 0.0 ? spacing : 0.0;
-	double tol       = env_double("MFREE_CHIP_Y_TOL", 0.5 * spacing);
+	double tol = env_double("MFREE_CHIP_Y_TOL", 0.5 * spacing);
 	double threshold = top_y + tol;
-	double cp        = env_double("MFREE_CHIP_CP",    580.0);
-	double tref      = env_double("MFREE_CHIP_T_REF", 300.0); // global fallback only
+	double cp = env_double("MFREE_CHIP_CP", 580.0);
+	double tref = env_double("MFREE_CHIP_T_REF", 300.0); // global fallback only
 
 	// ---- Classify particles and accumulate per-region energies ---------
 	std::vector<char> is_chip(final_data.points.size(), 0);
-	double chip_mass     = 0.0, retained_mass     = 0.0;
-	double chip_E_delta  = 0.0, retained_E_delta  = 0.0;
-	double chip_Tmax     = -std::numeric_limits<double>::infinity();
+	double chip_mass = 0.0, retained_mass = 0.0;
+	double chip_E_delta = 0.0, retained_E_delta = 0.0;
+	double chip_Tmax = -std::numeric_limits<double>::infinity();
 	double retained_Tmax = -std::numeric_limits<double>::infinity();
 	std::size_t chip_count = 0, retained_count = 0;
 
@@ -401,129 +430,101 @@ int main(int argc, char **argv) {
 		const bool chip = final_data.points[i][1] > threshold;
 		is_chip[i] = chip ? 1 : 0;
 
-		double m  = scalar_at(final_data, "mass",                i, 0.0);
-		double T  = scalar_at(final_data, "temperature",         i, tref);
+		double m = scalar_at(final_data, "mass", i, 0.0);
+		double T = scalar_at(final_data, "temperature", i, tref);
 		// Use per-particle T_init when available (Phase 3+), else global tref.
-		double T0 = has_initial_temp
-		                ? scalar_at(final_data, "initial_temperature", i, tref)
-		                : tref;
+		double T0 = has_initial_temp ? scalar_at(final_data, "initial_temperature", i, tref) : tref;
 		double dE = m * cp * (T - T0);
 
 		if (chip) {
 			chip_count++;
-			chip_mass    += m;
+			chip_mass += m;
 			chip_E_delta += dE;
-			chip_Tmax     = std::max(chip_Tmax,     T);
+			chip_Tmax = std::max(chip_Tmax, T);
 		} else {
 			retained_count++;
-			retained_mass    += m;
+			retained_mass += m;
 			retained_E_delta += dE;
-			retained_Tmax     = std::max(retained_Tmax, T);
+			retained_Tmax = std::max(retained_Tmax, T);
 		}
 	}
 
 	// ---- Read tool energy from the energy CSV --------------------------
-	double tool_delta         = 0.0;
+	double tool_delta = 0.0;
 	double tool_convection_loss = 0.0;
 
 	fs::path energy_csv = find_energy_csv(results_dir);
 	if (!energy_csv.empty()) {
 		std::map<std::string, double> last_row, first_row;
 		if (read_energy_csv(energy_csv, last_row, &first_row)) {
-			tool_convection_loss = std::abs(
-			    last_row.count("cum_tool_E_convection")
-			        ? last_row["cum_tool_E_convection"]
-			        : 0.0);
+			tool_convection_loss = std::abs(last_row.count("cum_tool_E_convection") ? last_row["cum_tool_E_convection"] : 0.0);
 
 			// Phase 2+: delta_tool_internal_E is a direct column.
 			if (last_row.count("delta_tool_internal_E")) {
 				tool_delta = last_row["delta_tool_internal_E"];
-			} else if (last_row.count("tool_internal_E_above_ref") &&
-			           first_row.count("tool_internal_E_above_ref")) {
-				tool_delta = last_row["tool_internal_E_above_ref"] -
-				             first_row["tool_internal_E_above_ref"];
-			} else if (last_row.count("tool_internal_E") &&
-			           first_row.count("tool_internal_E")) {
+			} else if (last_row.count("tool_internal_E_above_ref") && first_row.count("tool_internal_E_above_ref")) {
+				tool_delta = last_row["tool_internal_E_above_ref"] - first_row["tool_internal_E_above_ref"];
+			} else if (last_row.count("tool_internal_E") && first_row.count("tool_internal_E")) {
 				// Legacy: absolute-temperature column (pre-Phase-2).
-				tool_delta = last_row["tool_internal_E"] -
-				             first_row["tool_internal_E"];
+				tool_delta = last_row["tool_internal_E"] - first_row["tool_internal_E"];
 			}
 		}
 	} else {
-		std::cerr << "Warning: no energy CSV found in " << results_dir
-		          << "; tool energy delta set to 0.\n";
+		std::cerr << "Warning: no energy CSV found in " << results_dir << "; tool energy delta set to 0.\n";
 	}
 
 	// ---- Compute summary fractions -------------------------------------
-	double tool_with_loss  = tool_delta + tool_convection_loss;
-	double total           = chip_E_delta + retained_E_delta + tool_with_loss;
-	double chip_fraction     = total > 0.0 ? 100.0 * chip_E_delta   / total : 0.0;
+	double tool_with_loss = tool_delta + tool_convection_loss;
+	double total = chip_E_delta + retained_E_delta + tool_with_loss;
+	double chip_fraction = total > 0.0 ? 100.0 * chip_E_delta / total : 0.0;
 	double retained_fraction = total > 0.0 ? 100.0 * retained_E_delta / total : 0.0;
-	double tool_fraction     = total > 0.0 ? 100.0 * tool_with_loss  / total : 0.0;
+	double tool_fraction = total > 0.0 ? 100.0 * tool_with_loss / total : 0.0;
 
 	// ---- Write output VTKs --------------------------------------------
 	std::vector<char> retained_mask(final_data.points.size(), 0);
 	for (std::size_t i = 0; i < is_chip.size(); i++)
 		retained_mask[i] = is_chip[i] ? 0 : 1;
 
-	write_vtk_subset(results_dir / "chip_final.vtk",
-	                 final_data, is_chip, cp, tref, false);
-	write_vtk_subset(results_dir / "retained_workpiece_final.vtk",
-	                 final_data, retained_mask, cp, tref, false);
-	write_vtk_subset(results_dir / "classified_particles_final.vtk",
-	                 final_data, is_chip, cp, tref, true);
+	write_vtk_subset(results_dir / "chip_final.vtk", final_data, is_chip, cp, tref, false);
+	write_vtk_subset(results_dir / "retained_workpiece_final.vtk", final_data, retained_mask, cp, tref, false);
+	write_vtk_subset(results_dir / "classified_particles_final.vtk", final_data, is_chip, cp, tref, true);
 
 	// ---- Write summary CSV --------------------------------------------
 	std::ofstream csv(results_dir / "chip_final_summary.csv");
 	csv << std::setprecision(17);
 	csv << "results_dir,final_vtk,"
-	       "has_initial_pos,has_initial_temp,"
-	       "top_y,spacing,y_tol,chip_threshold,cp,t_ref_fallback,"
-	       "final_particle_count,chip_count,retained_count,"
-	       "chip_mass,retained_mass,"
-	       "chip_E_delta,retained_E_delta,"
-	       "tool_E_delta,tool_convection_loss,tool_E_with_loss,"
-	       "total_heat_inventory,"
-	       "chip_fraction_percent,retained_fraction_percent,tool_fraction_percent,"
-	       "chip_Tmax,retained_Tmax\n";
-	csv << results_dir.string() << ","
-	    << final_path.filename().string() << ","
-	    << (has_initial_pos  ? "yes" : "no") << ","
-	    << (has_initial_temp ? "yes" : "no") << ","
-	    << top_y << "," << spacing << "," << tol << "," << threshold << ","
-	    << cp << "," << tref << ","
-	    << final_data.points.size() << ","
-	    << chip_count << "," << retained_count << ","
-	    << chip_mass << "," << retained_mass << ","
-	    << chip_E_delta << "," << retained_E_delta << ","
-	    << tool_delta << "," << tool_convection_loss << "," << tool_with_loss << ","
-	    << total << ","
-	    << chip_fraction << "," << retained_fraction << "," << tool_fraction << ","
-	    << chip_Tmax << "," << retained_Tmax << "\n";
+		   "has_initial_pos,has_initial_temp,"
+		   "top_y,spacing,y_tol,chip_threshold,cp,t_ref_fallback,"
+		   "final_particle_count,chip_count,retained_count,"
+		   "chip_mass,retained_mass,"
+		   "chip_E_delta,retained_E_delta,"
+		   "tool_E_delta,tool_convection_loss,tool_E_with_loss,"
+		   "total_heat_inventory,"
+		   "chip_fraction_percent,retained_fraction_percent,tool_fraction_percent,"
+		   "chip_Tmax,retained_Tmax\n";
+	csv << results_dir.string() << "," << final_path.filename().string() << "," << (has_initial_pos ? "yes" : "no") << ","
+		<< (has_initial_temp ? "yes" : "no") << "," << top_y << "," << spacing << "," << tol << "," << threshold << "," << cp << "," << tref
+		<< "," << final_data.points.size() << "," << chip_count << "," << retained_count << "," << chip_mass << "," << retained_mass << ","
+		<< chip_E_delta << "," << retained_E_delta << "," << tool_delta << "," << tool_convection_loss << "," << tool_with_loss << ","
+		<< total << "," << chip_fraction << "," << retained_fraction << "," << tool_fraction << "," << chip_Tmax << "," << retained_Tmax
+		<< "\n";
 
 	// ---- Console summary ----------------------------------------------
 	std::cout << "\n";
 	std::cout << "Final particle VTK : " << final_path << "\n";
-	std::cout << "Chip threshold y   : " << threshold
-	          << "  (top_y=" << top_y << " + tol=" << tol << ")\n";
+	std::cout << "Chip threshold y   : " << threshold << "  (top_y=" << top_y << " + tol=" << tol << ")\n";
 	std::cout << "Energy reference   : "
-	          << (has_initial_temp ? "per-particle initial_temperature"
-	                               : "global T_ref = " + std::to_string(tref) + " K")
-	          << "\n";
-	std::cout << "Chip particles     : " << chip_count << " / "
-	          << final_data.points.size() << "\n";
-	std::cout << "Chip E_delta       : " << chip_E_delta    << " J  ("
-	          << chip_fraction    << "%)\n";
-	std::cout << "Retained E_delta   : " << retained_E_delta << " J  ("
-	          << retained_fraction << "%)\n";
-	std::cout << "Tool E_delta       : " << tool_with_loss   << " J  ("
-	          << tool_fraction     << "%)  [delta=" << tool_delta
-	          << " + convection=" << tool_convection_loss << "]\n";
+			  << (has_initial_temp ? "per-particle initial_temperature" : "global T_ref = " + std::to_string(tref) + " K") << "\n";
+	std::cout << "Chip particles     : " << chip_count << " / " << final_data.points.size() << "\n";
+	std::cout << "Chip E_delta       : " << chip_E_delta << " J  (" << chip_fraction << "%)\n";
+	std::cout << "Retained E_delta   : " << retained_E_delta << " J  (" << retained_fraction << "%)\n";
+	std::cout << "Tool E_delta       : " << tool_with_loss << " J  (" << tool_fraction << "%)  [delta=" << tool_delta
+			  << " + convection=" << tool_convection_loss << "]\n";
 	std::cout << "Total inventory    : " << total << " J\n";
 	std::cout << "\n";
-	std::cout << "Wrote: " << (results_dir / "chip_final_summary.csv")        << "\n";
-	std::cout << "Wrote: " << (results_dir / "chip_final.vtk")                << "\n";
-	std::cout << "Wrote: " << (results_dir / "retained_workpiece_final.vtk")  << "\n";
+	std::cout << "Wrote: " << (results_dir / "chip_final_summary.csv") << "\n";
+	std::cout << "Wrote: " << (results_dir / "chip_final.vtk") << "\n";
+	std::cout << "Wrote: " << (results_dir / "retained_workpiece_final.vtk") << "\n";
 	std::cout << "Wrote: " << (results_dir / "classified_particles_final.vtk") << "\n";
 	return 0;
 }

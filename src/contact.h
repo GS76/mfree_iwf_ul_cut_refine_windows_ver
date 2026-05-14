@@ -61,11 +61,12 @@ class fe_tool;
 
  - The [TOOL] is rigid and parametrized, as can be found in "tool.h".
  - [TOOL <--> WORKPIECE] contact penetration work as follows.
- 	 1- The contact algorithm is established for a query particle "p" as soon as it is found inside the bounding box of the tool.
- 	 2- The min distance of "p" from the tool segments is calculated and named as "PENETRATION DEPTH"
- 	 3- A penalty contact force is computed proportional to said "PENETRATION DEPTH"
- 	 4- Since this location in not admissible, particle "p" is pushed out by exerting this penalty contact force onto it.
- 	 5- The resultant Fc (cutting) and Ft (thrust) forces acting on the tool is computed by summing the x and y components of contact and friction forces.
+	 1- The contact algorithm is established for a query particle "p" as soon as it is found inside the bounding box of the tool.
+	 2- The min distance of "p" from the tool segments is calculated and named as "PENETRATION DEPTH"
+	 3- A penalty contact force is computed proportional to said "PENETRATION DEPTH"
+	 4- Since this location in not admissible, particle "p" is pushed out by exerting this penalty contact force onto it.
+	 5- The resultant Fc (cutting) and Ft (thrust) forces acting on the tool is computed by summing the x and y components of contact and
+ friction forces.
 
 */
 

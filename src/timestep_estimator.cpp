@@ -18,20 +18,19 @@
 
 namespace {
 static void consider_limit(double value, const char *reason, double &current, std::string &current_reason) {
-	if (!std::isfinite(value) || value <= 0.) return;
+	if (!std::isfinite(value) || value <= 0.)
+		return;
 	if (!std::isfinite(current) || current <= 0. || value < current) {
 		current = value;
 		current_reason = reason;
 	}
 }
 
-static double safe_positive(double value) {
-	return (std::isfinite(value) && value > 0.) ? value : 0.;
-}
+static double safe_positive(double value) { return (std::isfinite(value) && value > 0.) ? value : 0.; }
 } // namespace
 
 coupled_timestep_limits estimate_coupled_timestep(const physical_constants &workpiece, const coupled_timestep_config &config,
-                                                  const fe_tool *tool) {
+												  const fe_tool *tool) {
 	coupled_timestep_limits limits;
 
 	const double dx = safe_positive(config.particle_spacing);
@@ -50,15 +49,18 @@ coupled_timestep_limits estimate_coupled_timestep(const physical_constants &work
 	const double k_wp = workpiece.tc().k();
 	if (dx > 0. && rho_wp > 0. && cp_wp > 0. && k_wp > 0.) {
 		const double alpha_wp = k_wp / (rho_wp * cp_wp);
-		if (std::isfinite(alpha_wp) && alpha_wp > 0.) limits.workpiece_thermal_dt = config.workpiece_thermal_safety * dx * dx / alpha_wp;
+		if (std::isfinite(alpha_wp) && alpha_wp > 0.)
+			limits.workpiece_thermal_dt = config.workpiece_thermal_safety * dx * dx / alpha_wp;
 	}
 
 	if (tool) {
 		double dt_tool_mech = tool->mechanics_dt_crit();
-		if (std::isfinite(dt_tool_mech) && dt_tool_mech > 0.) limits.tool_mechanical_dt = config.tool_mechanical_safety * dt_tool_mech;
+		if (std::isfinite(dt_tool_mech) && dt_tool_mech > 0.)
+			limits.tool_mechanical_dt = config.tool_mechanical_safety * dt_tool_mech;
 
 		double dt_tool_thermal = tool->thermal_dt_crit();
-		if (std::isfinite(dt_tool_thermal) && dt_tool_thermal > 0.) limits.tool_thermal_dt = config.tool_thermal_safety * dt_tool_thermal;
+		if (std::isfinite(dt_tool_thermal) && dt_tool_thermal > 0.)
+			limits.tool_thermal_dt = config.tool_thermal_safety * dt_tool_thermal;
 
 		const double h_contact = safe_positive(config.contact_conductance_full);
 		const double A_contact = safe_positive(config.interface_contact_area);
@@ -73,7 +75,8 @@ coupled_timestep_limits estimate_coupled_timestep(const physical_constants &work
 		}
 	}
 
-	if (std::isfinite(config.empirical_dt_cap) && config.empirical_dt_cap > 0.) limits.empirical_dt = config.empirical_dt_cap;
+	if (std::isfinite(config.empirical_dt_cap) && config.empirical_dt_cap > 0.)
+		limits.empirical_dt = config.empirical_dt_cap;
 
 	limits.maximum_dt = std::numeric_limits<double>::infinity();
 	consider_limit(limits.workpiece_mechanical_dt, "workpiece_mechanical", limits.maximum_dt, limits.limiting_reason);
@@ -92,12 +95,6 @@ coupled_timestep_limits estimate_coupled_timestep(const physical_constants &work
 
 void print_coupled_timestep_limits(const coupled_timestep_limits &limits) {
 	std::printf("timestep estimate: dt=%e limiter=%s wp_mech=%e wp_therm=%e tool_mech=%e tool_therm=%e interface_therm=%e empirical=%e\n",
-	            limits.maximum_dt,
-	            limits.limiting_reason.c_str(),
-	            limits.workpiece_mechanical_dt,
-	            limits.workpiece_thermal_dt,
-	            limits.tool_mechanical_dt,
-	            limits.tool_thermal_dt,
-	            limits.interface_thermal_dt,
-	            limits.empirical_dt);
+				limits.maximum_dt, limits.limiting_reason.c_str(), limits.workpiece_mechanical_dt, limits.workpiece_thermal_dt,
+				limits.tool_mechanical_dt, limits.tool_thermal_dt, limits.interface_thermal_dt, limits.empirical_dt);
 }

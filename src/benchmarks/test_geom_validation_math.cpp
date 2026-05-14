@@ -51,4 +51,3 @@ int main() {
 	}
 	return fails == 0 ? 0 : 1;
 }
-

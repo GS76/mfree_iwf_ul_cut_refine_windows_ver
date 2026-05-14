@@ -60,8 +60,7 @@
 
 static const unsigned int max_iter = 100;
 
-template <class ftor>
-double solve_zero_secant(ftor f, double init, double t, bool &failed) {
+template <class ftor> double solve_zero_secant(ftor f, double init, double t, bool &failed) {
 
 	double delta_lambda = init;
 	double delta_lambda_old = delta_lambda;
@@ -72,16 +71,16 @@ double solve_zero_secant(ftor f, double init, double t, bool &failed) {
 
 	do {
 		double g = (*f)(delta_lambda);
-		double delta_lambda_1 = delta_lambda*1.01;
+		double delta_lambda_1 = delta_lambda * 1.01;
 		double g_1 = (*f)(delta_lambda_1);
 
 		double slope = (g - g_1) / (delta_lambda - delta_lambda_1);
 
 		delta_lambda_old = delta_lambda;
-		delta_lambda = delta_lambda - g/slope;
+		delta_lambda = delta_lambda - g / slope;
 
 		if (delta_lambda < 0.) {
-			delta_lambda = -0.1*delta_lambda;
+			delta_lambda = -0.1 * delta_lambda;
 		}
 
 		if (fabs(delta_lambda - delta_lambda_old) < t) {
@@ -95,7 +94,7 @@ double solve_zero_secant(ftor f, double init, double t, bool &failed) {
 		}
 
 		iter++;
-	} while(true);
+	} while (true);
 }
 
-#endif //SOLVER_H_
+#endif // SOLVER_H_

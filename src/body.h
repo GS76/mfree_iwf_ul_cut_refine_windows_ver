@@ -69,22 +69,22 @@ class fe_tool;
 
 class body {
 
-private:
+  private:
 	/*
 	 "BODY" is comprised of the following encapsulated items:
 	*/
 
-	grid m_grid;             			// spatial hashing
-	plasticity *m_plast = 0; 			// plasticity algorithm (if any)
-	thermal *m_thermal = 0;  			// thermal algorithm (if any)
-	adaptivity *m_adapt = 0;  			// adaptivity algorithm (if any)
+	grid m_grid;			 // spatial hashing
+	plasticity *m_plast = 0; // plasticity algorithm (if any)
+	thermal *m_thermal = 0;	 // thermal algorithm (if any)
+	adaptivity *m_adapt = 0; // adaptivity algorithm (if any)
 	fe_tool *m_fe_tool = 0;
-	std::vector<particle> m_particles;  // workpiece particles
-	simulation_data m_simulation_data;  // all physical constants
+	std::vector<particle> m_particles;													// workpiece particles
+	simulation_data m_simulation_data;													// all physical constants
 	void (*m_basis_fun)(std::vector<particle> &particles, unsigned int) = &precomp_sph; // basis function chosen SPH
-	double m_step_plastic_dissipation = 0.; // Taylor-Quinney energy deposited this step (J)
+	double m_step_plastic_dissipation = 0.;												// Taylor-Quinney energy deposited this step (J)
 
-public:
+  public:
 	void set_plasticity(plasticity *plasticity);
 	void set_thermal(thermal *thermal);
 	void set_fe_tool(fe_tool *tool);
@@ -112,18 +112,18 @@ public:
 
 	void set_basis_fun(void (*m_basis_fun)(std::vector<particle> &particles, unsigned int));
 
-	simulation_data get_sim_data()  const;
+	simulation_data get_sim_data() const;
 	std::vector<particle> &get_particles();
 	const std::vector<particle> &get_particles() const;
 	unsigned int get_num_part() const;
 
-	void insert_particles(const std::vector<particle>& additional_particles);
+	void insert_particles(const std::vector<particle> &additional_particles);
 
-	body(particle* particles, unsigned int n, simulation_data data);
+	body(particle *particles, unsigned int n, simulation_data data);
 
 	// do not allow copying a body
 	body(const body &copy) = delete;
-	body& operator= (const body &fraction) = delete;
+	body &operator=(const body &fraction) = delete;
 
 	body();
 };

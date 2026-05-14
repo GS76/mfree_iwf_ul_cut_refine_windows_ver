@@ -60,7 +60,7 @@
  */
 
 class johnson_cook_constants {
-private:
+  private:
 	double m_A = 0.;
 	double m_B = 0.;
 	double m_C = 0.;
@@ -74,12 +74,13 @@ private:
 	double m_s = 0.;
 
 	double m_Tmelt = 0.;
-	double m_Tref  = 0.;
+	double m_Tref = 0.;
 	double m_eps_ref = 0.;
 
-public:
+  public:
 	johnson_cook_constants(double A, double B, double C, double m, double n, double Tmelt, double Tref, double eps_ref = 1.);
-	johnson_cook_constants(double A, double B, double C, double m, double n, double a, double b, double c, double d, double s, double Tmelt, double Tref, double eps_ref = 1.);	// JC-tanh- Erweiterung, Calamaz 2008
+	johnson_cook_constants(double A, double B, double C, double m, double n, double a, double b, double c, double d, double s, double Tmelt,
+						   double Tref, double eps_ref = 1.); // JC-tanh- Erweiterung, Calamaz 2008
 	johnson_cook_constants();
 
 	double A() const;
@@ -108,24 +109,25 @@ class thermal_constants {
 	double m_Taylor_Quinney = 0.;
 	double m_k = 0.;
 
-public:
+  public:
 	thermal_constants(double cp, double Taylor_Quinney, double k = 0.);
 	thermal_constants();
 
-	double cp() const;				/*!< Heat capacity */
-	double Taylor_Quinney() const;	/*!< Percentage of plastic work converted into thermal energy */
-	double k() const;				/*!< Thermal conduction coefficient */
+	double cp() const;			   /*!< Heat capacity */
+	double Taylor_Quinney() const; /*!< Percentage of plastic work converted into thermal energy */
+	double k() const;			   /*!< Thermal conduction coefficient */
 };
 
 class physical_constants {
-private:
+  private:
 	double m_nu = 0.;
 	double m_E = 0.;
 	double m_rho0 = 0.;
 
 	johnson_cook_constants m_jc;
 	thermal_constants m_tc;
-public:
+
+  public:
 	physical_constants(double nu, double E, double rho0);
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc);
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc, thermal_constants tc);
@@ -148,7 +150,7 @@ class constants_monaghan {
 	double m_mghn_eps = 0.;
 	double m_hdx = 0.; // h/dx ratio for per-particle wdeltap; 0 = use global wdeltap (legacy)
 
-public:
+  public:
 	double mghn_wdeltap() const;
 	unsigned int mghn_corr_exp() const;
 	double mghn_eps() const;
@@ -164,7 +166,7 @@ class constants_artificial_viscosity {
 	double m_artvisc_beta = 0.;
 	double m_artvisc_eta = 0.;
 
-public:
+  public:
 	double artvisc_alpha() const;
 	double artvisc_beta() const;
 	double artvisc_eta() const;
@@ -175,12 +177,12 @@ public:
 
 class correction_constants {
 
-private:
+  private:
 	double m_xsph_eps = 0.;
 	constants_monaghan m_constants_monaghan;
 	constants_artificial_viscosity m_constants_art_visc;
 
-public:
+  public:
 	correction_constants(constants_monaghan monaghan_constants, constants_artificial_viscosity constants_art_visc, double xsph_eps);
 	correction_constants();
 	double xsph_eps() const;
@@ -189,14 +191,14 @@ public:
 };
 
 class simulation_data {
-private:
-	physical_constants   m_physical_constants;
+  private:
+	physical_constants m_physical_constants;
 	correction_constants m_correction_constants;
 
-public:
+  public:
 	simulation_data();
 	simulation_data(physical_constants physical_constants, correction_constants correction_constants);
-	physical_constants   get_physical_constants() const;
+	physical_constants get_physical_constants() const;
 	correction_constants get_correction_constants() const;
 };
 

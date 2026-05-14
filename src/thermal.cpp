@@ -64,7 +64,7 @@ void thermal::heat_conduction_pse(body &b) const {
 	// which keeps the stability ratio well below 1 for any realistic dt.
 	// This only affects severely-expanded / failed particles; normal particles
 	// (rho close to rho0) are completely unaffected.
-	const double rho0          = b.get_sim_data().get_physical_constants().rho0();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
 	const double rho_pse_floor = 0.05 * rho0;
 
 #ifdef _OPENMP
@@ -82,31 +82,31 @@ void thermal::heat_conduction_pse(body &b) const {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 
-			const double Tj   = particles[jdx].T;
-			const double xj   = particles[jdx].x;
-			const double yj   = particles[jdx].y;
-			const double mj   = particles[jdx].m;
+			const double Tj = particles[jdx].T;
+			const double xj = particles[jdx].x;
+			const double yj = particles[jdx].y;
+			const double mj = particles[jdx].m;
 			// Use rho_pse_floor so that a density-floor particle (rho≈0.001*rho0)
 			// cannot inflate V_j=m/rho beyond 20×V_natural and break stability.
 			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
-			const double hj   = particles[jdx].h;
+			const double hj = particles[jdx].h;
 
-			const double xij = xi-xj;
-			const double yij = yi-yj;
+			const double xij = xi - xj;
+			const double yij = yi - yj;
 
 			// Symmetric smoothing length: averages hi and hj so that the PSE
 			// kernel is the same when evaluated from either side of a
 			// refinement interface (hi != hj).  For same-resolution pairs
 			// (hi == hj) h_sym == hi and the formula is unchanged.
-			const double h_sym  = 0.5*(hi + hj);
-			const double h_sym2 = h_sym*h_sym;
+			const double h_sym = 0.5 * (hi + hj);
+			const double h_sym2 = h_sym * h_sym;
 
-			const double r = sqrt(xij*xij + yij*yij);
-			const double w_pse = 4.0/(h_sym2*M_PI)*exp(-r*r/h_sym2);
-			T_lapl += (Tj-Ti)*w_pse*mj/rhoj/h_sym2;
+			const double r = sqrt(xij * xij + yij * yij);
+			const double w_pse = 4.0 / (h_sym2 * M_PI) * exp(-r * r / h_sym2);
+			T_lapl += (Tj - Ti) * w_pse * mj / rhoj / h_sym2;
 		}
 
-		particles[i].T_t += m_alpha*T_lapl;
+		particles[i].T_t += m_alpha * T_lapl;
 	}
 }
 
@@ -139,28 +139,26 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			double mj = particles[jdx].m;
 			double rhoj = particles[jdx].rho;
 
-			double xij = xi-xj;
-			double yij = yi-yj;
+			double xij = xi - xj;
+			double yij = yi - yj;
 
-			double rij = sqrt(xij*xij + yij*yij);
-			double eijx = xij/rij;
-			double eijy = yij/rij;
+			double rij = sqrt(xij * xij + yij * yij);
+			double eijx = xij / rij;
+			double eijy = yij / rij;
 
-			if (rij < 1e-12) continue;
+			if (rij < 1e-12)
+				continue;
 
-			double rij1 = 1./rij;
+			double rij1 = 1. / rij;
 
-			T_lapl += 2.0*(mj/rhoj)*(Ti-Tj)*rij1*(eijx*w.w_x + eijy*w.w_y);
+			T_lapl += 2.0 * (mj / rhoj) * (Ti - Tj) * rij1 * (eijx * w.w_x + eijy * w.w_y);
 		}
 
-		particles[i].T_t += m_alpha*T_lapl;
+		particles[i].T_t += m_alpha * T_lapl;
 	}
 }
 
-
-void thermal::set_method(thermal_solver solver) {
-	m_thermal_solver = solver;
-}
+void thermal::set_method(thermal_solver solver) { m_thermal_solver = solver; }
 
 void thermal::conduction(body &body) const {
 
@@ -176,5 +174,5 @@ void thermal::conduction(body &body) const {
 
 thermal::thermal(physical_constants pc) {
 	assert(pc.tc().k() != 0.);
-	m_alpha = pc.tc().k()/(pc.rho0()*pc.tc().cp());
+	m_alpha = pc.tc().k() / (pc.rho0() * pc.tc().cp());
 }

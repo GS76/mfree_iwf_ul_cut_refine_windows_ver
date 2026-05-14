@@ -424,19 +424,17 @@ static bool test_interface_suppression_ratio() {
 		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
 		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
 		double ratio_a = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
-		std::printf("suppression small_dt: ratio=%g suppressed=%g denom=%g scale=%g\n",
-				ratio_a, ea.step_contact_E_limiter_suppressed, denom,
-				ft.get_contact_energy_balance().scale);
+		std::printf("suppression small_dt: ratio=%g suppressed=%g denom=%g scale=%g\n", ratio_a, ea.step_contact_E_limiter_suppressed,
+					denom, ft.get_contact_energy_balance().scale);
 
 		// Also verify tool-source residual after advance_explicit.
 		ft.advance_explicit(1.0e-9);
 		ea = ft.get_thermal_energy_accounting();
 		double tool_src_res_rel = (std::abs(ea.step_contact_E_tool) > 1e-30)
-				? std::abs(ea.step_tool_E_sources - ea.step_contact_E_tool) /
-					  std::abs(ea.step_contact_E_tool)
-				: 0.;
-		std::printf("suppression small_dt: tool_src_res_rel=%g E_sources=%g E_contact_tool=%g\n",
-				tool_src_res_rel, ea.step_tool_E_sources, ea.step_contact_E_tool);
+									  ? std::abs(ea.step_tool_E_sources - ea.step_contact_E_tool) / std::abs(ea.step_contact_E_tool)
+									  : 0.;
+		std::printf("suppression small_dt: tool_src_res_rel=%g E_sources=%g E_contact_tool=%g\n", tool_src_res_rel, ea.step_tool_E_sources,
+					ea.step_contact_E_tool);
 
 		if (ratio_a >= 0.01) {
 			std::printf("FAIL: suppression_ratio=%g >= 0.01 with small dt\n", ratio_a);
@@ -465,13 +463,11 @@ static bool test_interface_suppression_ratio() {
 		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
 		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
 		double ratio_b = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
-		std::printf("suppression large_dt: ratio=%g suppressed=%g denom=%g scale=%g\n",
-				ratio_b, ea.step_contact_E_limiter_suppressed, denom,
-				ft.get_contact_energy_balance().scale);
+		std::printf("suppression large_dt: ratio=%g suppressed=%g denom=%g scale=%g\n", ratio_b, ea.step_contact_E_limiter_suppressed,
+					denom, ft.get_contact_energy_balance().scale);
 
 		if (ratio_b <= 0.5) {
-			std::printf("FAIL: suppression_ratio=%g <= 0.5 with large dt (limiter should have fired)\n",
-					ratio_b);
+			std::printf("FAIL: suppression_ratio=%g <= 0.5 with large dt (limiter should have fired)\n", ratio_b);
 			return false;
 		}
 	}

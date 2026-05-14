@@ -64,10 +64,12 @@
 static double density_floor(double rho0) {
 	static const double frac = []() -> double {
 		const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC");
-		if (!s || s[0] == '\0') return 0.0;
+		if (!s || s[0] == '\0')
+			return 0.0;
 		char *end = nullptr;
 		double v = std::strtod(s, &end);
-		if (end == s || !std::isfinite(v) || v < 0.) return 0.0;
+		if (end == s || !std::isfinite(v) || v < 0.)
+			return 0.0;
 		std::printf("[leap_frog] density floor enabled: frac=%.6g (rho_min = %.4g * rho0)\n", v, v);
 		std::fflush(stdout);
 		return v;
@@ -76,7 +78,7 @@ static double density_floor(double rho0) {
 }
 
 void leap_frog::init(body &body) {
-	std::vector<particle> &particles  = body.get_particles();
+	std::vector<particle> &particles = body.get_particles();
 
 	// this can only grow the vector since now coarsening strategy is not applied.
 	// resize should not cause re-allocation since the constructor reserves twice the initial particle number,
@@ -96,7 +98,7 @@ void leap_frog::init(body &body) {
 }
 
 void leap_frog::predict(body &body) const {
-	std::vector<particle> &particles  = body.get_particles();
+	std::vector<particle> &particles = body.get_particles();
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 
@@ -109,19 +111,19 @@ void leap_frog::predict(body &body) const {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		particles[i].x   = m_init[i].x   + 0.5*dt*particles[i].x_t;
-		particles[i].y   = m_init[i].y   + 0.5*dt*particles[i].y_t;
-		particles[i].rho = m_init[i].rho + 0.5*dt*particles[i].rho_t;
+		particles[i].x = m_init[i].x + 0.5 * dt * particles[i].x_t;
+		particles[i].y = m_init[i].y + 0.5 * dt * particles[i].y_t;
+		particles[i].rho = m_init[i].rho + 0.5 * dt * particles[i].rho_t;
 		if (rho_min > 0. && particles[i].rho < rho_min)
 			particles[i].rho = rho_min;
-		particles[i].h   = m_init[i].h   + 0.5*dt*particles[i].h_t;
-		particles[i].vx  = m_init[i].vx  + 0.5*dt*particles[i].vx_t;
-		particles[i].vy  = m_init[i].vy  + 0.5*dt*particles[i].vy_t;
-		particles[i].Sxx = m_init[i].Sxx + 0.5*dt*particles[i].Sxx_t;
-		particles[i].Sxy = m_init[i].Sxy + 0.5*dt*particles[i].Sxy_t;
-		particles[i].Syy = m_init[i].Syy + 0.5*dt*particles[i].Syy_t;
-		particles[i].Szz = m_init[i].Szz + 0.5*dt*particles[i].Szz_t;
-		particles[i].T   = m_init[i].T   + 0.5*dt*particles[i].T_t;
+		particles[i].h = m_init[i].h + 0.5 * dt * particles[i].h_t;
+		particles[i].vx = m_init[i].vx + 0.5 * dt * particles[i].vx_t;
+		particles[i].vy = m_init[i].vy + 0.5 * dt * particles[i].vy_t;
+		particles[i].Sxx = m_init[i].Sxx + 0.5 * dt * particles[i].Sxx_t;
+		particles[i].Sxy = m_init[i].Sxy + 0.5 * dt * particles[i].Sxy_t;
+		particles[i].Syy = m_init[i].Syy + 0.5 * dt * particles[i].Syy_t;
+		particles[i].Szz = m_init[i].Szz + 0.5 * dt * particles[i].Szz_t;
+		particles[i].T = m_init[i].T + 0.5 * dt * particles[i].T_t;
 		if (particles[i].T < T_min)
 			particles[i].T = T_min;
 	}
@@ -141,19 +143,19 @@ void leap_frog::correct(body &body) const {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		particles[i].x   = m_init[i].x   + dt*particles[i].x_t;
-		particles[i].y   = m_init[i].y   + dt*particles[i].y_t;
-		particles[i].rho = m_init[i].rho + dt*particles[i].rho_t;
+		particles[i].x = m_init[i].x + dt * particles[i].x_t;
+		particles[i].y = m_init[i].y + dt * particles[i].y_t;
+		particles[i].rho = m_init[i].rho + dt * particles[i].rho_t;
 		if (rho_min > 0. && particles[i].rho < rho_min)
 			particles[i].rho = rho_min;
-		particles[i].h   = m_init[i].h   + dt*particles[i].h_t;
-		particles[i].vx  = m_init[i].vx  + dt*particles[i].vx_t;
-		particles[i].vy  = m_init[i].vy  + dt*particles[i].vy_t;
-		particles[i].Sxx = m_init[i].Sxx + dt*particles[i].Sxx_t;
-		particles[i].Sxy = m_init[i].Sxy + dt*particles[i].Sxy_t;
-		particles[i].Syy = m_init[i].Syy + dt*particles[i].Syy_t;
-		particles[i].Szz = m_init[i].Szz + dt*particles[i].Szz_t;
-		particles[i].T   = m_init[i].T   + dt*particles[i].T_t;
+		particles[i].h = m_init[i].h + dt * particles[i].h_t;
+		particles[i].vx = m_init[i].vx + dt * particles[i].vx_t;
+		particles[i].vy = m_init[i].vy + dt * particles[i].vy_t;
+		particles[i].Sxx = m_init[i].Sxx + dt * particles[i].Sxx_t;
+		particles[i].Sxy = m_init[i].Sxy + dt * particles[i].Sxy_t;
+		particles[i].Syy = m_init[i].Syy + dt * particles[i].Syy_t;
+		particles[i].Szz = m_init[i].Szz + dt * particles[i].Szz_t;
+		particles[i].T = m_init[i].T + dt * particles[i].T_t;
 		if (particles[i].T < T_min)
 			particles[i].T = T_min;
 	}
@@ -216,11 +218,9 @@ void leap_frog::step(body &body) {
 	// restore particles into their original order
 	// this step is not necessary for correctness but may be useful for debugging purposes
 	// deactivated for performance reasons
-    body.restore_order();
+	body.restore_order();
 
-    body.apply_adaptivity();
+	body.apply_adaptivity();
 }
 
-leap_frog::leap_frog(unsigned int num_part)  {
-	m_init.reserve(2*num_part);
-}
+leap_frog::leap_frog(unsigned int num_part) { m_init.reserve(2 * num_part); }

@@ -65,27 +65,29 @@ void material_eos(body &b) {
 	// is above the UTS (~950 MPa) so normal tensile yielding is unaffected.
 	static const double p_tensile_cutoff = []() -> double {
 		const char *s = std::getenv("MFREE_TENSION_CUTOFF");
-		if (!s || s[0] == '\0') return 0.0;
+		if (!s || s[0] == '\0')
+			return 0.0;
 		char *end = nullptr;
 		double v = std::strtod(s, &end);
-		if (end == s || !std::isfinite(v) || v <= 0.) return 0.0;
+		if (end == s || !std::isfinite(v) || v <= 0.)
+			return 0.0;
 		std::printf("[material_eos] tension cutoff enabled: %.6g Pa (%.4g GPa)\n", v, v * 1e-9);
 		std::fflush(stdout);
 		return v;
 	}();
 
 	std::vector<particle> &particles = b.get_particles();
-	double K    = b.get_sim_data().get_physical_constants().K();
+	double K = b.get_sim_data().get_physical_constants().K();
 	double rho0 = b.get_sim_data().get_physical_constants().rho0();
 
 	const unsigned int n = b.get_num_part();
-	const double c0 = sqrt(K/rho0);
+	const double c0 = sqrt(K / rho0);
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		particles[i].p = c0*c0*(particles[i].rho - rho0);
+		particles[i].p = c0 * c0 * (particles[i].rho - rho0);
 		// Clamp: no material sustains hundreds of GPa in tension.
 		if (p_tensile_cutoff > 0. && particles[i].p < -p_tensile_cutoff)
 			particles[i].p = -p_tensile_cutoff;
@@ -102,14 +104,18 @@ void material_stress_rate_jaumann(body &b) {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		const glm::dmat3x3 epsdot = glm::dmat3x3(particles[i].vx_x, 0.5*(particles[i].vx_y + particles[i].vy_x), 0., 0.5*(particles[i].vx_y + particles[i].vy_x), particles[i].vy_y, 0., 0., 0., 0.);
-		const glm::dmat3x3 omega  = glm::dmat3x3(0.     , 0.5*(particles[i].vy_x - particles[i].vx_y), 0., 0.5*(particles[i].vx_y - particles[i].vy_x), 0., 0., 0., 0., 0.);
-		const glm::dmat3x3 S      = glm::dmat3x3(particles[i].Sxx, particles[i].Sxy, 0., particles[i].Sxy, particles[i].Syy, 0., 0., 0., particles[i].Szz);
-		const glm::dmat3x3 I      = glm::dmat3x3(1.);
+		const glm::dmat3x3 epsdot = glm::dmat3x3(particles[i].vx_x, 0.5 * (particles[i].vx_y + particles[i].vy_x), 0.,
+												 0.5 * (particles[i].vx_y + particles[i].vy_x), particles[i].vy_y, 0., 0., 0., 0.);
+		const glm::dmat3x3 omega = glm::dmat3x3(0., 0.5 * (particles[i].vy_x - particles[i].vx_y), 0.,
+												0.5 * (particles[i].vx_y - particles[i].vy_x), 0., 0., 0., 0., 0.);
+		const glm::dmat3x3 S =
+			glm::dmat3x3(particles[i].Sxx, particles[i].Sxy, 0., particles[i].Sxy, particles[i].Syy, 0., 0., 0., particles[i].Szz);
+		const glm::dmat3x3 I = glm::dmat3x3(1.);
 
 		const double trace_epsdot = epsdot[0][0] + epsdot[1][1] + epsdot[2][2];
 
-		const glm::dmat3x3 S_t = 2*G*(epsdot - 1./3.*trace_epsdot*I) + omega*S + S*glm::transpose(omega);	//Belytschko (3.7.9)
+		const glm::dmat3x3 S_t = 2 * G * (epsdot - 1. / 3. * trace_epsdot * I) + omega * S + S * glm::transpose(omega); // Belytschko
+																														// (3.7.9)
 
 		particles[i].Sxx_t += S_t[0][0];
 		particles[i].Sxy_t += S_t[0][1];

@@ -73,7 +73,7 @@ struct thermal_contact_coupling_params {
 	// Contact conductance defaults are calibrated to WC-Ti6Al4V at machining
 	// pressures (Umbrello et al. 2007; Boothroyd & Knight 1989).
 	// Both values remain overridable via MFREE_THERMAL_H_SEP / MFREE_THERMAL_H_FULL.
-	double h_separated_W_m2K   = 10000.0;    // was 1000  W/m²·K (partial / air-gap contact)
+	double h_separated_W_m2K = 10000.0;		 // was 1000  W/m²·K (partial / air-gap contact)
 	double h_full_contact_W_m2K = 1000000.0; // was 1e5  W/m²·K (full pressure contact)
 	double p_ref_Pa = 1.0e9;
 	double friction_heat_fraction_workpiece = 0.8;
