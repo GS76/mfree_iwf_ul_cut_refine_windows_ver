@@ -90,3 +90,26 @@ The script writes a JSON report containing:
 - node count, triangle count
 - minimum triangle angle (degrees)
 - minimum radius-ratio quality (higher is better, 1 is equilateral)
+
+## Initial Meshing Pipeline Draft
+
+An initial meshing-pipeline scaffold is available for incremental improvements without replacing the current generator internals:
+
+- Requirements baseline: `Meshing/pipeline_requirements.json`
+- Core pipeline modules:
+  - `Meshing/pipeline/contracts.py`
+  - `Meshing/pipeline/inputs.py`
+  - `Meshing/pipeline/runner.py`
+  - `Meshing/pipeline/cli.py`
+  - `Meshing/run_pipeline.py`
+
+Pipeline CLI usage (same key arguments as the current generator):
+
+```powershell
+python .\Meshing\run_pipeline.py `
+  --tool-txt .\results\tool_0000000.txt `
+  --unit m `
+  --out-msh .\Meshing\out\tool.msh `
+  --out-report .\Meshing\out\tool_mesh_report.json `
+  --out-tool-meta .\Meshing\out\tool_geometry.json
+```
