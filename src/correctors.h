@@ -54,7 +54,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <array>
 
 #include "kernel.h"
@@ -70,7 +70,7 @@
 */
 
 void correctors_mghn_artificial_viscosity(body &b); // the 1st stabilizer term in Eq. (31) of the paper
-void correctors_mghn_artificial_stress(body &b);    // the 2nd stabilizer term in Eq. (31) of the paper
-void correctors_xsph(body &b);                      // the XSPH correction term in Eq. (33) of the paper
+void correctors_mghn_artificial_stress(body &b);	// the 2nd stabilizer term in Eq. (31) of the paper
+void correctors_xsph(body &b);						// the XSPH correction term in Eq. (33) of the paper
 
 #endif /* CORRECTORS_H_ */

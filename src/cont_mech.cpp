@@ -53,20 +53,29 @@
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		const double rho  = particles[i].rho;
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
+		const double rho = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
 
-		particles[i].rho_t -= rho*(vx_x + vy_y);
+		particles[i].rho_t -= rho * (vx_x + vy_y);
 	}
 }
-
 
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		const double Sxx_x = particles[i].Sxx_x;
 		const double Sxy_y = particles[i].Sxy_y;
 		const double Sxy_x = particles[i].Sxy_x;
@@ -74,15 +83,20 @@ void contmech_momentum(body &b) {
 
 		const double rho = particles[i].rho;
 
-		particles[i].vx_t += 1./rho*(Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
-		particles[i].vy_t += 1./rho*(Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
+		particles[i].vx_t += 1. / rho * (Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
+		particles[i].vy_t += 1. / rho * (Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
 	}
 }
 
 void contmech_advection(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
 	}
@@ -94,16 +108,29 @@ void do_boundary_conditions(body &b) {
 	// this enforces the fixed boundary conditions
 	// demonstrated in Fig. 10 of the manuscript
 
-	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		if(particles[i].fixed) {
-			particles[i].x    = particles[i].X;
-			particles[i].y    = particles[i].Y;
-			particles[i].x_t  = 0.;
-			particles[i].y_t  = 0.;
-			particles[i].vx   = 0.;
-			particles[i].vy   = 0.;
+	const unsigned int n = b.get_num_part();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
+		if (particles[i].fixed) {
+			particles[i].x = particles[i].X;
+			particles[i].y = particles[i].Y;
+			particles[i].x_t = 0.;
+			particles[i].y_t = 0.;
+			particles[i].vx = 0.;
+			particles[i].vy = 0.;
 			particles[i].vx_t = 0.;
 			particles[i].vy_t = 0.;
+			// Dirichlet thermal BC: fixed boundary particles (bottom row, right column)
+			// represent far-field bulk material and must remain at ambient temperature.
+			// Without this, the PSE heat equation freely advances T each step and the
+			// boundary acts as an insulating wall, creating spurious thermal pockets.
+			// T_init holds the initial/ambient temperature (300 K) set at particle
+			// creation and propagated to refined child particles by copy_dad_to_son.
+			particles[i].T = particles[i].T_init; // hold at ambient temperature
+			particles[i].T_t = 0.;				  // zero rate so next predict step is clean
 		}
 	}
 }

@@ -1,0 +1,169 @@
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def run(cmd: list[str], cwd: Path) -> None:
+    subprocess.run(cmd, cwd=str(cwd), check=True)
+
+
+def read_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def write_text(path: Path, s: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(s, encoding="utf-8")
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parents[2]
+    out_dir = Path(__file__).resolve().parent
+    meshes_dir = out_dir / "meshes"
+    meshes_dir.mkdir(parents=True, exist_ok=True)
+
+    mesh_levels_mm = [0.004, 0.003, 0.002]
+
+    results = []
+    for h in mesh_levels_mm:
+        msh = meshes_dir / f"tool_h_{h:.3f}mm.msh"
+        mesh_report = meshes_dir / f"tool_h_{h:.3f}mm_report.json"
+
+        run(
+            [
+                sys.executable,
+                str(root / "Meshing" / "generate_rigid_tool_mesh.py"),
+                "--tl-angles",
+                "--tl-x",
+                "0.000072473",
+                "--tl-y",
+                "0.000986074",
+                "--length",
+                "0.000413176",
+                "--height",
+                "0.000431",
+                "--rake-deg",
+                "0.00001",
+                "--clearance-deg",
+                "11",
+                "--fillet-radius",
+                "0.000005",
+                "--unit",
+                "m",
+                "--refine-diameter-mm",
+                "0.2",
+                "--fine-size-mm",
+                f"{h}",
+                "--transition-length-mm",
+                "0.6",
+                "--max-size-mm",
+                "0.05",
+                "--out-msh",
+                str(msh),
+                "--out-report",
+                str(mesh_report),
+            ],
+            cwd=root,
+        )
+
+        env = os.environ.copy()
+        env["MFREE_FE_TOOL_MSH"] = str(msh)
+        env["MFREE_USE_FE_TOOL_FOR_CONTACT"] = "1"
+        env["MFREE_DEFORMABLE_FE_TOOL"] = "1"
+        env["MFREE_PREPROCESS_ONLY"] = "1"
+        env["MFREE_DEFORMABLE_TOOL_TOL"] = "0.01"
+        env["MFREE_DEFORMABLE_TOOL_MAX_ITERS"] = "2000"
+        env["MFREE_DEFORMABLE_TOOL_RELAX"] = "0.05"
+        env["MFREE_FE_TOOL_RHO"] = "14500"
+        env["MFREE_FE_TOOL_CP"] = "200"
+        env["MFREE_FE_TOOL_K"] = "80"
+        env["MFREE_FE_TOOL_E"] = "6e11"
+        env["MFREE_FE_TOOL_NU"] = "0.22"
+        env["MFREE_FE_TOOL_ALPHA"] = "4.5e-6"
+        env["MFREE_FE_TOOL_FIX_TAGS"] = "114"
+        env["MFREE_FE_TOOL_ALIGN_CENTER"] = "0"
+
+        subprocess.run([str(root / "build" / "Release" / "mfree_iwf.exe"), "-m", "1"], cwd=str(root), env=env, check=True)
+
+        precheck = read_json(root / "results" / "precheck.json")
+        fe = precheck.get("fe_tool", {})
+        mb = fe.get("mapped_balance", {})
+        ce = fe.get("contact_energy", {})
+        P_wp = float(mb.get("sum_power_workpiece", 0.0) or 0.0)
+        P_fe = float(mb.get("sum_power_fe", 0.0) or 0.0)
+        P_in = P_wp + P_fe
+        P_fric = float(ce.get("P_fric", 0.0) or 0.0)
+        P_cond = float(ce.get("P_cond", 0.0) or 0.0)
+        frac_wp = float(ce.get("frac_workpiece", 0.0) or 0.0)
+        frac_tool = float(ce.get("frac_tool", 0.0) or 0.0)
+        frac_sum = frac_wp + frac_tool
+
+        expected_total = frac_sum * P_fric
+        if abs(expected_total) < 1e-12 and abs(P_in) < 1e-12:
+            rel_err_total = 0.0
+        else:
+            rel_err_total = abs(P_in - expected_total) / max(abs(expected_total), 1e-30)
+
+        expected_tool = P_cond + frac_tool * P_fric
+        expected_wp = -P_cond + frac_wp * P_fric
+        if abs(expected_tool) < 1e-12 and abs(P_fe) < 1e-12:
+            rel_err_tool = 0.0
+        else:
+            rel_err_tool = abs(P_fe - expected_tool) / max(abs(expected_tool), 1e-30)
+        if abs(expected_wp) < 1e-12 and abs(P_wp) < 1e-12:
+            rel_err_wp = 0.0
+        else:
+            rel_err_wp = abs(P_wp - expected_wp) / max(abs(expected_wp), 1e-30)
+
+        results.append(
+            {
+                "fine_size_mm": h,
+                "mesh": read_json(mesh_report).get("mesh", {}),
+                "tool_contact": precheck.get("tool_contact", {}),
+                "fe_tool": fe,
+                "energy_check": {
+                    "P_in": P_in,
+                    "P_fric": P_fric,
+                    "P_cond": P_cond,
+                    "frac_sum": frac_sum,
+                    "rel_err_total": rel_err_total,
+                    "rel_err_tool": rel_err_tool,
+                    "rel_err_wp": rel_err_wp,
+                },
+            }
+        )
+
+    report_json = out_dir / "validation_report.json"
+    report_md = out_dir / "validation_report.md"
+    report_json.write_text(json.dumps({"mesh_levels": results}, indent=2), encoding="utf-8")
+
+    lines = []
+    lines.append("# Tool FE Mesh-Independence Check (Precheck)\n")
+    lines.append("This report is generated by `validate_mesh_independence.py`.\n")
+    lines.append(
+        "| fine (mm) | nodes | tris | min angle (deg) | overlap count | max overlap | iters | max rel F node | max rel P node | max disp | rel err energy |\n"
+    )
+    lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
+    for r in results:
+        mesh = r.get("mesh", {})
+        fe = r.get("fe_tool", {})
+        tc = r.get("tool_contact", {})
+        conv = fe.get("contact_convergence", {})
+        overlap = tc.get("overlap", {})
+        e = r.get("energy_check", {})
+        lines.append(
+            f"| {r['fine_size_mm']:.3f} | {mesh.get('nodes', 0)} | {mesh.get('triangles', 0)} | {fe.get('min_triangle_angle_deg', 0):.3f} | "
+            f"{overlap.get('count', 0)} | {overlap.get('max_depth', 0):.3e} | {conv.get('iters', 0)} | {conv.get('max_rel_force_node', 0):.3e} | "
+            f"{conv.get('max_rel_power_node', 0):.3e} | {fe.get('max_displacement', 0):.3e} | {e.get('rel_err_total', 0):.3e} |\n"
+        )
+
+    write_text(report_md, "".join(lines))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

@@ -53,7 +53,7 @@
 
 #include <math.h>
 #include <assert.h>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "grid.h"
 #include "kernel.h"
@@ -62,29 +62,28 @@
 
 /*
  This implements heat conduction using either of the desired methods:
- 	 1- the particle strength exchange (PSE) method.
- 	 2- the Brookshaw-SPH method.
+	 1- the particle strength exchange (PSE) method.
+	 2- the Brookshaw-SPH method.
 
- 	 > both schemes discretize the heat equation in a Finite-Difference like approach.
- 	 > both schemes are energy conservative. (anti-symmetric form)
- 	 > both schemes are numerically efficient and capable of handling adiabatic boundary condition without dummy particles.
+	 > both schemes discretize the heat equation in a Finite-Difference like approach.
+	 > both schemes are energy conservative. (anti-symmetric form)
+	 > both schemes are numerically efficient and capable of handling adiabatic boundary condition without dummy particles.
 
- 	 For further details, please refer to the following publications:
+	 For further details, please refer to the following publications:
 
- 	 1- "A general deterministic treatment of derivatives in particle methods."
- 	    	By: J. Eldredge et al.
- 	    	Journal of Computational Physics 180.2 (2002): 686-709.
+	 1- "A general deterministic treatment of derivatives in particle methods."
+			By: J. Eldredge et al.
+			Journal of Computational Physics 180.2 (2002): 686-709.
 
- 	 2- "A method of calculating radiative heat diffusion in particle simulations”
- 	 	 	 By: L. Brookshaw
- 	 	     Proceedings of the Astronomical Society of Australia, vol. 6, pp. 207–210, 1985"
+	 2- "A method of calculating radiative heat diffusion in particle simulations”
+			 By: L. Brookshaw
+			 Proceedings of the Astronomical Society of Australia, vol. 6, pp. 207–210, 1985"
 */
-
 
 class body;
 
 class thermal {
-public:
+  public:
 	enum thermal_solver {
 		thermal_pse,
 		thermal_brookshaw,
@@ -94,7 +93,7 @@ public:
 	void conduction(body &body) const;
 	thermal(physical_constants pc);
 
-private:
+  private:
 	double m_alpha = 0.;
 	thermal_solver m_thermal_solver = thermal_pse;
 

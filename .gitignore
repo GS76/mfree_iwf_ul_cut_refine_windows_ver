@@ -1,0 +1,19 @@
+build/
+build*/
+cmake-build*/
+Debug/
+Release/
+out/
+Meshing/out/
+Meshing/gmsh-*/
+.vs/
+.vscode/ipch/
+.vscode/settings.json
+docs/*tree*.txt
+s\ -File\ .scriptsgit_checkpoint.ps1*
+**/*.exe
+.tmp.drivedownload/
+.tmp.driveupload/
+__pycache__/
+results/
+results_*/

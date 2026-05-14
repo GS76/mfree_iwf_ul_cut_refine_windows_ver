@@ -51,22 +51,22 @@
 #include "particle.h"
 
 particle::particle() {
-//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
-//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
+	//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
+	//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 };
 
 particle::particle(unsigned int idx) {
 	this->idx = idx;
 
-//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
-//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
+	//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
+	//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 }
 
 particle::~particle() {};
 
 void particle::reset() {
-	x_t  = 0.;
-	y_t  = 0.;
+	x_t = 0.;
+	y_t = 0.;
 	rho_t = 0.;
 	h_t = 0.;
 	vx_t = 0.;
@@ -101,10 +101,13 @@ particle::particle(const particle &other) {
 	Syy = other.Syy;
 	Szz = other.Szz;
 
-	eps_pl_equiv     = other.eps_pl_equiv;
+	eps_pl_equiv = other.eps_pl_equiv;
 	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
 
 	T = other.T;
+	T_init = other.T_init;
+
+	contact_lambda_n = other.contact_lambda_n;
 
 	last_refine_at = other.last_refine_at;
 	refine_step = other.refine_step;
@@ -140,10 +143,13 @@ particle &particle::operator=(const particle &other) {
 	Syy = other.Syy;
 	Szz = other.Szz;
 
-	eps_pl_equiv     = other.eps_pl_equiv;
+	eps_pl_equiv = other.eps_pl_equiv;
 	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
 
 	T = other.T;
+	T_init = other.T_init;
+
+	contact_lambda_n = other.contact_lambda_n;
 
 	last_refine_at = other.last_refine_at;
 	refine_step = other.refine_step;
@@ -153,7 +159,6 @@ particle &particle::operator=(const particle &other) {
 	fixed = other.fixed;
 
 	return *this;
-
 }
 
 void particle::copy_into(particle &p) const {
@@ -192,6 +197,9 @@ void particle::copy_into(particle &p) const {
 
 	p.fcx = fcx;
 	p.fcy = fcy;
+	p.ftx = ftx;
+	p.fty = fty;
+	p.contact_lambda_n = contact_lambda_n;
 
 	p.fixed = fixed;
 
@@ -202,6 +210,6 @@ void particle::copy_into(particle &p) const {
 
 	p.num_nbh = num_nbh;
 
-	memcpy(p.nbh, nbh, sizeof(unsigned int)*num_nbh);
-	memcpy(p.w,   w,   sizeof(kernel_result)*num_nbh);
+	memcpy(p.nbh, nbh, sizeof(unsigned int) * num_nbh);
+	memcpy(p.w, w, sizeof(kernel_result) * num_nbh);
 }

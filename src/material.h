@@ -54,7 +54,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <type_traits>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "kernel.h"
 #include "particle.h"
@@ -63,8 +63,8 @@
 /*
  This header includes 2 functions:
  ---------------------------------
- 	 1- For "hydrostatic" part of stress: equation of state  --> Eq. (13) in Section 2.2.3 of the paper
- 	 2- For "deviatoric" part of stress: jaumann stress rate --> Eq. (14) in Section 2.2.3 of the paper
+	 1- For "hydrostatic" part of stress: equation of state  --> Eq. (13) in Section 2.2.3 of the paper
+	 2- For "deviatoric" part of stress: jaumann stress rate --> Eq. (14) in Section 2.2.3 of the paper
 */
 
 void material_eos(body &b);

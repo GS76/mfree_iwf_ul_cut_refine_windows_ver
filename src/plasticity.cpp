@@ -51,25 +51,19 @@
 #include "plasticity.h"
 #include "body.h"
 
-void plasticity::plastic_state_by_radial_return(body &b) {
-	if (!b.get_sim_data().get_physical_constants().jc().valid()) return;
-	do_radial_return(b.get_particles(), b.get_num_part(), b.get_sim_data());
+double plasticity::plastic_state_by_radial_return(body &b) {
+	if (!b.get_sim_data().get_physical_constants().jc().valid())
+		return 0.;
+	return do_radial_return(b.get_particles(), b.get_num_part(), b.get_sim_data());
 }
 
-void plasticity::set_tolerance(double tol) {
-	m_tol = tol;
-}
+void plasticity::set_tolerance(double tol) { m_tol = tol; }
 
-void plasticity::set_dissipation_considered(bool consider) {
-	m_consider_dissipation = consider;
-}
+void plasticity::set_dissipation_considered(bool consider) { m_consider_dissipation = consider; }
 
-plasticity::plasticity(johnson_cook_Sima_2010 *plasticity_model) {
-	m_plasticity_model = plasticity_model;
-}
+plasticity::plasticity(johnson_cook_Sima_2010 *plasticity_model) { m_plasticity_model = plasticity_model; }
 
 plasticity::plasticity() {}
-
 
 void plasticity::print_debug(const std::vector<particle> &particles, unsigned int num_part, unsigned int fail_idx) {
 	FILE *fp = fopen("plast_debug.txt", "w+");
@@ -80,7 +74,7 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 	fclose(fp);
 }
 
-void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) {			// 2D
+double plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) { // 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
 	double mu = data.get_physical_constants().G();
@@ -88,14 +82,16 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 	double cp = data.get_physical_constants().tc().cp();
 	double tq = data.get_physical_constants().tc().Taylor_Quinney();
 
+	double step_plastic_dissipation = 0.;
+
 	for (unsigned int i = 0; i < num_part; i++) {
-				// deviatoric stress (trial)
+		// deviatoric stress (trial)
 		double Strialxx = particles[i].Sxx;
 		double Strialyy = particles[i].Syy;
 		double Strialzz = particles[i].Szz;
 		double Strialxy = particles[i].Sxy;
 
-		double norm_Strial = sqrt(Strialxx*Strialxx + Strialyy*Strialyy + Strialzz*Strialzz + 2.*Strialxy*Strialxy);
+		double norm_Strial = sqrt(Strialxx * Strialxx + Strialyy * Strialyy + Strialzz * Strialzz + 2. * Strialxy * Strialxy);
 
 		// cauchy stress (trial)
 		double cxx = particles[i].Sxx - particles[i].p;
@@ -103,12 +99,13 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 		double czz = particles[i].Szz - particles[i].p;
 		double cxy = particles[i].Sxy;
 
-		double eps_pl_equiv_init     = particles[i].eps_pl_equiv;
+		double eps_pl_equiv_init = particles[i].eps_pl_equiv;
 		double eps_pl_equiv_init_dot = particles[i].eps_pl_equiv_dot;
 
-		double svm2 = (cxx*cxx + cyy*cyy + czz*czz) - cxx * cyy - cxx * czz - cyy * czz + 3.0 * cxy * cxy;
-		if (svm2 < 0.0) svm2 = 0.0;
-		double svm  = sqrt(svm2);
+		double svm2 = (cxx * cxx + cyy * cyy + czz * czz) - cxx * cyy - cxx * czz - cyy * czz + 3.0 * cxy * cxy;
+		if (svm2 < 0.0)
+			svm2 = 0.0;
+		double svm = sqrt(svm2);
 
 		double sigmaY = m_plasticity_model->sigma_yield(eps_pl_equiv_init, eps_pl_equiv_init_dot, particles[i].T);
 
@@ -118,34 +115,35 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 			continue;
 		}
 
-		double delta_lambda = 0.;   //delta lambda = \dot{lambda}\delta t, NOT lambda_new - lambda_old !!!1
+		double delta_lambda = 0.; // delta lambda = \dot{lambda}\delta t, NOT lambda_new - lambda_old !!!1
 
 		m_plasticity_model->set_eps_init(eps_pl_equiv_init);
 		m_plasticity_model->set_temp(particles[i].T);
 		m_plasticity_model->set_norm_s_trial(norm_Strial);
 
 		bool failed = false;
-		delta_lambda = solve_zero_secant(m_plasticity_model, fmax(particles[i].eps_pl_equiv_dot*delta_t*sqrt(2./3.), 1e-8), m_tol, failed);
+		delta_lambda =
+			solve_zero_secant(m_plasticity_model, fmax(particles[i].eps_pl_equiv_dot * delta_t * sqrt(2. / 3.), 1e-8), m_tol, failed);
 		if (failed) {
 			print_debug(particles, num_part, i);
 			exit(-1);
 		}
 
-		double eps_pl_new = eps_pl_equiv_init + sqrt(2.0/3.0) * fmax(delta_lambda,0.);
+		double eps_pl_new = eps_pl_equiv_init + sqrt(2.0 / 3.0) * fmax(delta_lambda, 0.);
 		double delta_eps_pl = eps_pl_new - particles[i].eps_pl_equiv;
 
 		particles[i].eps_pl_equiv = eps_pl_new;
-		particles[i].eps_pl_equiv_dot = sqrt(2.0/3.0) *  fmax(delta_lambda,0.) / delta_t;
+		particles[i].eps_pl_equiv_dot = sqrt(2.0 / 3.0) * fmax(delta_lambda, 0.) / delta_t;
 
-		particles[i].eps_plxx = Strialxx/norm_Strial*delta_lambda/delta_t;
-		particles[i].eps_plxy = Strialxy/norm_Strial*delta_lambda/delta_t;
-		particles[i].eps_plyy = Strialyy/norm_Strial*delta_lambda/delta_t;
-		particles[i].eps_plzz = Strialzz/norm_Strial*delta_lambda/delta_t;
+		particles[i].eps_plxx = Strialxx / norm_Strial * delta_lambda / delta_t;
+		particles[i].eps_plxy = Strialxy / norm_Strial * delta_lambda / delta_t;
+		particles[i].eps_plyy = Strialyy / norm_Strial * delta_lambda / delta_t;
+		particles[i].eps_plzz = Strialzz / norm_Strial * delta_lambda / delta_t;
 
-		particles[i].Sxx = Strialxx - Strialxx/norm_Strial*delta_lambda*2.*mu;
-		particles[i].Syy = Strialyy - Strialyy/norm_Strial*delta_lambda*2.*mu;
-		particles[i].Szz = Strialzz - Strialzz/norm_Strial*delta_lambda*2.*mu;
-		particles[i].Sxy = Strialxy - Strialxy/norm_Strial*delta_lambda*2.*mu;
+		particles[i].Sxx = Strialxx - Strialxx / norm_Strial * delta_lambda * 2. * mu;
+		particles[i].Syy = Strialyy - Strialyy / norm_Strial * delta_lambda * 2. * mu;
+		particles[i].Szz = Strialzz - Strialzz / norm_Strial * delta_lambda * 2. * mu;
+		particles[i].Sxy = Strialxy - Strialxy / norm_Strial * delta_lambda * 2. * mu;
 
 		if (m_consider_dissipation) {
 
@@ -155,8 +153,13 @@ void plasticity::do_radial_return(std::vector<particle> &particles, unsigned int
 			*/
 
 			double sigmaY = m_plasticity_model->sigma_yield(particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot, particles[i].T);
-			double delta_T = tq/(cp*particles[i].rho)*delta_eps_pl*sigmaY;
+			double delta_T = tq / (cp * particles[i].rho) * delta_eps_pl * sigmaY;
 			particles[i].T += delta_T;
+
+			// Accumulate dissipation energy: E = delta_T * m * cp
+			if (std::isfinite(delta_T) && std::isfinite(particles[i].m) && particles[i].m > 0.)
+				step_plastic_dissipation += delta_T * particles[i].m * cp;
 		}
 	}
+	return step_plastic_dissipation;
 }

@@ -56,7 +56,7 @@
 
 #include <assert.h>
 #include <vector>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 /*
   This implementation intends to compute the smoothing kernel (W)
@@ -65,16 +65,16 @@
   In summary:
   ==========================
   1- precomp_sph: implementation of Eq. (22) from the paper.
-  	  	  	  	  calculate and assign the kernel values of
-  	  	  	  	  each particle "i" with respect to its neighbors "j" with standard SPH
+				  calculate and assign the kernel values of
+				  each particle "i" with respect to its neighbors "j" with standard SPH
 
 
   2- precomp_cspm: implementation of Eqs. (28)-(29) form the paper.
-  	  	  	  	   calculate and assign the corrected kernel and its 1st derivatives values of
-  	  	  	  	   each particle "i" with respect to its neighbors "j" with standard CSPM
+				   calculate and assign the corrected kernel and its 1st derivatives values of
+				   each particle "i" with respect to its neighbors "j" with standard CSPM
 */
 
-void precomp_sph(std::vector<particle> &particles,  unsigned int n);
+void precomp_sph(std::vector<particle> &particles, unsigned int n);
 void precomp_cspm(std::vector<particle> &particles, unsigned int n);
 
 #endif /* PRECOMPSHAPEFUNCTIONS_H_ */

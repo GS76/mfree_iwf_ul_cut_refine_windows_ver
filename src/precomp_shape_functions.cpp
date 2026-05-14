@@ -52,7 +52,11 @@
 
 void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
@@ -71,7 +75,11 @@ void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
 void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 
-	for (unsigned int i = 0; i < n; i++) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+	for (int ii = 0; ii < static_cast<int>(n); ii++) {
+		const unsigned int i = static_cast<unsigned int>(ii);
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
@@ -84,14 +92,14 @@ void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 			double xj = particles[jdx].x;
 			double yj = particles[jdx].y;
 
-			double volj = particles[jdx].m/particles[jdx].rho;
+			double volj = particles[jdx].m / particles[jdx].rho;
 
 			kernel_result w = cubic_spline(xi, yi, xj, yj, hi);
 
-			B[0][0] += (xj - xi)*w.w_x*volj;
-			B[1][0] += (xj - xi)*w.w_y*volj;
-			B[0][1] += (yj - yi)*w.w_x*volj;
-			B[1][1] += (yj - yi)*w.w_y*volj;
+			B[0][0] += (xj - xi) * w.w_x * volj;
+			B[1][0] += (xj - xi) * w.w_y * volj;
+			B[0][1] += (yj - yi) * w.w_x * volj;
+			B[1][1] += (yj - yi) * w.w_y * volj;
 		}
 
 		glm::dmat2x2 invB = glm::inverse(B);
@@ -105,8 +113,8 @@ void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 			kernel_result w = cubic_spline(xi, yi, xj, yj, hi);
 
 			particles[i].w[j].w = w.w;
-			particles[i].w[j].w_x = (w.w_x*invB[0][0] + w.w_y*invB[1][0]);
-			particles[i].w[j].w_y = (w.w_x*invB[0][1] + w.w_y*invB[1][1]);
+			particles[i].w[j].w_x = (w.w_x * invB[0][0] + w.w_y * invB[1][0]);
+			particles[i].w[j].w_y = (w.w_x * invB[0][1] + w.w_y * invB[1][1]);
 		}
 	}
 }

@@ -9,7 +9,7 @@ This public repository provides the source code to the [publication](https://www
 
 As a preliminary benchmark study, 4 refinement patterns (i.e., triangular, cubic, extended cubic, and hexagonal) with uniform mass distribution were first cross-compared in a density approximation error analysis. In a unit square discretized by 11x11 particles, the density error introduced by particle splitting was demonstrated:
 
-![density](https://raw.githubusercontent.com/mroethli/mfree_iwf-ul-cut-refine/master/img/density.png) 
+![density](https://raw.githubusercontent.com/mroethli/mfree_iwf-ul-cut-refine/master/img/density.png)
 
 Sketch of the cutting geometry at hand:
 
@@ -19,11 +19,11 @@ Our initial investigation revealed that the correct chip morphology in this cutt
 
 ![superimposed](https://raw.githubusercontent.com/mroethli/mfree_iwf-ul-cut-refine/master/img/superimposed.png)
 
-Therefore, the cubic pattern together with a moving refinement frame was chosen as the settings for particle refinement in the metal cutting test. By saving up to ~70% of the computational cost using dynamic refinement, this approach allows for remarkable runtime optimization compared to conventional single-resolution simulations. Color depicts the equivalent plastic strain, limited to 100%. Models from left to right: single low-resolution, dynamic refinement, _a priori_ refined configuration, single high-resolution: 
+Therefore, the cubic pattern together with a moving refinement frame was chosen as the settings for particle refinement in the metal cutting test. By saving up to ~70% of the computational cost using dynamic refinement, this approach allows for remarkable runtime optimization compared to conventional single-resolution simulations. Color depicts the equivalent plastic strain, limited to 100%. Models from left to right: single low-resolution, dynamic refinement, _a priori_ refined configuration, single high-resolution:
 
 ![all_cuts](https://raw.githubusercontent.com/mroethli/mfree_iwf-ul-cut-refine/master/img/all_cuts.png)
 
-An overview of the exemplary results for 1 mm of cut at a cutting speed of 500 m/min is as follows. 
+An overview of the exemplary results for 1 mm of cut at a cutting speed of 500 m/min is as follows.
 
 **Benchmarking Overview**
 
