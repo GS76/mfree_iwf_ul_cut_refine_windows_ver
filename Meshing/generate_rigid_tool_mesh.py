@@ -256,7 +256,7 @@ def _split_env_paths(value: Optional[str]) -> List[str]:
     return [p for p in parts if p]
 
 
-def _ensure_gmsh_importable(script_dir: str, gmsh_lib: Optional[str], gmsh_root: Optional[str]) -> str:
+def _ensure_gmsh_importable(gmsh_lib: Optional[str], gmsh_root: Optional[str]) -> str:
     candidates: List[str] = []
 
     candidates.extend(_split_env_paths(gmsh_lib))
@@ -270,14 +270,12 @@ def _ensure_gmsh_importable(script_dir: str, gmsh_lib: Optional[str], gmsh_root:
     for r in roots:
         candidates.append(os.path.join(r, "lib"))
 
-    candidates.append(os.path.join(script_dir, "gmsh-4.15.2-Windows64-sdk", "lib"))
-    candidates.append(os.path.join(script_dir, "gmsh-4.15.2-Windows64", "lib"))
 
     sdk_lib = next((p for p in candidates if os.path.isdir(p) and os.path.isfile(os.path.join(p, "gmsh.py"))), None)
     if not sdk_lib:
         hint = (
-            "Please ensure GMSH_SDK_DIR or MFREE_GMSH_ROOT is set, or install the Gmsh SDK in "
-            "Meshing/gmsh-4.15.2-Windows64-sdk/, or pass --gmsh-root/--gmsh-lib."
+            "Please set GMSH_SDK_DIR or MFREE_GMSH_ROOT (or GMSH_PYTHON_LIB/MFREE_GMSH_LIB), "
+            "or pass --gmsh-root/--gmsh-lib to a system-installed Gmsh SDK."
         )
         raise ImportError(f"Gmsh Python module not found. Tried: {candidates}. {hint}")
     if sdk_lib not in sys.path:
@@ -299,8 +297,7 @@ def _gmsh_build_and_mesh(
     gmsh_lib: Optional[str],
     gmsh_root: Optional[str],
 ) -> Dict:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    _ensure_gmsh_importable(script_dir, gmsh_lib, gmsh_root)
+    _ensure_gmsh_importable(gmsh_lib, gmsh_root)
 
     import gmsh  # type: ignore
 
