@@ -18,7 +18,7 @@ $env:MFREE_MAX_STEPS           = "$MaxSteps"
 $env:MFREE_NUM_PRINT           = "$NumPrint"
 $freq = 1
 if ($NumPrint -gt 0)
-{ $freq = [Math]::Max(1, [int]($MaxSteps / $NumPrint)) 
+{ $freq = [Math]::Max(1, [int]($MaxSteps / $NumPrint))
 }
 $env:MFREE_OUTPUT_FREQ         = "$freq"
 $env:MFREE_LOG_THERMAL         = "1"

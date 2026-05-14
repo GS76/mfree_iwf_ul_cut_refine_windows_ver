@@ -49,7 +49,7 @@ $env:MFREE_MAX_STEPS = "$MaxSteps"
 $env:MFREE_NUM_PRINT = "$OutputSteps"
 $freq = 1
 if ($OutputSteps -gt 0)
-{ $freq = [Math]::Max(1, [int]($MaxSteps / $OutputSteps)) 
+{ $freq = [Math]::Max(1, [int]($MaxSteps / $OutputSteps))
 }
 $env:MFREE_OUTPUT_FREQ = "$freq"
 
@@ -62,26 +62,26 @@ function Select-FrameIndices([string]$ModelDir, [int]$Count)
 	foreach ($f in $files)
 	{
 		if ($f.BaseName -match '^out_(\d+)$')
-		{ $idx += [int]$Matches[1] 
+		{ $idx += [int]$Matches[1]
   }
 	}
 	$idx = $idx | Sort-Object -Unique
 	if ($idx.Count -eq 0)
-	{ return @() 
+	{ return @()
  }
 	if ($Count -le 0)
-	{ return $idx 
+	{ return $idx
  }
 	if ($idx.Count -le $Count)
-	{ return $idx 
+	{ return $idx
  }
 	$out = @()
 	for ($i = 0; $i -lt $Count; $i++)
 	{
 		$t = if ($Count -eq 1)
-		{ 0.0 
+		{ 0.0
   } else
-		{ $i / ($Count - 1.0) 
+		{ $i / ($Count - 1.0)
   }
 		$j = [int][Math]::Round($t * ($idx.Count - 1))
 		$out += $idx[$j]
@@ -125,7 +125,7 @@ if ($GeneratePNGs)
 		$frames = Select-FrameIndices -ModelDir $modelDir -Count $RenderFrames
 		$steps = ($frames | ForEach-Object { "$_" }) -join ","
 		if (-not $steps)
-		{ $steps = "0" 
+		{ $steps = "0"
   }
 		& $pvpython .\scripts\paraview_batch_advancement.py `
 			--wp-vtk-pattern (Join-Path $modelDir "out_%06d.vtk") `
@@ -144,83 +144,83 @@ $thermalPath    = Join-Path $modelDir "cutting_thermal.csv"
 
 $bcReport = $null
 if (Test-Path $bcReportPath)
-{ $bcReport   = Get-Content -Raw $bcReportPath   | ConvertFrom-Json 
+{ $bcReport   = Get-Content -Raw $bcReportPath   | ConvertFrom-Json
 }
 $valSummary = $null
 if (Test-Path $valSummaryPath)
-{ $valSummary = Get-Content -Raw $valSummaryPath | ConvertFrom-Json 
+{ $valSummary = Get-Content -Raw $valSummaryPath | ConvertFrom-Json
 }
 $lastMetrics = $null
 if (Test-Path $metricsPath)
-{ $lastMetrics = (Import-Csv $metricsPath | Select-Object -Last 1) 
+{ $lastMetrics = (Import-Csv $metricsPath | Select-Object -Last 1)
 }
 $lastThermal = $null
 if (Test-Path $thermalPath)
-{ $lastThermal = (Import-Csv $thermalPath | Select-Object -Last 1) 
+{ $lastThermal = (Import-Csv $thermalPath | Select-Object -Last 1)
 }
 
 $modelSummaries += [pscustomobject]@{
 	model              = 3
 	results_dir        = $modelDir
 	bc_top_nodes       = if ($bcReport)
-	{ $bcReport.top_nodes 
+	{ $bcReport.top_nodes
  } else
-	{ $null 
+	{ $null
  }
 	bc_rear_nodes      = if ($bcReport)
-	{ $bcReport.rear_nodes 
+	{ $bcReport.rear_nodes
  } else
-	{ $null 
+	{ $null
  }
 	bc_temp_err_top_K  = if ($bcReport)
-	{ $bcReport.max_abs_temp_err_K.top 
+	{ $bcReport.max_abs_temp_err_K.top
  } else
-	{ $null 
+	{ $null
  }
 	bc_temp_err_rear_K = if ($bcReport)
-	{ $bcReport.max_abs_temp_err_K.rear 
+	{ $bcReport.max_abs_temp_err_K.rear
  } else
-	{ $null 
+	{ $null
  }
 	wp_umax_m          = if ($lastMetrics)
-	{ [double]$lastMetrics.wp_umax 
+	{ [double]$lastMetrics.wp_umax
  } else
-	{ $null 
+	{ $null
  }
 	wp_svm_max         = if ($lastMetrics)
-	{ [double]$lastMetrics.wp_svm_max 
+	{ [double]$lastMetrics.wp_svm_max
  } else
-	{ $null 
+	{ $null
  }
 	wp_epspl_max       = if ($lastMetrics)
-	{ [double]$lastMetrics.wp_epspl_max 
+	{ [double]$lastMetrics.wp_epspl_max
  } else
-	{ $null 
+	{ $null
  }
 	wp_contact_pmax    = if ($lastMetrics)
-	{ [double]$lastMetrics.wp_contact_pmax 
+	{ [double]$lastMetrics.wp_contact_pmax
  } else
-	{ $null 
+	{ $null
  }
 	P_cond_W           = if ($lastThermal)
-	{ [double]$lastThermal.P_cond_W 
+	{ [double]$lastThermal.P_cond_W
  } else
-	{ $null 
+	{ $null
  }
 	P_fric_W           = if ($lastThermal)
-	{ [double]$lastThermal.P_fric_W 
+	{ [double]$lastThermal.P_fric_W
  } else
-	{ $null 
+	{ $null
  }
 	tool_vel_x         = if ($lastThermal)
-	{ [double]$lastThermal.tool_vel_x 
+	{ [double]$lastThermal.tool_vel_x
  } else
-	{ $null 
+	{ $null
  }
 	max_disp_validation = if ($valSummary -and $valSummary.workpiece)
-	{ $valSummary.workpiece.max_displacement 
+	{ $valSummary.workpiece.max_displacement
  } else
-	{ $null 
+	{ $null
  }
 }
 
@@ -232,14 +232,14 @@ if ($GenerateReport)
 	function Fmt([object]$v)
 	{
 		if ($null -eq $v)
-		{ return "NA" 
+		{ return "NA"
   }
 		return ("{0:E3}" -f ([double]$v))
 	}
 	function FmtInt([object]$v)
 	{
 		if ($null -eq $v)
-		{ return "NA" 
+		{ return "NA"
   }
 		return ("{0}" -f ([int]$v))
 	}
@@ -327,9 +327,9 @@ if ($GenerateReport)
 			} catch
 			{
 				try
-				{ Pop-Location 
+				{ Pop-Location
     } catch
-				{ 
+				{
     }
 				$pdfStatus = "failed"
 				$pdfError = $_.Exception.Message
@@ -349,7 +349,7 @@ if ($GenerateReport)
 	$note += "- Markdown: report.md"
 	$note += "- PDF: $pdfStatus"
 	if ($pdfError)
-	{ $note += "- PDF note: $pdfError" 
+	{ $note += "- PDF note: $pdfError"
  }
 	Add-Content -Path $mdPath -Value $note -Encoding UTF8
 }
