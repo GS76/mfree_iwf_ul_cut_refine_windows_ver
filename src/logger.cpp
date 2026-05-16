@@ -144,7 +144,8 @@ void logger::set_folder(const char *folder) {
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
 					 "step_suppression_ratio,step_tool_source_residual,cum_suppression_ratio,cum_tool_source_residual,"
 					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
-					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
+					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct,"
+					 "step_contact_E_tool_frac,cum_contact_E_tool_frac\n");
 		std::fflush(m_fp_energy);
 	}
 }
@@ -504,7 +505,9 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 	m_cum_tool_E_conduction += ea.step_tool_E_conduction;
 	m_cum_tool_E_convection += ea.step_tool_E_convection;
 	m_cum_tool_E_dirichlet += ea.step_tool_E_dirichlet;
-	m_cum_plastic_dissipation += b.get_step_plastic_dissipation();
+	// m_cum_plastic_dissipation is accumulated per solver step via
+	// accumulate_plastic_dissipation() so it is correct regardless of
+	// whether log() / log_time_step_data() are called every step or not.
 
 	// Limiter suppression ratio: fraction of raw interface exchange discarded by
 	// the 1-degC/step safety limiter.  Equals (1 - scale) when contact is active,
@@ -553,6 +556,28 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 	const double closure_residual_pct =
 		(total_input > 1e-30) ? (closure_residual / total_input * 100.) : 0.;
 
+	// Tool fraction of total interface exchange.
+	//
+	// Denominator = |E_cond_scaled| + E_fric_scaled  (total energy exchanged
+	// at the interface: conduction magnitude + friction).
+	//
+	// The previously used denominator (E_tool + E_workpiece) algebraically
+	// equals E_fric_scaled only (conduction cancels in the sum), so the
+	// fraction exceeds 1 whenever P_cond >> P_fric — which is exactly the
+	// physically important regime at high contact conductance.
+	//
+	// With the corrected denominator the fraction is bounded in [0, 1]:
+	//   frac -> frac_tool          when P_cond -> 0 (friction-dominated)
+	//   frac -> 1                  when P_cond >> P_fric (conduction-dominated)
+	const double step_iface_denom =
+		std::abs(ea.step_contact_E_cond_scaled) + ea.step_contact_E_fric_scaled;
+	const double step_contact_E_tool_frac =
+		(step_iface_denom > 1e-30) ? ea.step_contact_E_tool / step_iface_denom : 0.;
+	const double cum_iface_denom =
+		std::abs(m_cum_contact_E_cond_scaled) + m_cum_contact_E_fric_scaled;
+	const double cum_contact_E_tool_frac =
+		(cum_iface_denom > 1e-30) ? m_cum_contact_E_tool / cum_iface_denom : 0.;
+
 	simulation_time *time = &simulation_time::getInstance();
 	double cur_time = time->get_time();
 
@@ -570,7 +595,8 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 				 "%.15e,%.15e,%.15e,%.15e,"
 				 "%.15e,%.15e,%.15e,%.15e,"
 				 "%.15e,%.15e,%.15e,"
-				 "%.15e,%.15e,%.15e,%.15e\n",
+				 "%.15e,%.15e,%.15e,%.15e,"
+				 "%.15e,%.15e\n",
 				 cur_time, step, ea.step_dt, wp_internal_E, tool_internal_E,
 				 ea.step_contact_event_count, ea.step_contact_area_eff, ea.step_contact_hA,
 				 ea.step_contact_P_cond_pos_raw, ea.step_contact_P_cond_neg_raw, ea.step_contact_P_cond_net_raw,
@@ -584,8 +610,16 @@ void logger::log_energy_block(const body &b, unsigned int step, const fe_tool *f
 				 m_cum_tool_E_sources, m_cum_tool_E_conduction, m_cum_tool_E_convection, m_cum_tool_E_dirichlet,
 				 step_suppression_ratio, step_tool_source_residual, cum_suppression_ratio, cum_tool_source_residual,
 				 m_T_ref, b.get_step_plastic_dissipation(), m_cum_plastic_dissipation,
-				 delta_wp, delta_tool, closure_residual, closure_residual_pct);
+				 delta_wp, delta_tool, closure_residual, closure_residual_pct,
+				 step_contact_E_tool_frac, cum_contact_E_tool_frac);
 	std::fflush(m_fp_energy);
+}
+
+void logger::accumulate_plastic_dissipation(const body &b) {
+	// Accumulate Taylor-Quinney plastic dissipation every solver step so the
+	// cumulative total in the energy CSV is correct regardless of whether
+	// log_time_step_data() is called every step or only at output_freq intervals.
+	m_cum_plastic_dissipation += b.get_step_plastic_dissipation();
 }
 
 logger::logger(const char *case_name, const char *foldername) {
@@ -630,7 +664,8 @@ logger::logger(const char *case_name, const char *foldername) {
 					 "cum_tool_E_sources,cum_tool_E_conduction,cum_tool_E_convection,cum_tool_E_dirichlet,"
 					 "step_suppression_ratio,step_tool_source_residual,cum_suppression_ratio,cum_tool_source_residual,"
 					 "T_ref,step_plastic_dissipation,cum_plastic_dissipation,"
-					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct\n");
+					 "delta_wp_internal_E,delta_tool_internal_E,closure_residual,closure_residual_pct,"
+					 "step_contact_E_tool_frac,cum_contact_E_tool_frac\n");
 		std::fflush(m_fp_energy);
 	}
 }

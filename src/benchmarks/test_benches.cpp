@@ -127,7 +127,7 @@ body *test_bench_setup_rings(unsigned int nbox) {
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
@@ -202,7 +202,7 @@ body *test_bench_setup_ring_contact(unsigned int nbox) {
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
@@ -282,7 +282,7 @@ body *test_bench_setup_disk_impact(unsigned int nbox) {
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
@@ -363,7 +363,7 @@ body *test_bench_setup_thermal(unsigned int nbox) {
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);

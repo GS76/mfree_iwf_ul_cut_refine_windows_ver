@@ -603,7 +603,7 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	fe_tool::convection_bc air;
 	air.h = 20.0;
-	air.T_inf = 298.15;
+	air.T_inf = 298.0;
 
 	fe_tool::convection_bc water;
 	water.h = 5000.0;
@@ -617,6 +617,34 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 
 	enforce_fe_tool_corner_clearance(*ft, wp_corner, clearance_target_m, 5);
 
+	// Always apply thermal Dirichlet BCs on tool top and rear boundaries.
+	// These surfaces represent far-field bulk tool material held at the
+	// reference temperature (298 K).  Applied unconditionally so the tool
+	// never acts as a thermal sink/source at its edges.
+	{
+		int top_tag = 110;
+		int rear_tag = 114;
+		{
+			int v = 0;
+			if (try_read_env_int("MFREE_FE_BC_TOP_TAG", v))
+				top_tag = v;
+			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v))
+				rear_tag = v;
+		}
+		bool top_found = false;
+		bool rear_found = false;
+		for (const auto &e : ft->boundary_edges()) {
+			if (e.physical_tag == top_tag)
+				top_found = true;
+			if (e.physical_tag == rear_tag)
+				rear_found = true;
+		}
+		if (top_found)
+			ft->set_dirichlet_on_physical(top_tag, T0);
+		if (rear_found)
+			ft->set_dirichlet_on_physical(rear_tag, T0);
+	}
+
 	if (bc_validate) {
 		int top_tag = 110;
 		int rear_tag = 114;
@@ -627,9 +655,6 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 			if (try_read_env_int("MFREE_FE_BC_REAR_TAG", v))
 				rear_tag = v;
 		}
-		double Tamb_C = 25.0;
-		try_read_env_double("MFREE_FE_BC_AMBIENT_C", Tamb_C);
-		double Tamb_K = Tamb_C + 273.15;
 
 		ft->clear_mechanics_fixed();
 		ft->clear_mechanics_fixed_nodes();
@@ -683,9 +708,9 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 		}
 
 		if (top_found)
-			ft->set_dirichlet_on_physical(top_tag, Tamb_K);
+			ft->set_dirichlet_on_physical(top_tag, T0);
 		if (rear_found)
-			ft->set_dirichlet_on_physical(rear_tag, Tamb_K);
+			ft->set_dirichlet_on_physical(rear_tag, T0);
 	}
 
 	return ft;
@@ -771,7 +796,7 @@ body *cutting_ref_mr(unsigned int ny) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
 											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
@@ -825,7 +850,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
@@ -865,9 +890,10 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = (hi_x - lo_x) / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -878,7 +904,15 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -935,7 +969,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data
@@ -1055,7 +1089,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	 * ===========================================================
 	 */
 
-	// MODEL 3 from the paper
+	// MODEL 3 from the paper (a-priori refinement)
 	// ----------------------------------------------------------
 	// choose your desired material model as the following:
 	// ----------------------------------------------------------
@@ -1065,7 +1099,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
@@ -1107,9 +1141,10 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -1134,7 +1169,15 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1236,14 +1279,14 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	double beta = 1.;
 	double eta = 0.1;
 
-	double art_stress_eps = 0.3;
+	double art_stress_eps = 0.2;
 	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data
@@ -1371,7 +1414,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	bool thermal_conduction = true;
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
-	double T0 = 300.0;
+	double T0 = pc.jc().Tref();
 	double wp_T0 = T0;
 	double tool_T0 = T0;
 	try_read_env_double("MFREE_WP_T0", wp_T0);
@@ -1413,9 +1456,10 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	double dx = dy;
 	unsigned int nx = lx / dx + 1;
 	double v_m_min = 500.;
-	try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min);
-	if (!std::isfinite(v_m_min) || v_m_min <= 0.)
+	if (!try_read_env_double("MFREE_CUTTING_SPEED_M_MIN", v_m_min) || !std::isfinite(v_m_min) || v_m_min <= 0.) {
 		v_m_min = 500.;
+		std::fprintf(stderr, "WARNING: MFREE_CUTTING_SPEED_M_MIN not set or invalid; using default %.0f m/min\n", v_m_min);
+	}
 	double vc = v_m_min / 60.; // m/min -> m/s
 	double nudge = -dx;
 	double ratio = read_coupled_motion_ratio();
@@ -1440,7 +1484,15 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	// time settings
 	double lc = 1e-3; // 1mm of cut
 	double t_final = lc / vc;
-	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
+	// Velocity-adaptive empirical dt cap: derived from the acoustic CFL at the
+	// user-provided cutting speed so dt automatically tightens for higher speeds
+	// and coarser resolutions.  Safety factor 0.20 (below workpiece_mechanical_safety
+	// 0.25) keeps this cap as the binding constraint when both converge.
+	// Override at runtime with MFREE_TIMESTEP_EMPIRICAL_CAP.
+	double dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
+	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
+		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1544,14 +1596,14 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	double beta = 1.;
 	double eta = 0.1;
 
-	double art_stress_eps = 0.3;
+	double art_stress_eps = 0.2;
 	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
 							xsph_eps);
 
 	// set simulation data
@@ -1571,7 +1623,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 
 	// adaptivity settings
 
-	// default settings +-+-++-+-+-+-+-+-+-+-+-+-+-
+	// default settings +-+-++-+-+-+-+-+-+-+-+-+-+
 	double alpha_dx = 0.50;
 	double beta_h = 0.50;
 	double v_cr = 0.40;
@@ -1583,6 +1635,50 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	glm::dvec2 xy_max = {0.75, 0.75};
 	double frame_width = 0.000350;
 	double frame_height = 0.000060;
+
+	// Model 3 refinement-frame controls.  The historical moving frame was shallow
+	// (60 µm), which can place the coarse/fine boundary inside the active shear
+	// and chip-formation zone.  These environment controls allow moving that
+	// boundary below/ahead of the high-gradient region without recompilation.
+	// Defaults preserve the historical geometry unless the run script opts in.
+	double refine_depth_factor = 0.;
+	if (try_read_env_double("MFREE_REFINE_DEPTH_FACTOR", refine_depth_factor) && std::isfinite(refine_depth_factor) && refine_depth_factor > 0.) {
+		refine_depth_factor = std::max(1.5, std::min(3.0, refine_depth_factor));
+		// Base depth on the actual cut/feed depth (feed_per_rev_mm), not target_feed
+		// (which includes the base-target offset and would reach full workpiece depth).
+		frame_height = refine_depth_factor * (feed_per_rev_mm * 1e-3);
+	}
+	// Cap: never allow the moving frame to reach the fixed bottom boundary.
+	// Leave at least 2 coarse layers (2*dxl) below the lowest frame position.
+	// Lowest frame y = tool_tip_y - frame_height >= lo_y + 2*dxl.
+	// A conservative upper bound on tool_tip_y is hi_y, so:
+	const double max_frame_height = (hi_y - lo_y) - 2.0 * dxl;
+	if (frame_height > max_frame_height) {
+		std::printf("[adaptivity] frame_height capped %.4f mm -> %.4f mm (2 coarse layers from bottom)\n",
+		            frame_height * 1e3, max_frame_height * 1e3);
+		frame_height = max_frame_height;
+	}
+	double frame_width_mm = frame_width * 1e3;
+	if (try_read_env_double("MFREE_REFINE_FRAME_WIDTH_MM", frame_width_mm) && std::isfinite(frame_width_mm) && frame_width_mm > 0.) {
+		frame_width = frame_width_mm * 1e-3;
+	}
+	double frame_height_mm = frame_height * 1e3;
+	if (try_read_env_double("MFREE_REFINE_FRAME_HEIGHT_MM", frame_height_mm) && std::isfinite(frame_height_mm) && frame_height_mm > 0.) {
+		frame_height = frame_height_mm * 1e-3;
+	}
+	int refine_halo_layers = 0;
+	if (try_read_env_int("MFREE_REFINE_HALO_LAYERS", refine_halo_layers)) {
+		refine_halo_layers = std::max(0, std::min(10, refine_halo_layers));
+	}
+	frame_width += static_cast<double>(refine_halo_layers) * dxl;
+	frame_height += static_cast<double>(refine_halo_layers) * dxl;
+	if (dxl > 0.) {
+		frame_width = std::ceil((frame_width - 1e-12) / dxl) * dxl;
+		frame_height = std::ceil((frame_height - 1e-12) / dxl) * dxl;
+	}
+	std::printf("refinement frame: width=%.6e m height=%.6e m depth_factor=%.3f halo_layers=%d coarse_dx=%.6e m\n",
+	            frame_width, frame_height, refine_depth_factor, refine_halo_layers, dxl);
+
 	unsigned int n_nbh = 10;
 	double l_eff = lc + 0.1 * lx;
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-

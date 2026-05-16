@@ -90,7 +90,8 @@ void derive_velocity(body &b) {
 }
 
 void derive_stress_monaghan(body &b) {
-	const double wdeltap  = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
+	const double wdeltap_global = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
+	const double hdx = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_hdx();
 	const unsigned int corr_exp = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_corr_exp();
 
 	std::vector<particle> &particles = b.get_particles();
@@ -111,6 +112,11 @@ void derive_stress_monaghan(body &b) {
 
 		double rhoi = particles[i].rho;
 		double rhoi21 = 1./(rhoi*rhoi);
+
+		// Per-particle reference kernel value: W(h_i / hdx, h_i). This keeps the Monaghan artificial-stress
+		// correction normalized at each particle's own equilibrium spacing across mixed-resolution interfaces.
+		const double wdeltap_i = (hdx > 0.) ? cubic_spline(0., 0., particles[i].h / hdx, 0., particles[i].h).w
+										  : wdeltap_global;
 
 		double Sxx_x = 0.;
 		double Sxy_y = 0.;
@@ -136,8 +142,15 @@ void derive_stress_monaghan(body &b) {
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			if (wdeltap > 0 && particles[i].idx != particles[jdx].idx) {
-				double fab = w.w/wdeltap;
+			// Apply artificial stress only to same-resolution pairs.
+			// Cross-resolution pairs (coarse<->fine) are skipped: with per-particle
+			// wdeltap normalization, a coarse particle observing fine neighbours at
+			// half its own equilibrium spacing produces fab^4 ~ 5.7 (>1), giving an
+			// over-corrected repulsion that drives runaway oscillations.  Same-level
+			// pairs retain full tensile-instability protection.
+			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx
+					&& particles[i].refine_step == particles[jdx].refine_step) {
+				double fab = w.w/wdeltap_i;
 //				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
 				for (unsigned int powi = 0; powi < corr_exp; powi++) {

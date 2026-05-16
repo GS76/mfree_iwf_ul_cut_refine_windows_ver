@@ -146,13 +146,16 @@ class constants_monaghan {
 	double m_mghn_wdeltap = 0.;
 	unsigned int m_mghn_corr_exp = 0;
 	double m_mghn_eps = 0.;
+	double m_hdx = 0.; // h/dx ratio for per-particle wdeltap; 0 = use global wdeltap (legacy)
 
 public:
 	double mghn_wdeltap() const;
 	unsigned int mghn_corr_exp() const;
 	double mghn_eps() const;
+	double mghn_hdx() const;
 
 	constants_monaghan(double wdeltap, unsigned int corr_exp, double eps);
+	constants_monaghan(double wdeltap, unsigned int corr_exp, double eps, double hdx);
 	constants_monaghan();
 };
 

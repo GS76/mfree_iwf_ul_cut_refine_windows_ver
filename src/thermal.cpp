@@ -56,6 +56,17 @@ void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
 
+	// Explicit stability for the heat equation requires V_j = m_j/rho_j to stay
+	// bounded.  If the density floor (MFREE_DENSITY_FLOOR_FRAC) clamps rho_j to
+	// 0.001*rho0, V_j inflates 1000x, raising the PSE eigenvalue above the
+	// explicit stability limit and driving temperatures to near-zero over many
+	// steps.  Cap V_j at the volume corresponding to 5% of rho0 (20x natural),
+	// which keeps the stability ratio well below 1 for any realistic dt.
+	// This only affects severely-expanded / failed particles; normal particles
+	// (rho close to rho0) are completely unaffected.
+	const double rho0          = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_pse_floor = 0.05 * rho0;
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -65,25 +76,34 @@ void thermal::heat_conduction_pse(body &b) const {
 		const double xi = particles[i].x;
 		const double yi = particles[i].y;
 		const double hi = particles[i].h;
-		const double hi2 = hi*hi;
 
 		double T_lapl = 0.;
 
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 
-			const double Tj = particles[jdx].T;
-			const double xj = particles[jdx].x;
-			const double yj = particles[jdx].y;
-			const double mj = particles[jdx].m;
-			const double rhoj = particles[jdx].rho;
+			const double Tj   = particles[jdx].T;
+			const double xj   = particles[jdx].x;
+			const double yj   = particles[jdx].y;
+			const double mj   = particles[jdx].m;
+			// Use rho_pse_floor so that a density-floor particle (rho≈0.001*rho0)
+			// cannot inflate V_j=m/rho beyond 20×V_natural and break stability.
+			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
+			const double hj   = particles[jdx].h;
 
 			const double xij = xi-xj;
 			const double yij = yi-yj;
 
+			// Symmetric smoothing length: averages hi and hj so that the PSE
+			// kernel is the same when evaluated from either side of a
+			// refinement interface (hi != hj).  For same-resolution pairs
+			// (hi == hj) h_sym == hi and the formula is unchanged.
+			const double h_sym  = 0.5*(hi + hj);
+			const double h_sym2 = h_sym*h_sym;
+
 			const double r = sqrt(xij*xij + yij*yij);
-			const double w_pse = 4.0/(hi2*M_PI)*exp(-r*r/(hi2));
-			T_lapl += (Tj-Ti)*w_pse*mj/rhoj/(hi2);
+			const double w_pse = 4.0/(h_sym2*M_PI)*exp(-r*r/h_sym2);
+			T_lapl += (Tj-Ti)*w_pse*mj/rhoj/h_sym2;
 		}
 
 		particles[i].T_t += m_alpha*T_lapl;
