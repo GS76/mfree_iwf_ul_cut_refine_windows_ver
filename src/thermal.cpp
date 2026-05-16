@@ -72,6 +72,8 @@ void thermal::heat_conduction_pse(body &b) const {
 #endif
 	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
+		if (particles[i].rho < 0.5 * rho0)
+			continue;
 		const double Ti = particles[i].T;
 		const double xi = particles[i].x;
 		const double yi = particles[i].y;
@@ -114,11 +116,16 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
 
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_pse_floor = 0.05 * rho0;
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
 	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
+		if (particles[i].rho < 0.5 * rho0)
+			continue;
 		double Ti = particles[i].T;
 		double xi = particles[i].x;
 		double yi = particles[i].y;
@@ -137,7 +144,7 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			double xj = particles[jdx].x;
 			double yj = particles[jdx].y;
 			double mj = particles[jdx].m;
-			double rhoj = particles[jdx].rho;
+			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
 
 			double xij = xi - xj;
 			double yij = yi - yj;

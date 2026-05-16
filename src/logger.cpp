@@ -314,7 +314,7 @@ void logger::log(const body &b, unsigned int step) {
 
 	if (m_emit_vtk) {
 		if (log_vtk_workpiece)
-			vtk_writer_write(b.get_particles(), step, m_folder);
+			vtk_writer_write(b.get_particles(), b.get_num_part(), step, m_folder);
 		if (b.get_fe_tool()) {
 			if (log_vtk_tool)
 				vtk_writer_write(b.get_fe_tool(), step, m_folder, "tool");

@@ -61,6 +61,10 @@ void grid::assign_hashes(std::vector<particle> &particles, unsigned int n) const
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
+		if (!(particles[i].h > 0.0)) {
+			particles[i].hash = 0;
+			continue;
+		}
 		const unsigned int ix = (unsigned int)((particles[i].x - m_bbmin_x) / m_dx);
 		const unsigned int iy = (unsigned int)((particles[i].y - m_bbmin_y) / m_dx);
 		particles[i].hash = ix * m_ny + iy;
@@ -137,6 +141,8 @@ void grid::update_geometry(const std::vector<particle> &particles, unsigned int 
 	double maxy = -DBL_MAX;
 
 	for (unsigned int i = 0; i < n; i++) {
+		if (!(particles[i].h > 0.0))
+			continue;
 		h_max = fmax(particles[i].h, h_max);
 
 		minx = fmin(particles[i].x, minx);
@@ -205,6 +211,10 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 			unsigned int nbh_iter = 0;
 
 			const double hi = particles[i].h;
+			if (!(hi > 0.0)) {
+				particles[i].num_nbh = 0;
+				continue;
+			}
 			const double xi = particles[i].x;
 			const double yi = particles[i].y;
 

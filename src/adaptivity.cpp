@@ -100,6 +100,7 @@ void copy_dad_to_son(const particle &dad, particle &son) {
 	son.rho = dad.rho;
 	son.T = dad.T;
 	son.T_init = dad.T_init;
+	son.T_t = dad.T_t;
 	son.vx = dad.vx;
 	son.vy = dad.vy;
 	son.p = dad.p;

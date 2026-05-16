@@ -55,14 +55,16 @@
 #include <cmath>
 #include <cstdio>
 
-void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_active_particles, unsigned int step, const char *folder) {
 	char buf[1024];
 	std::snprintf(buf, sizeof(buf), "%s/out_%06d.vtk", folder, step);
 	FILE *fp = fopen(buf, "w+");
 	if (!fp)
 		return;
 
-	unsigned int np = particles.size();
+	unsigned int np = num_active_particles;
+	if (np > particles.size())
+		np = static_cast<unsigned int>(particles.size());
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
 	fprintf(fp, "mfree iwf\n");
@@ -221,6 +223,13 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%e\n", particles[i].T_init);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS T_t float 1\n"); // Temperature rate dT/dt
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%f\n", particles[i].T_t);
 	}
 	fprintf(fp, "\n");
 

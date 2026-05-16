@@ -7,6 +7,7 @@ out/
 Meshing/out/
 Meshing/gmsh-*/
 .vs/
+.idea/
 .vscode/ipch/
 .vscode/settings.json
 docs/*tree*.txt

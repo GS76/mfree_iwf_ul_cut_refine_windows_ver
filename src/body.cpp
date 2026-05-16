@@ -518,11 +518,9 @@ std::vector<particle> &body::get_particles() { return m_particles; }
 const std::vector<particle> &body::get_particles() const { return m_particles; }
 
 unsigned int body::get_num_part() const { return m_particles.size(); }
-
+body::body(std::vector<particle> &&particles, simulation_data data) : m_simulation_data(data), m_particles(std::move(particles)) {}
 body::body(particle *particles, unsigned int n, simulation_data data) : m_simulation_data(data) {
 
 	m_particles.resize(n);
 	std::copy(particles, particles + n, m_particles.begin());
 }
-
-body::body() {}

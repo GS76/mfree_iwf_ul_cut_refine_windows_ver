@@ -1499,7 +1499,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles = new particle[nxh * nyh];
+	std::vector<particle> particles;
+	particles.reserve(nxh * nyh);
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -1518,25 +1519,13 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 			if ((pyh + lo_y) < (py_split - 1.9 * dxh) || pxh > initial_refined_x_max)
 				continue;
 
-			particles[part_iter] = particle(part_iter);
-			particles[part_iter].x = pxh + lo_x;
-			particles[part_iter].y = pyh + lo_y;
-			particles[part_iter].X = pxh + lo_x;
-			particles[part_iter].Y = pyh + lo_y;
-
-			particles[part_iter].refine_step = 1;
-
-			/*
-			 * high res
-			 *
-			   +---------------+
-			   + HR |          +
-			   +-----    LR    +
-			   +               +
-			   +---------------+
-
-			 */
-
+			particles.emplace_back(part_iter);
+			particle &p = particles.back();
+			p.x = pxh + lo_x;
+			p.y = pyh + lo_y;
+			p.X = pxh + lo_x;
+			p.Y = pyh + lo_y;
+			p.refine_step = 1;
 			part_iter++;
 		}
 	}
@@ -1550,25 +1539,19 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 			if ((pyl + lo_y) >= (py_split - 1.9 * dxh) && pxl <= initial_refined_x_max)
 				continue;
 
-			particles[part_iter] = particle(part_iter);
-			particles[part_iter].x = pxl + lo_x;
-			particles[part_iter].y = pyl + lo_y;
-			particles[part_iter].X = pxl + lo_x;
-			particles[part_iter].Y = pyl + lo_y;
-
-			particles[part_iter].refine_step = 0;
-
+			particles.emplace_back(part_iter);
+			particle &p = particles.back();
+			p.x = pxl + lo_x;
+			p.y = pyl + lo_y;
+			p.X = pxl + lo_x;
+			p.Y = pyl + lo_y;
+			p.refine_step = 0;
 			part_iter++;
 		}
 	}
 
 	// total #particles
-	unsigned int n = part_iter;
-
-	// slight modification for reserved CHILD particles!
-	for (unsigned int i = n; i < nxh * nyh; i++) {
-		particles[part_iter] = particle(part_iter);
-	}
+	unsigned int n = particles.size();
 
 	printf("n_single_resolution=%d   n_current=%d  \n", nxh * nyh, n);
 
@@ -1615,7 +1598,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	plast->set_dissipation_considered(true);
 
 	// create the body
-	body *b = new body(particles, n, sim_data);
+	body *b = new body(std::move(particles), sim_data);
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);

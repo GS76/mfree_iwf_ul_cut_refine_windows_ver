@@ -84,14 +84,69 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 
 	double step_plastic_dissipation = 0.;
 
+	double rho0 = data.get_physical_constants().rho0();
+	double density_floor_frac_env = 0.0;
+	const char *v = getenv("MFREE_DENSITY_FLOOR_FRAC");
+	if (v != nullptr) {
+		density_floor_frac_env = atof(v);
+	}
+	double rho_min = density_floor_frac_env > 0. ? density_floor_frac_env * rho0 : 0.;
+
 	for (unsigned int i = 0; i < num_part; i++) {
+		// Skip plasticity entirely for density-floored particles: their stress state is artificial
+		if (rho_min > 0. && particles[i].rho <= 1.01 * rho_min) {
+			// Zero the stress state for particles that hit the density floor.
+			// Without this, old trial stresses (computed with pre-floor density)
+			// can become NaN/Inf when later combined with the floored density.
+			particles[i].Sxx = particles[i].Syy = particles[i].Szz = particles[i].Sxy = 0.;
+			particles[i].Sxx_t = particles[i].Syy_t = particles[i].Szz_t = particles[i].Sxy_t = 0.;
+			particles[i].eps_pl_equiv_dot = 0.;
+			continue;
+		}
 		// deviatoric stress (trial)
 		double Strialxx = particles[i].Sxx;
 		double Strialyy = particles[i].Syy;
 		double Strialzz = particles[i].Szz;
 		double Strialxy = particles[i].Sxy;
 
+		// Defensive guard: catch NaN/Inf or non-finite pressure before any math that would propagate NaN
+		if (!std::isfinite(Strialxx) || !std::isfinite(Strialyy) || !std::isfinite(Strialzz) || !std::isfinite(Strialxy) ||
+			!std::isfinite(particles[i].p)) {
+			static int nan_count = 0;
+			nan_count++;
+			if (nan_count <= 50) {
+				fprintf(stderr, "WARNING: NaN/Inf in Strial or p for particle %u, zeroing stresses and skipping plasticity\n", i);
+				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e, p=%.6e\n", particles[i].x, particles[i].y, particles[i].rho,
+						particles[i].T, particles[i].p);
+			}
+			// Zero stresses and time rates
+			particles[i].Sxx = particles[i].Sxy = particles[i].Syy = particles[i].Szz = 0.;
+			particles[i].Sxx_t = particles[i].Sxy_t = particles[i].Syy_t = particles[i].Szz_t = 0.;
+			particles[i].eps_pl_equiv_dot = 0.;
+			// Append compact diagnostic to plast_debug.txt for post-mortem
+			FILE *fp = fopen("plast_debug.txt", "a");
+			if (fp) {
+				fprintf(fp, "%u %.6e %.6e %.6e %.6e %.6e\n", i, particles[i].x, particles[i].y, particles[i].rho, particles[i].T,
+						particles[i].p);
+				fclose(fp);
+			}
+			continue;
+		}
+
 		double norm_Strial = sqrt(Strialxx * Strialxx + Strialyy * Strialyy + Strialzz * Strialzz + 2. * Strialxy * Strialxy);
+
+		// Skip plasticity for particles with extreme stress states (>= 1e15 Pa ~ 1e6× yield)
+		// These occur when density-floored particles carry over stress from before the floor.
+		if (norm_Strial > 1e15) {
+			static int extreme_count = 0;
+			extreme_count++;
+			if (extreme_count <= 10) {
+				fprintf(stderr, "WARNING: extreme norm_Strial (%.2e > 1e15) for particle %u, skipping plasticity\n", norm_Strial, i);
+				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
+			}
+			particles[i].eps_pl_equiv_dot = 0.;
+			continue;
+		}
 
 		// cauchy stress (trial)
 		double cxx = particles[i].Sxx - particles[i].p;
@@ -125,10 +180,31 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 		delta_lambda =
 			solve_zero_secant(m_plasticity_model, fmax(particles[i].eps_pl_equiv_dot * delta_t * sqrt(2. / 3.), 1e-8), m_tol, failed);
 		if (failed) {
-			print_debug(particles, num_part, i);
-			exit(-1);
-		}
+			// Graceful handling: log warning and skip plasticity for this particle
+			static int fail_count = 0;
+			fail_count++;
 
+			fprintf(stderr, "WARNING: radial return failed (count=%d) for particle %u\n", fail_count, i);
+			fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
+			fprintf(stderr, "  eps_pl_equiv=%.6e, eps_pl_equiv_dot=%.6e\n", particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot);
+			fprintf(stderr, "  Sxx=%.6e, Syy=%.6e, Szz=%.6e, Sxy=%.6e, p=%.6e\n", particles[i].Sxx, particles[i].Syy, particles[i].Szz,
+					particles[i].Sxy, particles[i].p);
+			fprintf(stderr, "  Strialxx=%.6e, Strialyy=%.6e, Strialzz=%.6e, Strialxy=%.6e\n", Strialxx, Strialyy, Strialzz, Strialxy);
+			fprintf(stderr, "  norm_Strial=%.6e\n", norm_Strial);
+
+			// Write debug info to file for post-processing
+			print_debug(particles, num_part, i);
+
+			// Skip plasticity update - keep particle in previous state
+			particles[i].eps_pl_equiv_dot = 0.;
+
+			// If too many failures, escalate warning but continue (allow data collection)
+			if (fail_count > 100) {
+				fprintf(stderr, "ERROR: Too many radial return failures (%d); continuing anyway for data collection\n", fail_count);
+			}
+
+			continue;
+		}
 		double eps_pl_new = eps_pl_equiv_init + sqrt(2.0 / 3.0) * fmax(delta_lambda, 0.);
 		double delta_eps_pl = eps_pl_new - particles[i].eps_pl_equiv;
 
@@ -151,6 +227,11 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 			Temperature increase due to plastic dissipation (Taylor-Quinney)
 			refer to --> Eq. (9) of the paper
 			*/
+
+			// Skip particles with invalid density to avoid spurious heating
+			if (particles[i].rho <= 0. || !std::isfinite(particles[i].rho)) {
+				continue;
+			}
 
 			double sigmaY = m_plasticity_model->sigma_yield(particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot, particles[i].T);
 			double delta_T = tq / (cp * particles[i].rho) * delta_eps_pl * sigmaY;
