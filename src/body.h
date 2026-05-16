@@ -116,9 +116,9 @@ public:
 	std::vector<particle> &get_particles();
 	const std::vector<particle> &get_particles() const;
 	unsigned int get_num_part() const;
-
 	void insert_particles(const std::vector<particle>& additional_particles);
 
+	body(std::vector<particle>&& particles, simulation_data data);
 	body(particle* particles, unsigned int n, simulation_data data);
 
 	// do not allow copying a body

@@ -969,8 +969,8 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
-							xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
+							constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -1286,8 +1286,8 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
-							xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
+							constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -1499,7 +1499,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles = new particle[nxh * nyh];
+	std::vector<particle> particles;
+	particles.reserve(nxh * nyh);
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -1518,25 +1519,13 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 			if ((pyh + lo_y) < (py_split - 1.9 * dxh) || pxh > initial_refined_x_max)
 				continue;
 
-			particles[part_iter] = particle(part_iter);
-			particles[part_iter].x = pxh + lo_x;
-			particles[part_iter].y = pyh + lo_y;
-			particles[part_iter].X = pxh + lo_x;
-			particles[part_iter].Y = pyh + lo_y;
-
-			particles[part_iter].refine_step = 1;
-
-			/*
-			 * high res
-			 *
-			   +---------------+
-			   + HR |          +
-			   +-----    LR    +
-			   +               +
-			   +---------------+
-
-			 */
-
+			particles.emplace_back(part_iter);
+			particle &p = particles.back();
+			p.x = pxh + lo_x;
+			p.y = pyh + lo_y;
+			p.X = pxh + lo_x;
+			p.Y = pyh + lo_y;
+			p.refine_step = 1;
 			part_iter++;
 		}
 	}
@@ -1550,25 +1539,19 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 			if ((pyl + lo_y) >= (py_split - 1.9 * dxh) && pxl <= initial_refined_x_max)
 				continue;
 
-			particles[part_iter] = particle(part_iter);
-			particles[part_iter].x = pxl + lo_x;
-			particles[part_iter].y = pyl + lo_y;
-			particles[part_iter].X = pxl + lo_x;
-			particles[part_iter].Y = pyl + lo_y;
-
-			particles[part_iter].refine_step = 0;
-
+			particles.emplace_back(part_iter);
+			particle &p = particles.back();
+			p.x = pxl + lo_x;
+			p.y = pyl + lo_y;
+			p.X = pxl + lo_x;
+			p.Y = pyl + lo_y;
+			p.refine_step = 0;
 			part_iter++;
 		}
 	}
 
 	// total #particles
-	unsigned int n = part_iter;
-
-	// slight modification for reserved CHILD particles!
-	for (unsigned int i = n; i < nxh * nyh; i++) {
-		particles[part_iter] = particle(part_iter);
-	}
+	unsigned int n = particles.size();
 
 	printf("n_single_resolution=%d   n_current=%d  \n", nxh * nyh, n);
 
@@ -1603,8 +1586,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx), constants_artificial_viscosity(alpha, beta, eta),
-							xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
+							constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -1615,7 +1598,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	plast->set_dissipation_considered(true);
 
 	// create the body
-	body *b = new body(particles, n, sim_data);
+	body *b = new body(std::move(particles), sim_data);
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
@@ -1642,7 +1625,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	// boundary below/ahead of the high-gradient region without recompilation.
 	// Defaults preserve the historical geometry unless the run script opts in.
 	double refine_depth_factor = 0.;
-	if (try_read_env_double("MFREE_REFINE_DEPTH_FACTOR", refine_depth_factor) && std::isfinite(refine_depth_factor) && refine_depth_factor > 0.) {
+	if (try_read_env_double("MFREE_REFINE_DEPTH_FACTOR", refine_depth_factor) && std::isfinite(refine_depth_factor) &&
+		refine_depth_factor > 0.) {
 		refine_depth_factor = std::max(1.5, std::min(3.0, refine_depth_factor));
 		// Base depth on the actual cut/feed depth (feed_per_rev_mm), not target_feed
 		// (which includes the base-target offset and would reach full workpiece depth).
@@ -1654,8 +1638,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	// A conservative upper bound on tool_tip_y is hi_y, so:
 	const double max_frame_height = (hi_y - lo_y) - 2.0 * dxl;
 	if (frame_height > max_frame_height) {
-		std::printf("[adaptivity] frame_height capped %.4f mm -> %.4f mm (2 coarse layers from bottom)\n",
-		            frame_height * 1e3, max_frame_height * 1e3);
+		std::printf("[adaptivity] frame_height capped %.4f mm -> %.4f mm (2 coarse layers from bottom)\n", frame_height * 1e3,
+					max_frame_height * 1e3);
 		frame_height = max_frame_height;
 	}
 	double frame_width_mm = frame_width * 1e3;
@@ -1676,8 +1660,8 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 		frame_width = std::ceil((frame_width - 1e-12) / dxl) * dxl;
 		frame_height = std::ceil((frame_height - 1e-12) / dxl) * dxl;
 	}
-	std::printf("refinement frame: width=%.6e m height=%.6e m depth_factor=%.3f halo_layers=%d coarse_dx=%.6e m\n",
-	            frame_width, frame_height, refine_depth_factor, refine_halo_layers, dxl);
+	std::printf("refinement frame: width=%.6e m height=%.6e m depth_factor=%.3f halo_layers=%d coarse_dx=%.6e m\n", frame_width,
+				frame_height, refine_depth_factor, refine_halo_layers, dxl);
 
 	unsigned int n_nbh = 10;
 	double l_eff = lc + 0.1 * lx;

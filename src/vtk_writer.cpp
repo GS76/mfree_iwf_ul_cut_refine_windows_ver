@@ -55,27 +55,30 @@
 #include <cmath>
 #include <cstdio>
 
-void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_active_particles, unsigned int step, const char *folder) {
 	char buf[1024];
 	std::snprintf(buf, sizeof(buf), "%s/out_%06d.vtk", folder, step);
 	FILE *fp = fopen(buf, "w+");
-	if (!fp) return;
+	if (!fp)
+		return;
 
-	unsigned int np = particles.size();
+	unsigned int np = num_active_particles;
+	if (np > particles.size())
+		np = static_cast<unsigned int>(particles.size());
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
 	fprintf(fp, "mfree iwf\n");
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");		// Particle positions
+	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n"); // Particle positions
 	fprintf(fp, "POINTS %d float\n", np);
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%e %e %e\n", particles[i].x, particles[i].y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "CELLS %d %d\n", np, 2*np);
+	fprintf(fp, "CELLS %d %d\n", np, 2 * np);
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%d %d\n", 1, i);
 	}
@@ -89,21 +92,21 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 
 	fprintf(fp, "POINT_DATA %d\n", np);
 
-	fprintf(fp, "SCALARS density float 1\n");		// Current particle density
+	fprintf(fp, "SCALARS density float 1\n"); // Current particle density
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].rho);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS temperature float 1\n");    // Particle temperature
+	fprintf(fp, "SCALARS temperature float 1\n"); // Particle temperature
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].T);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS Svm float 1\n");        // Particle Von Mises stress
+	fprintf(fp, "SCALARS Svm float 1\n"); // Particle Von Mises stress
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		double sxx = particles[i].Sxx - particles[i].p;
@@ -111,19 +114,19 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 		double syy = particles[i].Syy - particles[i].p;
 		double szz = particles[i].Szz - particles[i].p;
 
-		double svm = sqrt(fabs((sxx*sxx + syy*syy + szz*szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy*sxy)));
+		double svm = sqrt(fabs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
 		fprintf(fp, "%f\n", svm);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n");		// Current particle's equivalent plastic strain
+	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n"); // Current particle's equivalent plastic strain
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].eps_pl_equiv);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "VECTORS velocity float\n");		// Particle velocities
+	fprintf(fp, "VECTORS velocity float\n"); // Particle velocities
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].vx, particles[i].vy, 0.);
 	}
@@ -163,10 +166,10 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS glob_density_err double 1\n");  // global density error acc. to Feldman 2006
+	fprintf(fp, "SCALARS glob_density_err double 1\n"); // global density error acc. to Feldman 2006
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init)*(particles[i].rho - particles[i].rho_init));
+		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init) * (particles[i].rho - particles[i].rho_init));
 	}
 	fprintf(fp, "\n");
 
@@ -223,25 +226,34 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
+	fprintf(fp, "SCALARS T_t float 1\n"); // Temperature rate dT/dt
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%f\n", particles[i].T_t);
+	}
+	fprintf(fp, "\n");
+
 	fclose(fp);
 }
 
-void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder) {
-	vtk_writer_write(tool, step, folder, "fe_tool");
-}
+void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder) { vtk_writer_write(tool, step, folder, "fe_tool"); }
 
-void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder, const char *filename_prefix) {
-	if (!tool) return;
+void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder, const char *filename_prefix) {
+	if (!tool)
+		return;
 	const auto &nodes_tool = tool->nodes_tool_frame();
 	const auto &tris = tool->triangles();
-	if (nodes_tool.empty() || tris.empty()) return;
+	if (nodes_tool.empty() || tris.empty())
+		return;
 
 	char buf[1024];
 	const char *effective_prefix = filename_prefix;
-	if (!effective_prefix || effective_prefix[0] == '\0') effective_prefix = "fe_tool";
+	if (!effective_prefix || effective_prefix[0] == '\0')
+		effective_prefix = "fe_tool";
 	std::snprintf(buf, sizeof(buf), "%s/%s_%06d.vtk", folder, effective_prefix, step);
 	FILE *fp = fopen(buf, "w+");
-	if (!fp) return;
+	if (!fp)
+		return;
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
 	fprintf(fp, "mfree iwf\n");
@@ -252,7 +264,8 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	fprintf(fp, "POINTS %d float\n", static_cast<int>(nodes_tool.size()));
 	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
 		glm::dvec2 pw = tool->node_world(static_cast<unsigned int>(i));
-		if (!std::isfinite(pw.x) || !std::isfinite(pw.y)) pw = glm::dvec2(0.);
+		if (!std::isfinite(pw.x) || !std::isfinite(pw.y))
+			pw = glm::dvec2(0.);
 		fprintf(fp, "%e %e %e\n", pw.x, pw.y, 0.);
 	}
 	fprintf(fp, "\n");
@@ -264,7 +277,8 @@ void vtk_writer_write(const fe_tool* tool, unsigned int step, const char *folder
 	fprintf(fp, "\n");
 
 	fprintf(fp, "CELL_TYPES %d\n", static_cast<int>(tris.size()));
-	for (std::size_t i = 0; i < tris.size(); i++) fprintf(fp, "5\n");
+	for (std::size_t i = 0; i < tris.size(); i++)
+		fprintf(fp, "5\n");
 	fprintf(fp, "\n");
 
 	fprintf(fp, "POINT_DATA %d\n", static_cast<int>(nodes_tool.size()));
