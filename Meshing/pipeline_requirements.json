@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "name": "rigid_tool_meshing_pipeline",
+  "goal": "Provide a deterministic, validated, and scriptable meshing pipeline for rigid-tool FE meshes.",
+  "functional_requirements": [
+    "Support tool geometry input from either tool_*.txt or TL-angle parameter set.",
+    "Support explicit mesh refinement controls (center, diameter, fine size, transition, max size).",
+    "Support system-installed Gmsh SDK/module resolution via CLI flags and environment variables.",
+    "Produce .msh output compatible with existing FE-tool loader physical groups.",
+    "Optionally emit geometry metadata JSON and mesh quality report JSON.",
+    "Provide a single pipeline command that validates inputs before meshing."
+  ],
+  "non_functional_requirements": [
+    "Keep backward compatibility with current Meshing/generate_rigid_tool_mesh.py behavior.",
+    "Fail fast with human-readable validation errors for invalid inputs.",
+    "Avoid introducing external Python dependencies beyond the standard library and gmsh module.",
+    "Enable incremental extension (preflight checks, multiple targets, batch jobs) without breaking CLI contracts."
+  ],
+  "initial_scope_boundaries": [
+    "No replacement of current meshing algorithm internals.",
+    "No change to FE-tool solver behavior or physical model interpretation.",
+    "No batch scheduler yet; only single-job orchestration."
+  ]
+}

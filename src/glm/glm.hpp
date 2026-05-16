@@ -31,10 +31,26 @@ inline dvec2 operator/(const dvec2 &a, const dvec2 &b) { return dvec2(a.x / b.x,
 inline dvec2 operator*(double s, const dvec2 &v) { return dvec2(s * v.x, s * v.y); }
 inline dvec2 operator*(const dvec2 &v, double s) { return dvec2(s * v.x, s * v.y); }
 inline dvec2 operator/(const dvec2 &v, double s) { return dvec2(v.x / s, v.y / s); }
-inline dvec2 &operator+=(dvec2 &a, const dvec2 &b) { a.x += b.x; a.y += b.y; return a; }
-inline dvec2 &operator-=(dvec2 &a, const dvec2 &b) { a.x -= b.x; a.y -= b.y; return a; }
-inline dvec2 &operator*=(dvec2 &a, double s) { a.x *= s; a.y *= s; return a; }
-inline dvec2 &operator/=(dvec2 &a, double s) { a.x /= s; a.y /= s; return a; }
+inline dvec2 &operator+=(dvec2 &a, const dvec2 &b) {
+	a.x += b.x;
+	a.y += b.y;
+	return a;
+}
+inline dvec2 &operator-=(dvec2 &a, const dvec2 &b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	return a;
+}
+inline dvec2 &operator*=(dvec2 &a, double s) {
+	a.x *= s;
+	a.y *= s;
+	return a;
+}
+inline dvec2 &operator/=(dvec2 &a, double s) {
+	a.x /= s;
+	a.y /= s;
+	return a;
+}
 
 inline dvec3 operator+(const dvec3 &a, const dvec3 &b) { return dvec3(a.x + b.x, a.y + b.y, a.z + b.z); }
 inline dvec3 operator-(const dvec3 &a, const dvec3 &b) { return dvec3(a.x - b.x, a.y - b.y, a.z - b.z); }
@@ -44,10 +60,30 @@ inline dvec3 operator/(const dvec3 &a, const dvec3 &b) { return dvec3(a.x / b.x,
 inline dvec3 operator*(double s, const dvec3 &v) { return dvec3(s * v.x, s * v.y, s * v.z); }
 inline dvec3 operator*(const dvec3 &v, double s) { return dvec3(s * v.x, s * v.y, s * v.z); }
 inline dvec3 operator/(const dvec3 &v, double s) { return dvec3(v.x / s, v.y / s, v.z / s); }
-inline dvec3 &operator+=(dvec3 &a, const dvec3 &b) { a.x += b.x; a.y += b.y; a.z += b.z; return a; }
-inline dvec3 &operator-=(dvec3 &a, const dvec3 &b) { a.x -= b.x; a.y -= b.y; a.z -= b.z; return a; }
-inline dvec3 &operator*=(dvec3 &a, double s) { a.x *= s; a.y *= s; a.z *= s; return a; }
-inline dvec3 &operator/=(dvec3 &a, double s) { a.x /= s; a.y /= s; a.z /= s; return a; }
+inline dvec3 &operator+=(dvec3 &a, const dvec3 &b) {
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+inline dvec3 &operator-=(dvec3 &a, const dvec3 &b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+inline dvec3 &operator*=(dvec3 &a, double s) {
+	a.x *= s;
+	a.y *= s;
+	a.z *= s;
+	return a;
+}
+inline dvec3 &operator/=(dvec3 &a, double s) {
+	a.x /= s;
+	a.y /= s;
+	a.z /= s;
+	return a;
+}
 
 inline double dot(const dvec2 &a, const dvec2 &b) { return a.x * b.x + a.y * b.y; }
 inline double dot(const dvec3 &a, const dvec3 &b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
@@ -57,13 +93,15 @@ inline double length(const dvec3 &v) { return std::sqrt(dot(v, v)); }
 
 inline dvec2 normalize(const dvec2 &v) {
 	double l = length(v);
-	if (l <= 0.) return dvec2(0.);
+	if (l <= 0.)
+		return dvec2(0.);
 	return v / l;
 }
 
 inline dvec3 normalize(const dvec3 &v) {
 	double l = length(v);
-	if (l <= 0.) return dvec3(0.);
+	if (l <= 0.)
+		return dvec3(0.);
 	return v / l;
 }
 
@@ -72,8 +110,10 @@ struct dmat2x2 {
 	dmat2x2() { v[0][0] = v[0][1] = v[1][0] = v[1][1] = 0.; }
 	explicit dmat2x2(double s) { v[0][0] = v[0][1] = v[1][0] = v[1][1] = s; }
 	dmat2x2(double c0r0, double c0r1, double c1r0, double c1r1) {
-		v[0][0] = c0r0; v[0][1] = c0r1;
-		v[1][0] = c1r0; v[1][1] = c1r1;
+		v[0][0] = c0r0;
+		v[0][1] = c0r1;
+		v[1][0] = c1r0;
+		v[1][1] = c1r1;
 	}
 	double *operator[](std::size_t i) { return v[i]; }
 	const double *operator[](std::size_t i) const { return v[i]; }
@@ -119,19 +159,25 @@ inline dvec2 operator*(const dmat2x2 &m, const dvec2 &v) {
 
 inline dmat2x2 operator+(const dmat2x2 &a, const dmat2x2 &b) {
 	dmat2x2 r(0.);
-	for (int c = 0; c < 2; c++) for (int r0 = 0; r0 < 2; r0++) r.v[c][r0] = a.v[c][r0] + b.v[c][r0];
+	for (int c = 0; c < 2; c++)
+		for (int r0 = 0; r0 < 2; r0++)
+			r.v[c][r0] = a.v[c][r0] + b.v[c][r0];
 	return r;
 }
 
 inline dmat2x2 operator-(const dmat2x2 &a, const dmat2x2 &b) {
 	dmat2x2 r(0.);
-	for (int c = 0; c < 2; c++) for (int r0 = 0; r0 < 2; r0++) r.v[c][r0] = a.v[c][r0] - b.v[c][r0];
+	for (int c = 0; c < 2; c++)
+		for (int r0 = 0; r0 < 2; r0++)
+			r.v[c][r0] = a.v[c][r0] - b.v[c][r0];
 	return r;
 }
 
 inline dmat2x2 operator*(double s, const dmat2x2 &m) {
 	dmat2x2 r(0.);
-	for (int c = 0; c < 2; c++) for (int r0 = 0; r0 < 2; r0++) r.v[c][r0] = s * m.v[c][r0];
+	for (int c = 0; c < 2; c++)
+		for (int r0 = 0; r0 < 2; r0++)
+			r.v[c][r0] = s * m.v[c][r0];
 	return r;
 }
 
@@ -150,18 +196,28 @@ inline dmat2x2 operator*(const dmat2x2 &a, const dmat2x2 &b) {
 struct dmat3x3 {
 	double v[3][3];
 	dmat3x3() {
-		for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) v[i][j] = 0.;
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 3; j++)
+				v[i][j] = 0.;
 	}
 	explicit dmat3x3(double s) {
-		for (int c = 0; c < 3; c++) for (int r0 = 0; r0 < 3; r0++) v[c][r0] = 0.;
-		v[0][0] = s; v[1][1] = s; v[2][2] = s;
+		for (int c = 0; c < 3; c++)
+			for (int r0 = 0; r0 < 3; r0++)
+				v[c][r0] = 0.;
+		v[0][0] = s;
+		v[1][1] = s;
+		v[2][2] = s;
 	}
-	dmat3x3(double a00, double a01, double a02,
-	        double a10, double a11, double a12,
-	        double a20, double a21, double a22) {
-		v[0][0] = a00; v[0][1] = a10; v[0][2] = a20;
-		v[1][0] = a01; v[1][1] = a11; v[1][2] = a21;
-		v[2][0] = a02; v[2][1] = a12; v[2][2] = a22;
+	dmat3x3(double a00, double a01, double a02, double a10, double a11, double a12, double a20, double a21, double a22) {
+		v[0][0] = a00;
+		v[0][1] = a10;
+		v[0][2] = a20;
+		v[1][0] = a01;
+		v[1][1] = a11;
+		v[1][2] = a21;
+		v[2][0] = a02;
+		v[2][1] = a12;
+		v[2][2] = a22;
 	}
 	double *operator[](std::size_t i) { return v[i]; }
 	const double *operator[](std::size_t i) const { return v[i]; }
@@ -176,25 +232,33 @@ inline double determinant(const dmat3x3 &m) {
 
 inline dmat3x3 transpose(const dmat3x3 &m) {
 	dmat3x3 t;
-	for (int c = 0; c < 3; c++) for (int r0 = 0; r0 < 3; r0++) t.v[c][r0] = m.v[r0][c];
+	for (int c = 0; c < 3; c++)
+		for (int r0 = 0; r0 < 3; r0++)
+			t.v[c][r0] = m.v[r0][c];
 	return t;
 }
 
 inline dmat3x3 operator+(const dmat3x3 &a, const dmat3x3 &b) {
 	dmat3x3 r;
-	for (int c = 0; c < 3; c++) for (int r0 = 0; r0 < 3; r0++) r.v[c][r0] = a.v[c][r0] + b.v[c][r0];
+	for (int c = 0; c < 3; c++)
+		for (int r0 = 0; r0 < 3; r0++)
+			r.v[c][r0] = a.v[c][r0] + b.v[c][r0];
 	return r;
 }
 
 inline dmat3x3 operator-(const dmat3x3 &a, const dmat3x3 &b) {
 	dmat3x3 r;
-	for (int c = 0; c < 3; c++) for (int r0 = 0; r0 < 3; r0++) r.v[c][r0] = a.v[c][r0] - b.v[c][r0];
+	for (int c = 0; c < 3; c++)
+		for (int r0 = 0; r0 < 3; r0++)
+			r.v[c][r0] = a.v[c][r0] - b.v[c][r0];
 	return r;
 }
 
 inline dmat3x3 operator*(double s, const dmat3x3 &m) {
 	dmat3x3 r;
-	for (int c = 0; c < 3; c++) for (int r0 = 0; r0 < 3; r0++) r.v[c][r0] = s * m.v[c][r0];
+	for (int c = 0; c < 3; c++)
+		for (int r0 = 0; r0 < 3; r0++)
+			r.v[c][r0] = s * m.v[c][r0];
 	return r;
 }
 
@@ -204,15 +268,12 @@ inline dmat3x3 operator*(const dmat3x3 &a, const dmat3x3 &b) {
 	dmat3x3 r;
 	for (int c = 0; c < 3; c++) {
 		for (int r0 = 0; r0 < 3; r0++) {
-			r.v[c][r0] =
-				a.v[0][r0] * b.v[c][0] +
-				a.v[1][r0] * b.v[c][1] +
-				a.v[2][r0] * b.v[c][2];
+			r.v[c][r0] = a.v[0][r0] * b.v[c][0] + a.v[1][r0] * b.v[c][1] + a.v[2][r0] * b.v[c][2];
 		}
 	}
 	return r;
 }
 
-}  // namespace glm
+} // namespace glm
 
 #endif

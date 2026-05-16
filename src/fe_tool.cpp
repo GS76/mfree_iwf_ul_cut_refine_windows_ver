@@ -493,7 +493,7 @@ double fe_tool::thermal_internal_energy() const {
 	double E = 0.;
 	const std::size_t n = std::min(m_T.size(), m_capacity.size());
 #ifdef _OPENMP
-#pragma omp parallel for reduction(+:E) schedule(static)
+#pragma omp parallel for reduction(+ : E) schedule(static)
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const std::size_t i = static_cast<std::size_t>(ii);
@@ -508,7 +508,7 @@ double fe_tool::thermal_internal_energy_above_ref(double T_ref) const {
 	double E = 0.;
 	const std::size_t n = std::min(m_T.size(), m_capacity.size());
 #ifdef _OPENMP
-#pragma omp parallel for reduction(+:E) schedule(static)
+#pragma omp parallel for reduction(+ : E) schedule(static)
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const std::size_t i = static_cast<std::size_t>(ii);
@@ -1001,7 +1001,7 @@ void fe_tool::advance_explicit(double dt) {
 	double E_dirichlet = 0.;
 
 #ifdef _OPENMP
-#pragma omp parallel for reduction(+:E_sources, E_conduction, E_convection, E_dirichlet) schedule(static)
+#pragma omp parallel for reduction(+ : E_sources, E_conduction, E_convection, E_dirichlet) schedule(static)
 #endif
 	for (int ii = 0; ii < static_cast<int>(m_T.size()); ii++) {
 		const std::size_t i = static_cast<std::size_t>(ii);

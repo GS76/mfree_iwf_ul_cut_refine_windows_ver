@@ -59,14 +59,13 @@ void contmech_continuity(body &b) {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		const double rho  = particles[i].rho;
+		const double rho = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
 
-		particles[i].rho_t -= rho*(vx_x + vy_y);
+		particles[i].rho_t -= rho * (vx_x + vy_y);
 	}
 }
-
 
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
@@ -84,8 +83,8 @@ void contmech_momentum(body &b) {
 
 		const double rho = particles[i].rho;
 
-		particles[i].vx_t += 1./rho*(Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
-		particles[i].vy_t += 1./rho*(Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
+		particles[i].vx_t += 1. / rho * (Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
+		particles[i].vy_t += 1. / rho * (Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
 	}
 }
 
@@ -115,13 +114,13 @@ void do_boundary_conditions(body &b) {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		if(particles[i].fixed) {
-			particles[i].x    = particles[i].X;
-			particles[i].y    = particles[i].Y;
-			particles[i].x_t  = 0.;
-			particles[i].y_t  = 0.;
-			particles[i].vx   = 0.;
-			particles[i].vy   = 0.;
+		if (particles[i].fixed) {
+			particles[i].x = particles[i].X;
+			particles[i].y = particles[i].Y;
+			particles[i].x_t = 0.;
+			particles[i].y_t = 0.;
+			particles[i].vx = 0.;
+			particles[i].vy = 0.;
 			particles[i].vx_t = 0.;
 			particles[i].vy_t = 0.;
 			// Dirichlet thermal BC: fixed boundary particles (bottom row, right column)
@@ -130,8 +129,8 @@ void do_boundary_conditions(body &b) {
 			// boundary acts as an insulating wall, creating spurious thermal pockets.
 			// T_init holds the initial/ambient temperature (300 K) set at particle
 			// creation and propagated to refined child particles by copy_dad_to_son.
-			particles[i].T    = particles[i].T_init;  // hold at ambient temperature
-			particles[i].T_t  = 0.;                   // zero rate so next predict step is clean
+			particles[i].T = particles[i].T_init; // hold at ambient temperature
+			particles[i].T_t = 0.;				  // zero rate so next predict step is clean
 		}
 	}
 }

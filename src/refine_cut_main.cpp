@@ -94,7 +94,8 @@ static double tri_min_angle_deg(glm::dvec2 a, glm::dvec2 b, glm::dvec2 c) {
 	auto angle = [&](glm::dvec2 u, glm::dvec2 v) {
 		double nu = norm(u);
 		double nv = norm(v);
-		if (nu <= 0. || nv <= 0.) return 0.0;
+		if (nu <= 0. || nv <= 0.)
+			return 0.0;
 		double x = dot(u, v) / (nu * nv);
 		x = std::max(-1.0, std::min(1.0, x));
 		return std::acos(x) * 180.0 / pi;
@@ -109,9 +110,11 @@ static double tri_min_angle_deg(glm::dvec2 a, glm::dvec2 b, glm::dvec2 c) {
 static glm::dvec2 closest_point_on_segment(glm::dvec2 p, glm::dvec2 a, glm::dvec2 b) {
 	glm::dvec2 ab = b - a;
 	double ab2 = ab.x * ab.x + ab.y * ab.y;
-	if (!(ab2 > 0.0) || !std::isfinite(ab2)) return a;
+	if (!(ab2 > 0.0) || !std::isfinite(ab2))
+		return a;
 	double t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / ab2;
-	if (!std::isfinite(t)) t = 0.0;
+	if (!std::isfinite(t))
+		t = 0.0;
 	t = std::max(0.0, std::min(1.0, t));
 	return a + t * ab;
 }
@@ -122,16 +125,18 @@ static bool point_in_polygon(glm::dvec2 p, const std::vector<glm::dvec2> &poly) 
 	for (std::size_t i = 0, j = n - 1; i < n; j = i++) {
 		const glm::dvec2 pi = poly[i];
 		const glm::dvec2 pj = poly[j];
-		bool intersect = ((pi.y > p.y) != (pj.y > p.y)) &&
-		                 (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y + 0.0) + pi.x);
-		if (intersect) inside = !inside;
+		bool intersect = ((pi.y > p.y) != (pj.y > p.y)) && (p.x < (pj.x - pi.x) * (p.y - pi.y) / (pj.y - pi.y + 0.0) + pi.x);
+		if (intersect)
+			inside = !inside;
 	}
 	return inside;
 }
 
 static double polygon_inside_depth(glm::dvec2 p, const std::vector<glm::dvec2> &poly, glm::dvec2 *closest_point_out = nullptr) {
-	if (poly.size() < 3) return 0.0;
-	if (!point_in_polygon(p, poly)) return 0.0;
+	if (poly.size() < 3)
+		return 0.0;
+	if (!point_in_polygon(p, poly))
+		return 0.0;
 	double best_d2 = std::numeric_limits<double>::infinity();
 	glm::dvec2 best_cp(0.);
 	for (std::size_t i = 0; i < poly.size(); i++) {
@@ -145,105 +150,137 @@ static double polygon_inside_depth(glm::dvec2 p, const std::vector<glm::dvec2> &
 			best_cp = cp;
 		}
 	}
-	if (closest_point_out) *closest_point_out = best_cp;
-	if (!std::isfinite(best_d2) || best_d2 < 0.0) return 0.0;
+	if (closest_point_out)
+		*closest_point_out = best_cp;
+	if (!std::isfinite(best_d2) || best_d2 < 0.0)
+		return 0.0;
 	return std::sqrt(best_d2);
 }
 
 static bool try_parse_int_strict(const char *s, int &out) {
-	if (!s) return false;
-	while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') ++s;
-	if (*s == '\0') return false;
+	if (!s)
+		return false;
+	while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')
+		++s;
+	if (*s == '\0')
+		return false;
 	errno = 0;
 	char *end = nullptr;
 	long v = std::strtol(s, &end, 10);
-	if (end == s || errno != 0) return false;
-	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') ++end;
-	if (*end != '\0') return false;
-	if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) return false;
+	if (end == s || errno != 0)
+		return false;
+	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')
+		++end;
+	if (*end != '\0')
+		return false;
+	if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max())
+		return false;
 	out = static_cast<int>(v);
 	return true;
 }
 
 static bool try_parse_double_strict(const char *s, double &out) {
-	if (!s) return false;
-	while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') ++s;
-	if (*s == '\0') return false;
+	if (!s)
+		return false;
+	while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')
+		++s;
+	if (*s == '\0')
+		return false;
 	errno = 0;
 	char *end = nullptr;
 	double v = std::strtod(s, &end);
-	if (end == s || errno != 0 || !std::isfinite(v)) return false;
-	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') ++end;
-	if (*end != '\0') return false;
+	if (end == s || errno != 0 || !std::isfinite(v))
+		return false;
+	while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')
+		++end;
+	if (*end != '\0')
+		return false;
 	out = v;
 	return true;
 }
 
 static bool env_flag(const char *key, bool def) {
 	const char *s = std::getenv(key);
-	if (!s || s[0] == '\0') return def;
+	if (!s || s[0] == '\0')
+		return def;
 	int v = 0;
-	if (!try_parse_int_strict(s, v)) return def;
+	if (!try_parse_int_strict(s, v))
+		return def;
 	return v != 0;
 }
 
 static int env_int(const char *key, int def) {
 	const char *s = std::getenv(key);
-	if (!s || s[0] == '\0') return def;
+	if (!s || s[0] == '\0')
+		return def;
 	int v = 0;
-	if (!try_parse_int_strict(s, v)) return def;
+	if (!try_parse_int_strict(s, v))
+		return def;
 	return v;
 }
 
 static double env_double(const char *key, double def) {
 	const char *s = std::getenv(key);
-	if (!s || s[0] == '\0') return def;
+	if (!s || s[0] == '\0')
+		return def;
 	double v = 0.0;
-	if (!try_parse_double_strict(s, v)) return def;
+	if (!try_parse_double_strict(s, v))
+		return def;
 	return v;
 }
 
 static double polygon_signed_area(const std::vector<glm::dvec2> &poly) { return geom_validation_math::polygon_signed_area(poly); }
 
-static glm::dvec2 polygon_closest_point(glm::dvec2 p, const std::vector<glm::dvec2> &poly, std::size_t *edge_idx_out = nullptr, double *edge_t_out = nullptr) {
+static glm::dvec2 polygon_closest_point(glm::dvec2 p, const std::vector<glm::dvec2> &poly, std::size_t *edge_idx_out = nullptr,
+										double *edge_t_out = nullptr) {
 	return geom_validation_math::polygon_closest_point(p, poly, edge_idx_out, edge_t_out);
 }
 
-static double polygon_distance_to_boundary(glm::dvec2 p, const std::vector<glm::dvec2> &poly, glm::dvec2 &cp_out, std::size_t &edge_idx_out) {
+static double polygon_distance_to_boundary(glm::dvec2 p, const std::vector<glm::dvec2> &poly, glm::dvec2 &cp_out,
+										   std::size_t &edge_idx_out) {
 	double t = 0.0;
 	cp_out = polygon_closest_point(p, poly, &edge_idx_out, &t);
 	glm::dvec2 d = p - cp_out;
 	double d2 = d.x * d.x + d.y * d.y;
-	if (!std::isfinite(d2) || d2 < 0.0) return std::numeric_limits<double>::infinity();
+	if (!std::isfinite(d2) || d2 < 0.0)
+		return std::numeric_limits<double>::infinity();
 	return std::sqrt(d2);
 }
 
 static glm::dvec2 polygon_edge_tangent(const std::vector<glm::dvec2> &poly, std::size_t edge_idx) {
-	if (poly.size() < 2) return glm::dvec2(1., 0.);
+	if (poly.size() < 2)
+		return glm::dvec2(1., 0.);
 	glm::dvec2 a = poly[edge_idx % poly.size()];
 	glm::dvec2 b = poly[(edge_idx + 1) % poly.size()];
 	glm::dvec2 t = b - a;
 	double n2 = t.x * t.x + t.y * t.y;
-	if (n2 > 0.0 && std::isfinite(n2)) t /= std::sqrt(n2);
-	else t = glm::dvec2(1., 0.);
+	if (n2 > 0.0 && std::isfinite(n2))
+		t /= std::sqrt(n2);
+	else
+		t = glm::dvec2(1., 0.);
 	return t;
 }
 
 static double poly_min_y(const std::vector<glm::dvec2> &poly) {
 	double low = std::numeric_limits<double>::infinity();
-	for (const auto &p : poly) low = std::min(low, p.y);
-	if (!std::isfinite(low)) return 0.0;
+	for (const auto &p : poly)
+		low = std::min(low, p.y);
+	if (!std::isfinite(low))
+		return 0.0;
 	return low;
 }
 
 static double poly_max_x(const std::vector<glm::dvec2> &poly) {
 	double hi = -std::numeric_limits<double>::infinity();
-	for (const auto &p : poly) hi = std::max(hi, p.x);
-	if (!std::isfinite(hi)) return 0.0;
+	for (const auto &p : poly)
+		hi = std::max(hi, p.x);
+	if (!std::isfinite(hi))
+		return 0.0;
 	return hi;
 }
 
-static void write_geom_validation_vtk(const char *folder, const std::vector<glm::dvec2> &poly, glm::dvec2 corner, glm::dvec2 closest, double y_top, double y_bottom) {
+static void write_geom_validation_vtk(const char *folder, const std::vector<glm::dvec2> &poly, glm::dvec2 corner, glm::dvec2 closest,
+									  double y_top, double y_bottom) {
 	char path[1024];
 	std::snprintf(path, sizeof(path), "%s/geom_validation_000000.vtk", folder);
 	FILE *fp = std::fopen(path, "w+");
@@ -254,7 +291,8 @@ static void write_geom_validation_vtk(const char *folder, const std::vector<glm:
 
 	std::vector<glm::dvec2> pts;
 	pts.reserve(poly.size() + 4);
-	for (const auto &p : poly) pts.push_back(p);
+	for (const auto &p : poly)
+		pts.push_back(p);
 	unsigned int idx_corner = static_cast<unsigned int>(pts.size());
 	pts.push_back(corner);
 	unsigned int idx_closest = static_cast<unsigned int>(pts.size());
@@ -279,7 +317,8 @@ static void write_geom_validation_vtk(const char *folder, const std::vector<glm:
 
 	unsigned int n_lines = (poly.size() >= 2 ? 1u : 0u) + 2u;
 	unsigned int line_size = 0;
-	if (poly.size() >= 2) line_size += static_cast<unsigned int>(poly.size()) + 1;
+	if (poly.size() >= 2)
+		line_size += static_cast<unsigned int>(poly.size()) + 1;
 	line_size += 3;
 	line_size += 3;
 	std::fprintf(fp, "\nLINES %u %u\n", n_lines, line_size);
@@ -317,10 +356,12 @@ static void write_geom_validation_vtk(const char *folder, const std::vector<glm:
 
 static void geom_autocorrect_fe_tool(body &b, double clearance_target_m, unsigned int iters, glm::dvec2 corner) {
 	fe_tool *ft = b.get_fe_tool();
-	if (!ft) return;
+	if (!ft)
+		return;
 	for (unsigned int it = 0; it < iters; it++) {
 		std::vector<glm::dvec2> poly = ft->boundary_loop_world();
-		if (poly.size() < 3) return;
+		if (poly.size() < 3)
+			return;
 
 		double y_bottom = poly_min_y(poly);
 		double y_top = corner.y;
@@ -331,7 +372,8 @@ static void geom_autocorrect_fe_tool(body &b, double clearance_target_m, unsigne
 		ft->set_pose(pos, ft->get_vel());
 
 		poly = ft->boundary_loop_world();
-		if (poly.size() < 3) return;
+		if (poly.size() < 3)
+			return;
 		glm::dvec2 cp(0.);
 		std::size_t e = 0;
 		(void)polygon_distance_to_boundary(corner, poly, cp, e);
@@ -343,7 +385,8 @@ static void geom_autocorrect_fe_tool(body &b, double clearance_target_m, unsigne
 }
 
 static void write_geom_validation_report(body &b, const char *folder, int model) {
-	if (!env_flag("MFREE_GEOM_VALIDATE", false)) return;
+	if (!env_flag("MFREE_GEOM_VALIDATE", false))
+		return;
 
 	double clearance_mm = env_double("MFREE_GEOM_CLEARANCE_MM", 0.2);
 	double clearance_tol_mm = env_double("MFREE_GEOM_CLEARANCE_TOL_MM", 0.001);
@@ -372,7 +415,8 @@ static void write_geom_validation_report(body &b, const char *folder, int model)
 	fe_tool *ft = b.get_fe_tool();
 	bool has_fe = (ft != nullptr);
 	std::vector<glm::dvec2> poly;
-	if (has_fe) poly = ft->boundary_loop_world();
+	if (has_fe)
+		poly = ft->boundary_loop_world();
 
 	if (has_fe && env_flag("MFREE_GEOM_AUTO_CORRECT", false)) {
 		geom_autocorrect_fe_tool(b, clearance_target, 3, corner);
@@ -382,7 +426,8 @@ static void write_geom_validation_report(body &b, const char *folder, int model)
 	glm::dvec2 cp(0.);
 	std::size_t edge_idx = 0;
 	double tangency_dist = std::numeric_limits<double>::infinity();
-	if (poly.size() >= 3) tangency_dist = polygon_distance_to_boundary(corner, poly, cp, edge_idx);
+	if (poly.size() >= 3)
+		tangency_dist = polygon_distance_to_boundary(corner, poly, cp, edge_idx);
 
 	glm::dvec2 tan = polygon_edge_tangent(poly, edge_idx);
 	double tan_angle = std::atan2(tan.y, tan.x);
@@ -409,30 +454,36 @@ static void write_geom_validation_report(body &b, const char *folder, int model)
 	char path[1024];
 	std::snprintf(path, sizeof(path), "%s/geom_validation.json", folder);
 	FILE *fp = std::fopen(path, "w+");
-	if (!fp) return;
+	if (!fp)
+		return;
 
 	std::fprintf(fp, "{\n");
 	std::fprintf(fp, "  \"model\": %d,\n", model);
-	std::fprintf(fp, "  \"workpiece\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", wp_xmin, wp_xmax, wp_ymin, wp_ymax);
+	std::fprintf(fp, "  \"workpiece\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", wp_xmin, wp_xmax, wp_ymin,
+				 wp_ymax);
 	std::fprintf(fp, "  \"corner\": {\"x\": %.15e, \"y\": %.15e},\n", corner.x, corner.y);
 	std::fprintf(fp, "  \"fe_tool\": {\"attached\": %d, \"boundary_nodes\": %u, \"bbox\": {\"xmax\": %.15e, \"ymin\": %.15e}},\n",
-	             has_fe ? 1 : 0, static_cast<unsigned int>(poly.size()), tool_xmax, y_bottom);
+				 has_fe ? 1 : 0, static_cast<unsigned int>(poly.size()), tool_xmax, y_bottom);
 	std::fprintf(fp, "  \"orientation\": {\"signed_area\": %.15e, \"edge_tangent_angle_rad\": %.15e},\n", area, tan_angle);
-	std::fprintf(fp, "  \"tangency\": {\"tol_m\": %.15e, \"distance_m\": %.15e, \"closest\": {\"x\": %.15e, \"y\": %.15e}, \"pass\": %d},\n",
-	             tangency_tol, tangency_dist, cp.x, cp.y, pass_tangency ? 1 : 0);
+	std::fprintf(fp,
+				 "  \"tangency\": {\"tol_m\": %.15e, \"distance_m\": %.15e, \"closest\": {\"x\": %.15e, \"y\": %.15e}, \"pass\": %d},\n",
+				 tangency_tol, tangency_dist, cp.x, cp.y, pass_tangency ? 1 : 0);
 	std::fprintf(fp, "  \"clearance\": {\"target_m\": %.15e, \"tol_m\": %.15e, \"measured_m\": %.15e, \"error_m\": %.15e, \"pass\": %d},\n",
-	             clearance_target, clearance_tol, clearance, clearance_err, pass_clearance ? 1 : 0);
-	std::fprintf(fp, "  \"recommended_translation_m\": {\"dx\": %.15e, \"dy\": %.15e},\n", recommended_translation.x, recommended_translation.y);
+				 clearance_target, clearance_tol, clearance, clearance_err, pass_clearance ? 1 : 0);
+	std::fprintf(fp, "  \"recommended_translation_m\": {\"dx\": %.15e, \"dy\": %.15e},\n", recommended_translation.x,
+				 recommended_translation.y);
 	std::fprintf(fp, "  \"rotation\": {\"supported\": %d, \"recommended_deg\": %.15e}\n", 0, 0.0);
 	std::fprintf(fp, "}\n");
 	std::fclose(fp);
 }
 
 static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int model) {
-	if (!env_flag("MFREE_FE_BC_VALIDATE", false)) return;
+	if (!env_flag("MFREE_FE_BC_VALIDATE", false))
+		return;
 
 	fe_tool *ft = b.get_fe_tool();
-	if (!ft) return;
+	if (!ft)
+		return;
 	fe_tool ft_probe = *ft;
 	fe_tool *ftp = &ft_probe;
 
@@ -455,33 +506,40 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 	}
 
 	std::unordered_set<unsigned int> both_nodes;
-	for (unsigned int n : top_nodes) if (rear_nodes.find(n) != rear_nodes.end()) both_nodes.insert(n);
+	for (unsigned int n : top_nodes)
+		if (rear_nodes.find(n) != rear_nodes.end())
+			both_nodes.insert(n);
 
 	double thermal_dt = env_double("MFREE_FE_BC_THERMAL_DT", 1e-6);
-	if (!std::isfinite(thermal_dt) || thermal_dt <= 0.) thermal_dt = 1e-6;
+	if (!std::isfinite(thermal_dt) || thermal_dt <= 0.)
+		thermal_dt = 1e-6;
 	double thermal_dt_crit = ftp->thermal_dt_crit();
 	if (std::isfinite(thermal_dt_crit) && thermal_dt_crit > 0.0 && thermal_dt > thermal_dt_crit) {
 		thermal_dt = thermal_dt_crit;
 	}
 
 	std::vector<double> T_before(ftp->nodes_tool_frame().size(), 0.0);
-	for (unsigned int i = 0; i < T_before.size(); i++) T_before[i] = ftp->temperature_at_node(i);
+	for (unsigned int i = 0; i < T_before.size(); i++)
+		T_before[i] = ftp->temperature_at_node(i);
 	ftp->advance_explicit(thermal_dt);
 	double max_abs_dT = 0.0;
 	for (unsigned int i = 0; i < T_before.size(); i++) {
 		double dT = ftp->temperature_at_node(i) - T_before[i];
-		if (std::isfinite(dT)) max_abs_dT = std::max(max_abs_dT, std::abs(dT));
+		if (std::isfinite(dT))
+			max_abs_dT = std::max(max_abs_dT, std::abs(dT));
 	}
 
 	auto write_csv = [&](const char *name, const std::unordered_set<unsigned int> &nodes) {
 		char path[1024];
 		std::snprintf(path, sizeof(path), "%s/%s", folder, name);
 		FILE *fp = std::fopen(path, "w+");
-		if (!fp) return;
+		if (!fp)
+			return;
 		std::fprintf(fp, "node_id,x,y,z,uy_fixed,temperature_C,temperature_assigned_C,abs_err_C\n");
 		std::vector<unsigned int> sorted;
 		sorted.reserve(nodes.size());
-		for (unsigned int n : nodes) sorted.push_back(n);
+		for (unsigned int n : nodes)
+			sorted.push_back(n);
 		std::sort(sorted.begin(), sorted.end());
 		for (unsigned int n : sorted) {
 			glm::dvec2 pw = ftp->node_world(n);
@@ -489,7 +547,8 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 			double Tm_K = ftp->temperature_at_node(n);
 			double Tm_C = Tm_K - 273.15;
 			double err_C = std::abs(Tm_K - Tamb_K);
-			if (!std::isfinite(pw.x) || !std::isfinite(pw.y) || !std::isfinite(Tm_C) || !std::isfinite(Tamb_C) || !std::isfinite(err_C)) continue;
+			if (!std::isfinite(pw.x) || !std::isfinite(pw.y) || !std::isfinite(Tm_C) || !std::isfinite(Tamb_C) || !std::isfinite(err_C))
+				continue;
 			std::fprintf(fp, "%u,%.15e,%.15e,%.15e,%d,%.15e,%.15e,%.15e\n", n + 1u, pw.x, pw.y, 0.0, uy_fixed, Tm_C, Tamb_C, err_C);
 		}
 		std::fclose(fp);
@@ -502,7 +561,8 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 		double mx = 0.0;
 		for (unsigned int n : nodes) {
 			double Tm_K = ftp->temperature_at_node(n);
-			if (!std::isfinite(Tm_K)) continue;
+			if (!std::isfinite(Tm_K))
+				continue;
 			mx = std::max(mx, std::abs(Tm_K - Tamb_K));
 		}
 		return mx;
@@ -562,20 +622,28 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 		std::fprintf(rp, "  \"thermal_dt_used_s\": %.15e,\n", thermal_dt);
 		std::fprintf(rp, "  \"thermal_dt_crit_s\": %.15e,\n", thermal_dt_crit);
 		std::fprintf(rp, "  \"max_abs_dT_K_first_advance\": %.15e,\n", max_abs_dT);
-		std::fprintf(rp, "  \"tool_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_mn.x, tool_mx.x, tool_mn.y, tool_mx.y);
-		std::fprintf(rp, "  \"top_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", top_mm.first.x, top_mm.second.x, top_mm.first.y, top_mm.second.y);
-		std::fprintf(rp, "  \"rear_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", rear_mm.first.x, rear_mm.second.x, rear_mm.first.y, rear_mm.second.y);
-		std::fprintf(rp, "  \"note\": \"Dirichlet temperature is applied by physical tag each thermal update (fe_tool::apply_dirichlet_bc), and fixed nodes are excluded from thermal integration. UY constraints verified via fe_tool::is_mechanics_fixed_y; intersection node is not overconstrained in Y because the DOF is identical.\"\n");
+		std::fprintf(rp, "  \"tool_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_mn.x, tool_mx.x,
+					 tool_mn.y, tool_mx.y);
+		std::fprintf(rp, "  \"top_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", top_mm.first.x,
+					 top_mm.second.x, top_mm.first.y, top_mm.second.y);
+		std::fprintf(rp, "  \"rear_bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", rear_mm.first.x,
+					 rear_mm.second.x, rear_mm.first.y, rear_mm.second.y);
+		std::fprintf(rp,
+					 "  \"note\": \"Dirichlet temperature is applied by physical tag each thermal update (fe_tool::apply_dirichlet_bc), "
+					 "and fixed nodes are excluded from thermal integration. UY constraints verified via fe_tool::is_mechanics_fixed_y; "
+					 "intersection node is not overconstrained in Y because the DOF is identical.\"\n");
 		std::fprintf(rp, "}\n");
 		std::fclose(rp);
 	}
 
 	bool run_conv = env_flag("MFREE_FE_BC_RUN_CONVERGENCE", true);
-	if (!run_conv) return;
+	if (!run_conv)
+		return;
 
 	unsigned int max_iters = static_cast<unsigned int>(std::max(1, env_int("MFREE_FE_BC_MECH_ITERS", 50)));
 	double rel_tol = env_double("MFREE_FE_BC_MECH_REL_TOL", 1e-6);
-	if (!std::isfinite(rel_tol) || rel_tol <= 0.) rel_tol = 1e-6;
+	if (!std::isfinite(rel_tol) || rel_tol <= 0.)
+		rel_tol = 1e-6;
 
 	ft->solve_mechanics_quasistatic(max_iters, rel_tol);
 	std::vector<glm::dvec2> u1 = ft->displacements();
@@ -588,14 +656,18 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 		glm::dvec2 du = u2[i] - u1[i];
 		double ndu = std::sqrt(du.x * du.x + du.y * du.y);
 		double nu = std::sqrt(u2[i].x * u2[i].x + u2[i].y * u2[i].y);
-		if (std::isfinite(ndu)) max_du = std::max(max_du, ndu);
-		if (std::isfinite(nu)) max_u = std::max(max_u, nu);
+		if (std::isfinite(ndu))
+			max_du = std::max(max_du, ndu);
+		if (std::isfinite(nu))
+			max_u = std::max(max_u, nu);
 	}
 	double denom = max_u;
-	if (!std::isfinite(denom) || denom <= 0.0) denom = 0.0;
+	if (!std::isfinite(denom) || denom <= 0.0)
+		denom = 0.0;
 	double rel_change = (denom > 0.0) ? (max_du / denom) : 0.0;
 	double abs_tol = env_double("MFREE_FE_BC_ABS_TOL", 1e-9);
-	if (!std::isfinite(abs_tol) || abs_tol <= 0.0) abs_tol = 1e-9;
+	if (!std::isfinite(abs_tol) || abs_tol <= 0.0)
+		abs_tol = 1e-9;
 	bool pass = (max_du <= abs_tol) || (rel_change <= 0.01);
 
 	char conv_path[1024];
@@ -610,7 +682,8 @@ static void write_fe_tool_bc_validation_reports(body &b, const char *folder, int
 		std::fprintf(cp, "Relative change (max_du / max_u): %.6e\n", rel_change);
 		std::fprintf(cp, "Absolute tolerance: %.6e m\n", abs_tol);
 		std::fprintf(cp, "Pass criterion: (max_du <= abs_tol) OR (relative_change <= 1%%): %s\n", pass ? "PASS" : "FAIL");
-		std::fprintf(cp, "Rigid-body motion warnings: not emitted by this solver; constraint set includes an optional UX anchor via MFREE_FE_BC_ANCHOR_UX.\n");
+		std::fprintf(cp, "Rigid-body motion warnings: not emitted by this solver; constraint set includes an optional UX anchor via "
+						 "MFREE_FE_BC_ANCHOR_UX.\n");
 		std::fclose(cp);
 	}
 }
@@ -639,7 +712,8 @@ static void write_precheck_report(body &b, const char *folder) {
 			rho_min = std::min(rho_min, pi.rho);
 			rho_max = std::max(rho_max, pi.rho);
 		}
-		if (pi.fixed) fixed_count++;
+		if (pi.fixed)
+			fixed_count++;
 		nbh_min = std::min(nbh_min, pi.num_nbh);
 		nbh_max = std::max(nbh_max, pi.num_nbh);
 		nbh_sum += static_cast<double>(pi.num_nbh);
@@ -704,7 +778,8 @@ static void write_precheck_report(body &b, const char *folder) {
 		if (poly.size() >= 3) {
 			contact_poly_nodes = static_cast<unsigned int>(poly.size());
 			glm::dvec2 ctr(0.);
-			for (const auto &pp : poly) ctr += pp;
+			for (const auto &pp : poly)
+				ctr += pp;
 			ctr /= static_cast<double>(poly.size());
 			contact_poly_ctr_inside = polygon_inside_depth(ctr, poly);
 			for (const auto &pp : poly) {
@@ -725,18 +800,22 @@ static void write_precheck_report(body &b, const char *folder) {
 
 	if (cp_wp > 0. && std::isfinite(cp_wp)) {
 		for (const particle &pi : p) {
-			if (!std::isfinite(pi.m) || pi.m <= 0.) continue;
-			if (!std::isfinite(pi.T_t)) continue;
+			if (!std::isfinite(pi.m) || pi.m <= 0.)
+				continue;
+			if (!std::isfinite(pi.T_t))
+				continue;
 			sum_p_wp += pi.m * cp_wp * pi.T_t;
 		}
 	}
 
-	for (const particle &pi : p) sum_f_wp += glm::dvec2(pi.fcx + pi.ftx, pi.fcy + pi.fty);
+	for (const particle &pi : p)
+		sum_f_wp += glm::dvec2(pi.fcx + pi.ftx, pi.fcy + pi.fty);
 
 	char path[256];
 	std::snprintf(path, sizeof(path), "%s/precheck.json", folder);
 	FILE *fp = std::fopen(path, "w+");
-	if (!fp) return;
+	if (!fp)
+		return;
 
 	std::fprintf(fp, "{\n");
 	std::fprintf(fp, "  \"particles\": {\n");
@@ -744,12 +823,14 @@ static void write_precheck_report(body &b, const char *folder) {
 	std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", x_min, x_max, y_min, y_max);
 	std::fprintf(fp, "    \"density\": {\"min\": %.15e, \"max\": %.15e},\n", rho_min, rho_max);
 	std::fprintf(fp, "    \"fixed_count\": %u,\n", fixed_count);
-	std::fprintf(fp, "    \"num_neighbors\": {\"min\": %u, \"max\": %u, \"avg\": %.6f}\n", nbh_min, nbh_max, (nbh_count ? nbh_sum / static_cast<double>(nbh_count) : 0.0));
+	std::fprintf(fp, "    \"num_neighbors\": {\"min\": %u, \"max\": %u, \"avg\": %.6f}\n", nbh_min, nbh_max,
+				 (nbh_count ? nbh_sum / static_cast<double>(nbh_count) : 0.0));
 	std::fprintf(fp, "  },\n");
 
 	std::fprintf(fp, "  \"tool\": {\n");
 	if (t) {
-		std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_xmin, tool_xmax, tool_ymin, tool_ymax);
+		std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_xmin, tool_xmax,
+					 tool_ymin, tool_ymax);
 		std::fprintf(fp, "    \"overlap\": {\"count\": %u, \"max_depth\": %.15e}\n", overlap_count, overlap_max_depth);
 	} else {
 		std::fprintf(fp, "    \"segments\": 0,\n");
@@ -760,7 +841,8 @@ static void write_precheck_report(body &b, const char *folder) {
 
 	std::fprintf(fp, "  \"tool_contact\": {\n");
 	if (ft && std::isfinite(tool_c_xmin) && std::isfinite(tool_c_xmax) && std::isfinite(tool_c_ymin) && std::isfinite(tool_c_ymax)) {
-		std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_c_xmin, tool_c_xmax, tool_c_ymin, tool_c_ymax);
+		std::fprintf(fp, "    \"bbox\": {\"xmin\": %.15e, \"xmax\": %.15e, \"ymin\": %.15e, \"ymax\": %.15e},\n", tool_c_xmin, tool_c_xmax,
+					 tool_c_ymin, tool_c_ymax);
 		std::fprintf(fp, "    \"polygon\": {\"nodes\": %u, \"centroid_inside\": %.15e},\n", contact_poly_nodes, contact_poly_ctr_inside);
 		std::fprintf(fp, "    \"overlap\": {\"count\": %u, \"max_depth\": %.15e}\n", overlap_count_contact, overlap_max_depth_contact);
 	} else {
@@ -783,10 +865,15 @@ static void write_precheck_report(body &b, const char *folder) {
 		std::fprintf(fp, "    \"thermal_material\": {\"rho\": %.15e, \"cp\": %.15e, \"k\": %.15e},\n", tm.rho, tm.cp, tm.k);
 		std::fprintf(fp, "    \"mechanical_material\": {\"E\": %.15e, \"nu\": %.15e, \"alpha\": %.15e},\n", mm.E, mm.nu, mm.alpha);
 		std::fprintf(fp, "    \"max_displacement\": %.15e,\n", ft->max_displacement_norm());
-		std::fprintf(fp, "    \"contact_convergence\": {\"iters\": %u, \"rel_force\": %.15e, \"rel_power\": %.15e, \"max_rel_force_node\": %.15e, \"max_rel_power_node\": %.15e, \"nodes_force_over_tol\": %u, \"nodes_power_over_tol\": %u},\n",
-		             cc.iters, cc.rel_force, cc.rel_power, cc.max_rel_force_node, cc.max_rel_power_node, cc.nodes_force_over_tol, cc.nodes_power_over_tol);
-		std::fprintf(fp, "    \"contact_energy\": {\"P_fric\": %.15e, \"P_cond\": %.15e, \"scale\": %.15e, \"frac_workpiece\": %.15e, \"frac_tool\": %.15e},\n",
-		             eb.P_fric, eb.P_cond, eb.scale, eb.frac_workpiece, eb.frac_tool);
+		std::fprintf(fp,
+					 "    \"contact_convergence\": {\"iters\": %u, \"rel_force\": %.15e, \"rel_power\": %.15e, \"max_rel_force_node\": "
+					 "%.15e, \"max_rel_power_node\": %.15e, \"nodes_force_over_tol\": %u, \"nodes_power_over_tol\": %u},\n",
+					 cc.iters, cc.rel_force, cc.rel_power, cc.max_rel_force_node, cc.max_rel_power_node, cc.nodes_force_over_tol,
+					 cc.nodes_power_over_tol);
+		std::fprintf(fp,
+					 "    \"contact_energy\": {\"P_fric\": %.15e, \"P_cond\": %.15e, \"scale\": %.15e, \"frac_workpiece\": %.15e, "
+					 "\"frac_tool\": %.15e},\n",
+					 eb.P_fric, eb.P_cond, eb.scale, eb.frac_workpiece, eb.frac_tool);
 		std::fprintf(fp, "    \"mapped_balance\": {\n");
 		std::fprintf(fp, "      \"sum_force_workpiece\": {\"fx\": %.15e, \"fy\": %.15e},\n", sum_f_wp.x, sum_f_wp.y);
 		std::fprintf(fp, "      \"sum_force_fe\": {\"fx\": %.15e, \"fy\": %.15e},\n", sum_f_fe.x, sum_f_fe.y);
@@ -818,20 +905,23 @@ static void write_validation_summary(const body &b, const char *folder, int mode
 	for (const particle &pi : p) {
 		double dx = pi.x - pi.X;
 		double dy = pi.y - pi.Y;
-		if (std::isfinite(dx) && std::isfinite(dy)) u_max = std::max(u_max, std::sqrt(dx * dx + dy * dy));
+		if (std::isfinite(dx) && std::isfinite(dy))
+			u_max = std::max(u_max, std::sqrt(dx * dx + dy * dy));
 
 		if (std::isfinite(pi.T)) {
 			T_min = std::min(T_min, pi.T);
 			T_max = std::max(T_max, pi.T);
 		}
-		if (std::isfinite(pi.eps_pl_equiv)) epsp_max = std::max(epsp_max, pi.eps_pl_equiv);
+		if (std::isfinite(pi.eps_pl_equiv))
+			epsp_max = std::max(epsp_max, pi.eps_pl_equiv);
 
 		double sxx = pi.Sxx - pi.p;
 		double sxy = pi.Sxy;
 		double syy = pi.Syy - pi.p;
 		double szz = pi.Szz - pi.p;
 		double svm = std::sqrt(std::fabs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
-		if (std::isfinite(svm)) svm_max = std::max(svm_max, svm);
+		if (std::isfinite(svm))
+			svm_max = std::max(svm_max, svm);
 
 		double Fn = std::sqrt(pi.fcx * pi.fcx + pi.fcy * pi.fcy);
 		if (Fn > 0. && std::isfinite(Fn) && pi.m > 0. && pi.rho > 0.) {
@@ -867,14 +957,16 @@ static void write_validation_summary(const body &b, const char *folder, int mode
 		for (unsigned int i = 0; i < fe_nodes; i++) {
 			glm::dvec2 f = ft->nodal_force(i);
 			double fm = std::sqrt(f.x * f.x + f.y * f.y);
-			if (std::isfinite(fm)) fe_Fmax = std::max(fe_Fmax, fm);
+			if (std::isfinite(fm))
+				fe_Fmax = std::max(fe_Fmax, fm);
 		}
 	}
 
 	char path[256];
 	std::snprintf(path, sizeof(path), "%s/validation_summary.json", folder);
 	FILE *fp = std::fopen(path, "w+");
-	if (!fp) return;
+	if (!fp)
+		return;
 
 	std::fprintf(fp, "{\n");
 	std::fprintf(fp, "  \"model\": %d,\n", model);
@@ -884,8 +976,8 @@ static void write_validation_summary(const body &b, const char *folder, int mode
 	std::fprintf(fp, "    \"max_displacement\": %.15e,\n", u_max);
 	std::fprintf(fp, "    \"max_von_mises\": %.15e,\n", svm_max);
 	std::fprintf(fp, "    \"max_equiv_plastic_strain\": %.15e,\n", epsp_max);
-	std::fprintf(fp, "    \"contact_pressure\": {\"count\": %u, \"avg\": %.15e, \"max\": %.15e}\n",
-	             cp_count, (cp_count ? cp_sum / static_cast<double>(cp_count) : 0.0), cp_max);
+	std::fprintf(fp, "    \"contact_pressure\": {\"count\": %u, \"avg\": %.15e, \"max\": %.15e}\n", cp_count,
+				 (cp_count ? cp_sum / static_cast<double>(cp_count) : 0.0), cp_max);
 	std::fprintf(fp, "  },\n");
 	std::fprintf(fp, "  \"fe_tool\": {\n");
 	std::fprintf(fp, "    \"attached\": %d,\n", ft ? 1 : 0);
@@ -900,15 +992,15 @@ static void write_validation_summary(const body &b, const char *folder, int mode
 	std::fclose(fp);
 }
 
-int main(int argc, char * argv[]) {
-	#if defined(__GLIBC__)
+int main(int argc, char *argv[]) {
+#if defined(__GLIBC__)
 	feenableexcept(FE_INVALID | FE_OVERFLOW);
-	#endif
+#endif
 
 	const char *results_dir_env = std::getenv("MFREE_RESULTS_DIR");
 	const std::string results_dir = (results_dir_env && results_dir_env[0] != '\0') ? std::string(results_dir_env) : std::string("results");
 
-	#ifdef _OPENMP
+#ifdef _OPENMP
 	omp_set_dynamic(0);
 	int omp_threads = omp_get_num_procs();
 	if (const char *s = std::getenv("MFREE_OMP_THREADS"); s && s[0] != '\0') {
@@ -925,13 +1017,14 @@ int main(int argc, char * argv[]) {
 	if (omp_threads > 0)
 		omp_set_num_threads(omp_threads);
 	std::fprintf(stdout, "OpenMP enabled: threads=%d processors=%d\n", omp_get_max_threads(), omp_get_num_procs());
-	#endif
+#endif
 
 	std::filesystem::create_directories(results_dir);
 	bool clean_results = env_flag("MFREE_CLEAN_RESULTS", true);
 	if (clean_results) {
 		for (const auto &p : std::filesystem::directory_iterator(results_dir)) {
-			if (!p.is_regular_file()) continue;
+			if (!p.is_regular_file())
+				continue;
 			const auto ext = p.path().extension().string();
 			if (ext == ".txt" || ext == ".vtk") {
 				std::error_code ec;
@@ -973,13 +1066,12 @@ int main(int argc, char * argv[]) {
 	int nx = env_int("MFREE_NBOX", nbox_default);
 	if (nx < NBOX_MIN || nx > NBOX_MAX) {
 		std::fprintf(stderr,
-			"WARNING: MFREE_NBOX=%d is outside the practical range [%d, %d]; "
-			"clamping to nearest bound.\n",
-			nx, NBOX_MIN, NBOX_MAX);
+					 "WARNING: MFREE_NBOX=%d is outside the practical range [%d, %d]; "
+					 "clamping to nearest bound.\n",
+					 nx, NBOX_MIN, NBOX_MAX);
 		nx = std::max(NBOX_MIN, std::min(NBOX_MAX, nx));
 	}
-	printf("nbox=%d (particle layers through thickness, dx ~ %.1f um)\n",
-		nx, 500.0 / static_cast<double>(nx - 1));
+	printf("nbox=%d (particle layers through thickness, dx ~ %.1f um)\n", nx, 500.0 / static_cast<double>(nx - 1));
 
 	/*
 	 ==========================
@@ -1041,13 +1133,15 @@ int main(int argc, char * argv[]) {
 	simulation_time *time = &simulation_time::getInstance();
 	{
 		double s = env_double("MFREE_DT_SCALE", 1.0);
-		if (std::isfinite(s) && s > 0.) time->set_dt(time->get_dt() * s);
+		if (std::isfinite(s) && s > 0.)
+			time->set_dt(time->get_dt() * s);
 	}
 	{
 		double s = env_double("MFREE_T_FINAL_SCALE", 1.0);
-		if (std::isfinite(s) && s > 0.) time->set_t_final(time->get_t_final() * s);
+		if (std::isfinite(s) && s > 0.)
+			time->set_t_final(time->get_t_final() * s);
 	}
-	unsigned int num_step = time->get_t_final()/time->get_dt();
+	unsigned int num_step = time->get_t_final() / time->get_dt();
 	int num_print = 150;
 	const char *num_print_env = std::getenv("MFREE_NUM_PRINT");
 	if (num_print_env && num_print_env[0] != '\0') {
@@ -1062,12 +1156,14 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	unsigned int freq = 1u;
-	if (num_print > 0) freq = num_step / static_cast<unsigned int>(num_print);
+	if (num_print > 0)
+		freq = num_step / static_cast<unsigned int>(num_print);
 	unsigned int print_iter = 0;
 	auto begin = std::chrono::high_resolution_clock::now();
 
 	freq = std::max(1u, freq);
-	if (num_print <= 0) freq = std::numeric_limits<unsigned int>::max();
+	if (num_print <= 0)
+		freq = std::numeric_limits<unsigned int>::max();
 
 	const char *output_freq_env = std::getenv("MFREE_OUTPUT_FREQ");
 	if (output_freq_env && output_freq_env[0] != '\0') {
@@ -1077,8 +1173,10 @@ int main(int argc, char * argv[]) {
 		bool ok = (end != output_freq_env && end != nullptr && *end == '\0' && errno == 0);
 		if (ok && v <= std::numeric_limits<unsigned int>::max()) {
 			unsigned int f = static_cast<unsigned int>(v);
-			if (f >= 1u) freq = f;
-			else freq = std::numeric_limits<unsigned int>::max();
+			if (f >= 1u)
+				freq = f;
+			else
+				freq = std::numeric_limits<unsigned int>::max();
 		} else {
 			std::fprintf(stderr, "warning: invalid MFREE_OUTPUT_FREQ=\"%s\"; expected integer >= 0\n", output_freq_env);
 		}
@@ -1104,7 +1202,7 @@ int main(int argc, char * argv[]) {
 	 * Fig. 5. Flowchart of the model logic for each time-step.
 	 *
 	 */
-	while(!time->finished() && (max_steps == 0 || time->get_step() < max_steps)) {
+	while (!time->finished() && (max_steps == 0 || time->get_step() < max_steps)) {
 
 		// plot with given frequency
 		if (time->get_step() % freq == 0) {
@@ -1120,10 +1218,11 @@ int main(int argc, char * argv[]) {
 				auto intermediate = std::chrono::high_resolution_clock::now();
 				double seconds_so_far = std::chrono::duration<double>(intermediate - begin).count();
 
-				double percent_done = 100*time->get_step()/((double) num_step);
-				double time_left = seconds_so_far/percent_done*100;
+				double percent_done = 100 * time->get_step() / ((double)num_step);
+				double time_left = seconds_so_far / percent_done * 100;
 
-				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_dt()*time->get_step(), percent_done, time_left-seconds_so_far);
+				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(),
+					   time->get_dt() * time->get_step(), percent_done, time_left - seconds_so_far);
 				print_iter++;
 			}
 		}

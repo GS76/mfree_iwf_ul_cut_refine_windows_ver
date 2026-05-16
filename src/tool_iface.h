@@ -10,7 +10,7 @@ struct tool_contact_hit_2d {
 };
 
 class tool_contact_2d {
-public:
+  public:
 	virtual ~tool_contact_2d() = default;
 	virtual bool contact(glm::dvec2 x_slave, tool_contact_hit_2d &out) const = 0;
 	virtual glm::dvec2 velocity_world() const = 0;

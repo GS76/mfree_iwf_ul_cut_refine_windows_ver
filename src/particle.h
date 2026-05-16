@@ -62,7 +62,7 @@
 
 class particle {
 
-public:
+  public:
 	particle();
 	particle(unsigned int idx);
 	particle(const particle &other);
@@ -77,18 +77,19 @@ public:
 	// index + hash for spatial hashing
 	unsigned int idx = 0, hash = 0;
 
-	double x = 0., y = 0.;		  /* Current particle location */
-	double X = 0.; double Y = 0.; /* Initial particle location */
-	double m = 0., rho = 0.;      /* Initial density */
-	double rho_init = 0.;         /* Mass and density */
-	double quad_weight = 0.;      /* Quadrature weight (equal to m/rho in mfree algos) */
-	double h = 0.;				  /* Smoothing length */
-	double p = 0.;			      /* Hydrostatic pressure */
+	double x = 0., y = 0.; /* Current particle location */
+	double X = 0.;
+	double Y = 0.;			 /* Initial particle location */
+	double m = 0., rho = 0.; /* Initial density */
+	double rho_init = 0.;	 /* Mass and density */
+	double quad_weight = 0.; /* Quadrature weight (equal to m/rho in mfree algos) */
+	double h = 0.;			 /* Smoothing length */
+	double p = 0.;			 /* Hydrostatic pressure */
 
 	double vx = 0., vy = 0.;							   /* Particle velocity */
 	double Sxx = 0., Sxy = 0., Syy = 0., Szz = 0.;		   /* Deviatoric(!) stress tensor components */
 	double Sxx_x = 0., Sxy_y = 0., Sxy_x = 0., Syy_y = 0.; /* Stress gradient */
-	double vx_x = 0., vx_y = 0., vy_x = 0., vy_y = 0.;     /* Velocity gradient */
+	double vx_x = 0., vx_y = 0., vy_x = 0., vy_y = 0.;	   /* Velocity gradient */
 
 	// time derivatives
 	double x_t = 0., y_t = 0.;
@@ -98,16 +99,18 @@ public:
 	double Sxx_t = 0., Sxy_t = 0., Syy_t = 0., Szz_t = 0.;
 
 	// components of contact (_c) & tangential (_t) forces
-	double fcx = 0.; double fcy = 0.;
-	double ftx = 0.; double fty = 0.;
+	double fcx = 0.;
+	double fcy = 0.;
+	double ftx = 0.;
+	double fty = 0.;
 	double contact_lambda_n = 0.;
 
 	// artificial stress components
 	double Rxx = 0., Rxy = 0., Ryy = 0.;
 
-	double T		= 0.;		/* Current particle temperature */
-	double T_t		= 0.;		/* Particle temperature derivative wrt time */
-	double T_init	= 0.;		/* Initial particle temperature */
+	double T = 0.;		/* Current particle temperature */
+	double T_t = 0.;	/* Particle temperature derivative wrt time */
+	double T_init = 0.; /* Initial particle temperature */
 
 	// plastic strain tensor
 	double eps_plxx = 0.;

@@ -27,10 +27,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path $Exe))
-{ throw "Executable not found: $Exe" 
+{ throw "Executable not found: $Exe"
 }
 if (-not (Test-Path $Mesh))
-{ throw "FE tool mesh not found: $Mesh" 
+{ throw "FE tool mesh not found: $Mesh"
 }
 
 # ── geometry / physics ────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ Write-Host ""
 
 & $Exe -m 3
 if ($LASTEXITCODE -ne 0)
-{ throw "mfree_iwf.exe exited with code $LASTEXITCODE" 
+{ throw "mfree_iwf.exe exited with code $LASTEXITCODE"
 }
 
 Write-Host ""

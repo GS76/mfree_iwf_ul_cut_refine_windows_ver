@@ -1,6 +1,6 @@
-# Rigid Tool Meshing (Gmsh SDK)
+# Rigid Tool Meshing (system-installed Gmsh SDK)
 
-This repository vendors a Gmsh SDK in `Meshing/gmsh-4.15.2-Windows64-sdk/`. The script below generates a 2D triangular mesh of the rigid cutting tool cross-section in the same world coordinate system used by the solver, with a prescribed refinement zone around the cutting-edge radius center.
+The script below generates a 2D triangular mesh of the rigid cutting tool cross-section in the same world coordinate system used by the solver, with a prescribed refinement zone around the cutting-edge radius center. It expects a system-installed Gmsh SDK/Python module (`gmsh.py`), provided via command-line flags or environment variables.
 
 ## Inputs
 
@@ -47,15 +47,25 @@ python .\Meshing\generate_rigid_tool_mesh.py `
   --out-tool-meta .\Meshing\out\tool_geometry.json
 ```
 
-If the bundled SDK path does not match your setup, point the script to your Gmsh Python module:
+Before running the script, ensure Gmsh is installed and point the script to your Gmsh Python module:
 
 - `--gmsh-lib`: path to the directory containing `gmsh.py` (typically `<gmsh-sdk>/lib`)
-- `--gmsh-root`: path to the SDK root (script will use `<root>/lib`)
+- `--gmsh-root`: path to the SDK root (script uses `<root>/lib`)
 
 Environment variable alternatives (path-list separated by `;` on Windows):
 
 - `MFREE_GMSH_LIB`, `GMSH_PYTHON_LIB`
 - `MFREE_GMSH_ROOT`, `GMSH_SDK_DIR`
+
+Example (PowerShell):
+
+```powershell
+$env:GMSH_SDK_DIR = "C:\\tools\\gmsh-4.15.2-Windows64-sdk"
+python .\\Meshing\\generate_rigid_tool_mesh.py `
+  --tool-txt .\\results\\tool_0000000.txt `
+  --unit m `
+  --out-msh .\\Meshing\\out\\tool.msh
+```
 
 Or reconstruct from benchmark-style parameters:
 
@@ -80,3 +90,26 @@ The script writes a JSON report containing:
 - node count, triangle count
 - minimum triangle angle (degrees)
 - minimum radius-ratio quality (higher is better, 1 is equilateral)
+
+## Initial Meshing Pipeline Draft
+
+An initial meshing-pipeline scaffold is available for incremental improvements without replacing the current generator internals:
+
+- Requirements baseline: `Meshing/pipeline_requirements.json`
+- Core pipeline modules:
+  - `Meshing/pipeline/contracts.py`
+  - `Meshing/pipeline/inputs.py`
+  - `Meshing/pipeline/runner.py`
+  - `Meshing/pipeline/cli.py`
+  - `Meshing/run_pipeline.py`
+
+Pipeline CLI usage (same key arguments as the current generator):
+
+```powershell
+python .\Meshing\run_pipeline.py `
+  --tool-txt .\results\tool_0000000.txt `
+  --unit m `
+  --out-msh .\Meshing\out\tool.msh `
+  --out-report .\Meshing\out\tool_mesh_report.json `
+  --out-tool-meta .\Meshing\out\tool_geometry.json
+```

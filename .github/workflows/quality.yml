@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format python3
+          sudo apt-get install -y clang-format-19 python3
       - name: Determine changed files
         shell: bash
         run: |
@@ -26,11 +26,18 @@ jobs:
             git fetch --no-tags origin "${{ github.event.base_ref }}"
             git diff --name-only "FETCH_HEAD...HEAD" > changed_files.txt
           else
-            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt
+            if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+              git fetch --no-tags origin master
+              git diff --name-only "origin/master...HEAD" > changed_files.txt
+            else
+              git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed_files.txt
+            fi
           fi
       - name: EditorConfig (basic)
         run: python3 scripts/check_editorconfig_basic.py --file-list changed_files.txt
       - name: clang-format
+        env:
+          CLANG_FORMAT: clang-format-19
         run: python3 scripts/check_clang_format.py --file-list changed_files.txt
 
   build-and-test:

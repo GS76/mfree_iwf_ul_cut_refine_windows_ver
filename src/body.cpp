@@ -63,9 +63,11 @@
 
 namespace {
 static bool parse_env_bool_strict(const char *name) {
-	if (!name || name[0] == '\0') return false;
+	if (!name || name[0] == '\0')
+		return false;
 	const char *s = std::getenv(name);
-	if (!s) return false;
+	if (!s)
+		return false;
 
 	errno = 0;
 	char *end = nullptr;
@@ -79,9 +81,11 @@ static bool parse_env_bool_strict(const char *name) {
 }
 
 static bool parse_env_uint_strict_min(const char *name, unsigned int min_value, unsigned int &out) {
-	if (!name || name[0] == '\0') return false;
+	if (!name || name[0] == '\0')
+		return false;
 	const char *s = std::getenv(name);
-	if (!s) return false;
+	if (!s)
+		return false;
 
 	errno = 0;
 	char *end = nullptr;
@@ -100,9 +104,11 @@ static bool parse_env_uint_strict_min(const char *name, unsigned int min_value, 
 }
 
 static bool parse_env_double_strict_range(const char *name, double min_value, double max_value, double &out) {
-	if (!name || name[0] == '\0') return false;
+	if (!name || name[0] == '\0')
+		return false;
 	const char *s = std::getenv(name);
-	if (!s) return false;
+	if (!s)
+		return false;
 
 	errno = 0;
 	char *end = nullptr;
@@ -117,9 +123,11 @@ static bool parse_env_double_strict_range(const char *name, double min_value, do
 }
 
 static bool parse_env_double_strict_min(const char *name, double min_value, double &out) {
-	if (!name || name[0] == '\0') return false;
+	if (!name || name[0] == '\0')
+		return false;
 	const char *s = std::getenv(name);
-	if (!s) return false;
+	if (!s)
+		return false;
 
 	errno = 0;
 	char *end = nullptr;
@@ -145,12 +153,14 @@ void body::apply_plasticity() {
 double body::get_step_plastic_dissipation() const { return m_step_plastic_dissipation; }
 
 void body::apply_thermal_conduction() {
-	if (m_thermal == 0) return;
+	if (m_thermal == 0)
+		return;
 	m_thermal->conduction(*this);
 }
 
 void body::apply_contact() {
-	if (m_fe_tool == nullptr) return;
+	if (m_fe_tool == nullptr)
+		return;
 
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
@@ -194,7 +204,8 @@ void body::apply_contact() {
 
 	std::vector<particle> &particles = get_particles();
 	std::vector<double> base_T_t(particles.size(), 0.);
-	for (unsigned int i = 0; i < particles.size(); i++) base_T_t[i] = particles[i].T_t;
+	for (unsigned int i = 0; i < particles.size(); i++)
+		base_T_t[i] = particles[i].T_t;
 
 	const auto &nodes = m_fe_tool->nodes_tool_frame();
 	std::vector<glm::dvec2> prev_forces(nodes.size(), glm::dvec2(0.));
@@ -214,12 +225,15 @@ void body::apply_contact() {
 		} else if (std::isfinite(dtcrit) && dtcrit > 0.) {
 			double max_dt = 0.9 * dtcrit;
 			mech_substeps = static_cast<unsigned int>(std::ceil(dt / max_dt));
-			if (mech_substeps < 1) mech_substeps = 1;
+			if (mech_substeps < 1)
+				mech_substeps = 1;
 		}
-		if (mech_substeps > explicit_max_substeps) mech_substeps = explicit_max_substeps;
+		if (mech_substeps > explicit_max_substeps)
+			mech_substeps = explicit_max_substeps;
 		unsigned int thermal_substeps = (thermal_substeps_override > 0) ? thermal_substeps_override : mech_substeps;
 		unsigned int substeps = std::max(mech_substeps, thermal_substeps);
-		if (substeps < 1) substeps = 1;
+		if (substeps < 1)
+			substeps = 1;
 
 		std::vector<double> sum_fcx(particles.size(), 0.);
 		std::vector<double> sum_fcy(particles.size(), 0.);
@@ -246,13 +260,15 @@ void body::apply_contact() {
 				for (const auto &p : poly) {
 					if (!uniq.empty()) {
 						glm::dvec2 d = p - uniq.back();
-						if (d.x * d.x + d.y * d.y <= eps2) continue;
+						if (d.x * d.x + d.y * d.y <= eps2)
+							continue;
 					}
 					uniq.push_back(p);
 				}
 				if (uniq.size() >= 2) {
 					glm::dvec2 d = uniq.front() - uniq.back();
-					if (d.x * d.x + d.y * d.y <= eps2) uniq.pop_back();
+					if (d.x * d.x + d.y * d.y <= eps2)
+						uniq.pop_back();
 				}
 				poly.swap(uniq);
 			}
@@ -263,10 +279,12 @@ void body::apply_contact() {
 			}
 
 			double dt_th = dt / static_cast<double>(thermal_substeps);
-			if (s < thermal_substeps) m_fe_tool->advance_explicit(dt_th);
+			if (s < thermal_substeps)
+				m_fe_tool->advance_explicit(dt_th);
 
 			double dt_mech = dt / static_cast<double>(mech_substeps);
-			if (s < mech_substeps) m_fe_tool->advance_mechanics_explicit(dt_mech);
+			if (s < mech_substeps)
+				m_fe_tool->advance_mechanics_explicit(dt_mech);
 
 			for (unsigned int i = 0; i < particles.size(); i++) {
 				sum_fcx[i] += particles[i].fcx;
@@ -323,7 +341,8 @@ void body::apply_contact() {
 		if (relax < 1.0) {
 			std::vector<glm::dvec2> u_new = m_fe_tool->displacements();
 			if (u_new.size() == u_old.size()) {
-				for (unsigned int i = 0; i < u_new.size(); i++) u_new[i] = (1.0 - relax) * u_old[i] + relax * u_new[i];
+				for (unsigned int i = 0; i < u_new.size(); i++)
+					u_new[i] = (1.0 - relax) * u_old[i] + relax * u_new[i];
 				m_fe_tool->set_displacements(u_new);
 			}
 		}
@@ -362,10 +381,14 @@ void body::apply_contact() {
 
 			bool active = (f_norm > 1e-30) || (f_prev_norm > 1e-30) || (p_norm > 1e-30) || (p_prev_norm > 1e-30);
 			if (active) {
-				if (std::isfinite(rF_node)) max_rF_node = std::max(max_rF_node, rF_node);
-				if (std::isfinite(rP_node)) max_rP_node = std::max(max_rP_node, rP_node);
-				if (it > 0 && std::isfinite(rF_node) && rF_node > contact_tol) cnt_rF_over++;
-				if (it > 0 && std::isfinite(rP_node) && rP_node > contact_tol) cnt_rP_over++;
+				if (std::isfinite(rF_node))
+					max_rF_node = std::max(max_rF_node, rF_node);
+				if (std::isfinite(rP_node))
+					max_rP_node = std::max(max_rP_node, rP_node);
+				if (it > 0 && std::isfinite(rF_node) && rF_node > contact_tol)
+					cnt_rF_over++;
+				if (it > 0 && std::isfinite(rP_node) && rP_node > contact_tol)
+					cnt_rP_over++;
 			}
 
 			prev_forces[i] = f;
@@ -383,27 +406,33 @@ void body::apply_contact() {
 		cc.nodes_force_over_tol = cnt_rF_over;
 		cc.nodes_power_over_tol = cnt_rP_over;
 		m_fe_tool->set_contact_convergence(cc);
-		if (it > 0 && max_rF_node <= contact_tol && max_rP_node <= contact_tol) break;
+		if (it > 0 && max_rF_node <= contact_tol && max_rP_node <= contact_tol)
+			break;
 	}
 }
 
 void body::advance_fe_tool_thermal() {
-	if (!m_fe_tool) return;
+	if (!m_fe_tool)
+		return;
 	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
 	bool coupled_explicit = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL_EXPLICIT");
-	if (deformable && coupled_explicit) return;
+	if (deformable && coupled_explicit)
+		return;
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 	m_fe_tool->advance_explicit(dt);
 }
 
 void body::advance_fe_tool_mechanics_explicit() {
-	if (!m_fe_tool) return;
+	if (!m_fe_tool)
+		return;
 	bool deformable = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL");
 	bool coupled_explicit = parse_env_bool_strict("MFREE_DEFORMABLE_FE_TOOL_EXPLICIT");
-	if (deformable && coupled_explicit) return;
+	if (deformable && coupled_explicit)
+		return;
 	bool use = parse_env_bool_strict("MFREE_FE_TOOL_MECH_EXPLICIT");
-	if (!use) return;
+	if (!use)
+		return;
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
 	double a0 = 0.;
@@ -415,23 +444,23 @@ void body::advance_fe_tool_mechanics_explicit() {
 }
 
 void body::apply_adaptivity() {
-	if (m_adapt == 0) return;
+	if (m_adapt == 0)
+		return;
 	m_adapt->adapt_resolution(*this);
 }
 
-
-void body::set_fe_tool(fe_tool *tool) {
-	m_fe_tool = tool;
-}
+void body::set_fe_tool(fe_tool *tool) { m_fe_tool = tool; }
 
 void body::move_tool() {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();
-	if (m_fe_tool) m_fe_tool->update_pose(dt);
+	if (m_fe_tool)
+		m_fe_tool->update_pose(dt);
 }
 
 glm::dvec2 body::speed_tool() {
-	if (m_fe_tool) return m_fe_tool->get_vel();
+	if (m_fe_tool)
+		return m_fe_tool->get_vel();
 	return glm::dvec2(0.);
 }
 
@@ -441,7 +470,8 @@ glm::dvec2 body::edge_tool() {
 		if (!poly.empty()) {
 			glm::dvec2 best = poly[0];
 			for (const auto &p : poly) {
-				if (p.y < best.y) best = p;
+				if (p.y < best.y)
+					best = p;
 			}
 			return best;
 		}
@@ -452,17 +482,11 @@ glm::dvec2 body::edge_tool() {
 const fe_tool *body::get_fe_tool() const { return m_fe_tool; }
 fe_tool *body::get_fe_tool() { return m_fe_tool; }
 
-void body::set_plasticity(plasticity *plasticity) {
-	m_plast = plasticity;
-}
+void body::set_plasticity(plasticity *plasticity) { m_plast = plasticity; }
 
-void body::set_thermal(thermal *thermal) {
-	m_thermal = thermal;
-}
+void body::set_thermal(thermal *thermal) { m_thermal = thermal; }
 
-void body::set_adaptivity(adaptivity *adaptivity) {
-	m_adapt = adaptivity;
-}
+void body::set_adaptivity(adaptivity *adaptivity) { m_adapt = adaptivity; }
 
 void body::construct_verlet_lists() {
 	const unsigned int num_part = m_particles.size();
@@ -470,49 +494,33 @@ void body::construct_verlet_lists() {
 	m_grid.update_geometry(m_particles, num_part, 2.);
 	m_grid.assign_hashes(m_particles, num_part);
 
-	std::sort(m_particles.begin(), m_particles.end(),
-			[](const particle &a, const particle &b) {return a.hash < b.hash;});
+	std::sort(m_particles.begin(), m_particles.end(), [](const particle &a, const particle &b) { return a.hash < b.hash; });
 
 	m_grid.construct_verlet_lists(m_particles, num_part, 2.);
 
 	m_basis_fun(m_particles, num_part);
 }
 
-void body::insert_particles(const std::vector<particle>& additional_particles) {
+void body::insert_particles(const std::vector<particle> &additional_particles) {
 	m_particles.insert(m_particles.end(), additional_particles.begin(), additional_particles.end());
 }
 
 void body::restore_order() {
-	std::sort(m_particles.begin(), m_particles.end(),
-			[](const particle &a, const particle &b) {return a.idx < b.idx;});
+	std::sort(m_particles.begin(), m_particles.end(), [](const particle &a, const particle &b) { return a.idx < b.idx; });
 }
 
-void body::set_basis_fun(void (*basis_fun)(std::vector<particle> &particles , unsigned int)) {
-	m_basis_fun = basis_fun;
-}
+void body::set_basis_fun(void (*basis_fun)(std::vector<particle> &particles, unsigned int)) { m_basis_fun = basis_fun; }
 
-simulation_data body::get_sim_data()  const {
-	return m_simulation_data;
-}
+simulation_data body::get_sim_data() const { return m_simulation_data; }
 
-std::vector<particle> &body::get_particles() {
-	return m_particles;
-}
+std::vector<particle> &body::get_particles() { return m_particles; }
 
-const std::vector<particle> &body::get_particles() const {
-	return m_particles;
-}
+const std::vector<particle> &body::get_particles() const { return m_particles; }
 
-unsigned int body::get_num_part() const {
-	return m_particles.size();
-}
-
-body::body(std::vector<particle>&& particles, simulation_data data) :
-		m_simulation_data(data), m_particles(std::move(particles)) {}
-
-body::body(particle* particles, unsigned int n, simulation_data data) :
-		m_simulation_data(data) {
+unsigned int body::get_num_part() const { return m_particles.size(); }
+body::body(std::vector<particle> &&particles, simulation_data data) : m_simulation_data(data), m_particles(std::move(particles)) {}
+body::body(particle *particles, unsigned int n, simulation_data data) : m_simulation_data(data) {
 
 	m_particles.resize(n);
-	std::copy(particles, particles+n, m_particles.begin());
+	std::copy(particles, particles + n, m_particles.begin());
 }

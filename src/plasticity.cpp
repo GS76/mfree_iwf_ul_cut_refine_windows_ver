@@ -95,15 +95,14 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 	for (unsigned int i = 0; i < num_part; i++) {
 		// Skip plasticity entirely for density-floored particles: their stress state is artificial
 		if (rho_min > 0. && particles[i].rho <= 1.01 * rho_min) {
-		    // Zero the stress state for particles that hit the density floor.
-		    // Without this, the old trial stresses (computed with a pre‑floor density)
-		    // can become NaN/Inf when later combined with the (now floored) density.
-		    particles[i].Sxx = particles[i].Syy = particles[i].Szz = particles[i].Sxy = 0.;
-		    particles[i].Sxx_t = particles[i].Syy_t = particles[i].Szz_t = particles[i].Sxy_t = 0.;
-		    particles[i].eps_pl_equiv_dot = 0.;
-		    continue;
+			// Zero the stress state for particles that hit the density floor.
+			// Without this, old trial stresses (computed with pre-floor density)
+			// can become NaN/Inf when later combined with the floored density.
+			particles[i].Sxx = particles[i].Syy = particles[i].Szz = particles[i].Sxy = 0.;
+			particles[i].Sxx_t = particles[i].Syy_t = particles[i].Szz_t = particles[i].Sxy_t = 0.;
+			particles[i].eps_pl_equiv_dot = 0.;
+			continue;
 		}
-
 		// deviatoric stress (trial)
 		double Strialxx = particles[i].Sxx;
 		double Strialyy = particles[i].Syy;
@@ -111,12 +110,14 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 		double Strialxy = particles[i].Sxy;
 
 		// Defensive guard: catch NaN/Inf or non-finite pressure before any math that would propagate NaN
-		if (!std::isfinite(Strialxx) || !std::isfinite(Strialyy) || !std::isfinite(Strialzz) || !std::isfinite(Strialxy) || !std::isfinite(particles[i].p)) {
+		if (!std::isfinite(Strialxx) || !std::isfinite(Strialyy) || !std::isfinite(Strialzz) || !std::isfinite(Strialxy) ||
+			!std::isfinite(particles[i].p)) {
 			static int nan_count = 0;
 			nan_count++;
 			if (nan_count <= 50) {
 				fprintf(stderr, "WARNING: NaN/Inf in Strial or p for particle %u, zeroing stresses and skipping plasticity\n", i);
-				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e, p=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T, particles[i].p);
+				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e, p=%.6e\n", particles[i].x, particles[i].y, particles[i].rho,
+						particles[i].T, particles[i].p);
 			}
 			// Zero stresses and time rates
 			particles[i].Sxx = particles[i].Sxy = particles[i].Syy = particles[i].Szz = 0.;
@@ -125,28 +126,8 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 			// Append compact diagnostic to plast_debug.txt for post-mortem
 			FILE *fp = fopen("plast_debug.txt", "a");
 			if (fp) {
-				fprintf(fp, "%u %.6e %.6e %.6e %.6e %.6e\n", i, particles[i].x, particles[i].y, particles[i].rho, particles[i].T, particles[i].p);
-				fclose(fp);
-			}
-			continue;
-		}
-
-		// Defensive guard: catch NaN/Inf or non-finite pressure before any math that would propagate NaN
-		if (!std::isfinite(Strialxx) || !std::isfinite(Strialyy) || !std::isfinite(Strialzz) || !std::isfinite(Strialxy) || !std::isfinite(particles[i].p)) {
-			static int nan_count = 0;
-			nan_count++;
-			if (nan_count <= 50) {
-				fprintf(stderr, "WARNING: NaN/Inf in Strial or p for particle %u, zeroing stresses and skipping plasticity\n", i);
-				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e, p=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T, particles[i].p);
-			}
-			// Zero stresses and time rates
-			particles[i].Sxx = particles[i].Sxy = particles[i].Syy = particles[i].Szz = 0.;
-			particles[i].Sxx_t = particles[i].Sxy_t = particles[i].Syy_t = particles[i].Szz_t = 0.;
-			particles[i].eps_pl_equiv_dot = 0.;
-			// Append compact diagnostic to plast_debug.txt for post-mortem
-			FILE *fp = fopen("plast_debug.txt", "a");
-			if (fp) {
-				fprintf(fp, "%u %.6e %.6e %.6e %.6e %.6e\n", i, particles[i].x, particles[i].y, particles[i].rho, particles[i].T, particles[i].p);
+				fprintf(fp, "%u %.6e %.6e %.6e %.6e %.6e\n", i, particles[i].x, particles[i].y, particles[i].rho, particles[i].T,
+						particles[i].p);
 				fclose(fp);
 			}
 			continue;
@@ -160,16 +141,14 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 			static int extreme_count = 0;
 			extreme_count++;
 			if (extreme_count <= 10) {
-				fprintf(stderr, "WARNING: extreme norm_Strial (%.2e > 1e15) for particle %u, skipping plasticity\n",
-						norm_Strial, i);
-				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n",
-						particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
+				fprintf(stderr, "WARNING: extreme norm_Strial (%.2e > 1e15) for particle %u, skipping plasticity\n", norm_Strial, i);
+				fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
 			}
 			particles[i].eps_pl_equiv_dot = 0.;
 			continue;
 		}
 
-	// cauchy stress (trial)
+		// cauchy stress (trial)
 		double cxx = particles[i].Sxx - particles[i].p;
 		double cyy = particles[i].Syy - particles[i].p;
 		double czz = particles[i].Szz - particles[i].p;
@@ -200,36 +179,32 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 		bool failed = false;
 		delta_lambda =
 			solve_zero_secant(m_plasticity_model, fmax(particles[i].eps_pl_equiv_dot * delta_t * sqrt(2. / 3.), 1e-8), m_tol, failed);
-	if (failed) {
-		// Graceful handling: log warning and skip plasticity for this particle
-		static int fail_count = 0;
-		fail_count++;
+		if (failed) {
+			// Graceful handling: log warning and skip plasticity for this particle
+			static int fail_count = 0;
+			fail_count++;
 
-		fprintf(stderr, "WARNING: radial return failed (count=%d) for particle %u\n", fail_count, i);
-		fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n",
-				particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
-		fprintf(stderr, "  eps_pl_equiv=%.6e, eps_pl_equiv_dot=%.6e\n",
-				particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot);
-		fprintf(stderr, "  Sxx=%.6e, Syy=%.6e, Szz=%.6e, Sxy=%.6e, p=%.6e\n",
-				particles[i].Sxx, particles[i].Syy, particles[i].Szz, particles[i].Sxy, particles[i].p);
-		fprintf(stderr, "  Strialxx=%.6e, Strialyy=%.6e, Strialzz=%.6e, Strialxy=%.6e\n",
-				Strialxx, Strialyy, Strialzz, Strialxy);
-		fprintf(stderr, "  norm_Strial=%.6e\n", norm_Strial);
+			fprintf(stderr, "WARNING: radial return failed (count=%d) for particle %u\n", fail_count, i);
+			fprintf(stderr, "  x=(%.6e, %.6e), rho=%.6e, T=%.6e\n", particles[i].x, particles[i].y, particles[i].rho, particles[i].T);
+			fprintf(stderr, "  eps_pl_equiv=%.6e, eps_pl_equiv_dot=%.6e\n", particles[i].eps_pl_equiv, particles[i].eps_pl_equiv_dot);
+			fprintf(stderr, "  Sxx=%.6e, Syy=%.6e, Szz=%.6e, Sxy=%.6e, p=%.6e\n", particles[i].Sxx, particles[i].Syy, particles[i].Szz,
+					particles[i].Sxy, particles[i].p);
+			fprintf(stderr, "  Strialxx=%.6e, Strialyy=%.6e, Strialzz=%.6e, Strialxy=%.6e\n", Strialxx, Strialyy, Strialzz, Strialxy);
+			fprintf(stderr, "  norm_Strial=%.6e\n", norm_Strial);
 
-		// Write debug info to file for post-processing
-		print_debug(particles, num_part, i);
+			// Write debug info to file for post-processing
+			print_debug(particles, num_part, i);
 
-		// Skip plasticity update - keep particle in previous state
-		particles[i].eps_pl_equiv_dot = 0.;
+			// Skip plasticity update - keep particle in previous state
+			particles[i].eps_pl_equiv_dot = 0.;
 
-		// If too many failures, escalate warning but continue (allow data collection)
-		if (fail_count > 100) {
-			fprintf(stderr, "ERROR: Too many radial return failures (%d); continuing anyway for data collection\n", fail_count);
+			// If too many failures, escalate warning but continue (allow data collection)
+			if (fail_count > 100) {
+				fprintf(stderr, "ERROR: Too many radial return failures (%d); continuing anyway for data collection\n", fail_count);
+			}
+
+			continue;
 		}
-
-		continue;
-	}
-
 		double eps_pl_new = eps_pl_equiv_init + sqrt(2.0 / 3.0) * fmax(delta_lambda, 0.);
 		double delta_eps_pl = eps_pl_new - particles[i].eps_pl_equiv;
 

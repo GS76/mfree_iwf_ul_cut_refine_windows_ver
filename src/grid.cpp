@@ -54,7 +54,7 @@
 #include <omp.h>
 #endif
 
-void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) const {
+void grid::assign_hashes(std::vector<particle> &particles, unsigned int n) const {
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -65,9 +65,9 @@ void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) cons
 			particles[i].hash = 0;
 			continue;
 		}
-		const unsigned int ix = (unsigned int) ((particles[i].x - m_bbmin_x)/m_dx);
-		const unsigned int iy = (unsigned int) ((particles[i].y - m_bbmin_y)/m_dx);
-		particles[i].hash = ix*m_ny + iy;
+		const unsigned int ix = (unsigned int)((particles[i].x - m_bbmin_x) / m_dx);
+		const unsigned int iy = (unsigned int)((particles[i].y - m_bbmin_y) / m_dx);
+		particles[i].hash = ix * m_ny + iy;
 	}
 }
 
@@ -89,35 +89,35 @@ void grid::get_bbox(glm::dvec3 &bbmin, glm::dvec3 &bbmax) const {
 }
 
 void grid::unhash(int idx, unsigned int &i, unsigned int &j) const {
-	i = idx/(m_ny);
-	j = idx-(i)*(m_ny);
+	i = idx / (m_ny);
+	j = idx - (i) * (m_ny);
 }
 
-const std::vector<int> &grid::get_cells(const std::vector<particle> &particles, unsigned int n)  {
+const std::vector<int> &grid::get_cells(const std::vector<particle> &particles, unsigned int n) {
 
-	//needs to be sorted for this to work
-	for (unsigned int i = 0; i < n-1; i++) {
-		assert(particles[i].hash <= particles[i+1].hash);
+	// needs to be sorted for this to work
+	for (unsigned int i = 0; i < n - 1; i++) {
+		assert(particles[i].hash <= particles[i + 1].hash);
 	}
 
-	if (m_cells.capacity() < m_num_cell+1) {
-		m_cells.resize(std::max((unsigned int) (2*m_cells.size()), 2*(m_num_cell+1)));
+	if (m_cells.capacity() < m_num_cell + 1) {
+		m_cells.resize(std::max((unsigned int)(2 * m_cells.size()), 2 * (m_num_cell + 1)));
 	}
 
 	std::fill(m_cells.begin(), m_cells.end(), -1);
 
 	m_cells[particles[0].hash] = 0;
 
-	for (unsigned int i = 0; i < n-1; i++) {
-		if (particles[i].hash != particles[i+1].hash) {
-			m_cells[particles[i+1].hash] = i+1;
+	for (unsigned int i = 0; i < n - 1; i++) {
+		if (particles[i].hash != particles[i + 1].hash) {
+			m_cells[particles[i + 1].hash] = i + 1;
 		}
 	}
-	m_cells[particles[n-1].hash+1] = n;
+	m_cells[particles[n - 1].hash + 1] = n;
 
-	//empty boxes are now set to -1
-	//in order to iterate through a cell by [cells(cell_index),...,cells(cell_index+1)[
-	//those need to be fixed by propagating a "fix" value from the right
+	// empty boxes are now set to -1
+	// in order to iterate through a cell by [cells(cell_index),...,cells(cell_index+1)[
+	// those need to be fixed by propagating a "fix" value from the right
 	//(such that the above range will just be empty)
 
 	unsigned int fix = n;
@@ -141,31 +141,30 @@ void grid::update_geometry(const std::vector<particle> &particles, unsigned int 
 	double maxy = -DBL_MAX;
 
 	for (unsigned int i = 0; i < n; i++) {
-		if (!(particles[i].h > 0.0)) continue;
+		if (!(particles[i].h > 0.0))
+			continue;
 		h_max = fmax(particles[i].h, h_max);
 
 		minx = fmin(particles[i].x, minx);
 		miny = fmin(particles[i].y, miny);
 		maxx = fmax(particles[i].x, maxx);
 		maxy = fmax(particles[i].y, maxy);
-
 	}
 
-	//some nudging to prevent round off errors
+	// some nudging to prevent round off errors
 	m_bbmin_x = minx - 1e-6;
 	m_bbmax_x = maxx + 1e-6;
 	m_bbmin_y = miny - 1e-6;
 	m_bbmax_y = maxy + 1e-6;
 
-
-	m_dx = h_max*kernel_width;
+	m_dx = h_max * kernel_width;
 
 	m_lx = m_bbmax_x - m_bbmin_x;
 	m_ly = m_bbmax_y - m_bbmin_y;
 
-	m_nx = ceil(m_lx/m_dx);
-	m_ny = ceil(m_ly/m_dx);
-	m_num_cell = m_nx*m_ny;
+	m_nx = ceil(m_lx / m_dx);
+	m_ny = ceil(m_ly / m_dx);
+	m_num_cell = m_nx * m_ny;
 
 	assert(m_num_cell < n);
 }
@@ -174,11 +173,11 @@ void grid::debug_print() const {
 	FILE *fp = fopen("grid.txt", "w+");
 	for (unsigned int i = 0; i < m_nx; i++) {
 		for (unsigned int j = 0; j < m_ny; j++) {
-			double x_lo = m_bbmin_x + i*m_dx;
-			double x_hi = m_bbmin_x + (i+1)*m_dx;
+			double x_lo = m_bbmin_x + i * m_dx;
+			double x_hi = m_bbmin_x + (i + 1) * m_dx;
 
-			double y_lo = m_bbmin_y + j*m_dx;
-			double y_hi = m_bbmin_y + (j+1)*m_dx;
+			double y_lo = m_bbmin_y + j * m_dx;
+			double y_hi = m_bbmin_y + (j + 1) * m_dx;
 
 			fprintf(fp, "%f %f %f %f\n", x_lo, x_hi, y_lo, y_hi);
 		}
@@ -197,16 +196,17 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 #endif
 	for (int bb = 0; bb < static_cast<int>(m_num_cell); bb++) {
 		unsigned int b = static_cast<unsigned int>(bb);
-		unsigned int gi = 0; unsigned int gj = 0;
+		unsigned int gi = 0;
+		unsigned int gj = 0;
 
-		unhash((int) b, gi, gj);
+		unhash((int)b, gi, gj);
 
-		const int low_i  = (int) gi-1 < 0 ? 0 : (int) gi-1;
-		const int low_j  = (int) gj-1 < 0 ? 0 : (int) gj-1;
-		const int high_i = gi+2 > m_nx ? m_nx : gi+2;
-		const int high_j = gj+2 > m_ny ? m_ny : gj+2;
+		const int low_i = (int)gi - 1 < 0 ? 0 : (int)gi - 1;
+		const int low_j = (int)gj - 1 < 0 ? 0 : (int)gj - 1;
+		const int high_i = gi + 2 > m_nx ? m_nx : gi + 2;
+		const int high_j = gj + 2 > m_ny ? m_ny : gj + 2;
 
-		for (int i = cells[b]; i < cells[b+1]; i++) {
+		for (int i = cells[b]; i < cells[b + 1]; i++) {
 
 			unsigned int nbh_iter = 0;
 
@@ -218,28 +218,26 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 			const double xi = particles[i].x;
 			const double yi = particles[i].y;
 
-			double radius2 = hi*hi*2*2;
+			double radius2 = hi * hi * 2 * 2;
 
 			for (int ni = low_i; ni < high_i; ni++) {
 				for (int nj = low_j; nj < high_j; nj++) {
 
-					for (int j = cells[ni*m_ny+nj]; j < cells[ni*m_ny+nj+1]; j++) {
+					for (int j = cells[ni * m_ny + nj]; j < cells[ni * m_ny + nj + 1]; j++) {
 
 						const double xj = particles[j].x;
 						const double yj = particles[j].y;
 
-						const double xij = xi-xj;
-						const double yij = yi-yj;
+						const double xij = xi - xj;
+						const double yij = yi - yj;
 
-						const double r2 = xij*xij + yij*yij;
+						const double r2 = xij * xij + yij * yij;
 
 						if (r2 <= radius2) {
 							particles[i].nbh[nbh_iter] = j;
 							nbh_iter++;
 						}
-
 					}
-
 				}
 			}
 
@@ -254,25 +252,15 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 	}
 }
 
-unsigned int grid::nx() const {
-	return m_nx;
-}
+unsigned int grid::nx() const { return m_nx; }
 
-unsigned int grid::ny() const {
-	return m_ny;
-}
+unsigned int grid::ny() const { return m_ny; }
 
-double grid::bbmin_x() const {
-	return m_bbmin_x;
-}
+double grid::bbmin_x() const { return m_bbmin_x; }
 
-double grid::bbmin_y() const {
-	return m_bbmin_y;
-}
+double grid::bbmin_y() const { return m_bbmin_y; }
 
-double grid::dx() const {
-	return m_dx;
-}
+double grid::dx() const { return m_dx; }
 
 void grid::dbg_print_bbox() const {
 	printf("%f %f %f\n", m_bbmin_x, m_bbmin_y, m_bbmin_z);

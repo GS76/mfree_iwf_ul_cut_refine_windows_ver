@@ -61,7 +61,7 @@
   Logging for visualization purposes
   ------------------------------------------------
   The logger file supports:
-    1. simple text representation of tool
+	1. simple text representation of tool
 	2. forces on tool
 	3. textual "vtk" files for particle attributes
   ------------------------------------------------
@@ -69,9 +69,9 @@
 
 class logger {
 
-private:
-	bool m_log_forces  = true;
-	bool m_emit_vtk    = true;
+  private:
+	bool m_log_forces = true;
+	bool m_emit_vtk = true;
 
 	fe_tool *m_t = 0;
 	FILE *m_fp_forces = 0;
@@ -106,7 +106,7 @@ private:
 	char m_folder[256] = "results";
 	char m_case_name[256] = "case";
 
-public:
+  public:
 	logger(const char *case_name, const char *foldername = "results");
 	void close();
 
@@ -114,7 +114,7 @@ public:
 	void set_log_forces(bool log_forces);
 	void set_log_vtk(bool log_vtk);
 	void add_tracer_particle(unsigned int tracer_idx);
-	void set_folder(const char* folder);
+	void set_folder(const char *folder);
 
 	void log(const body &body, unsigned int step);
 	void log_time_step_data(const body &body, unsigned int step);
@@ -124,7 +124,7 @@ public:
 	// cum_plastic_dissipation in the energy CSV is always correct.
 	void accumulate_plastic_dissipation(const body &b);
 
-private:
+  private:
 	// Shared energy-accounting block called by both log() and log_time_step_data().
 	void log_energy_block(const body &b, unsigned int step, const fe_tool *ft_log);
 };

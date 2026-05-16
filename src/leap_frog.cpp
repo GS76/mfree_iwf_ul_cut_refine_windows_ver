@@ -160,7 +160,6 @@ void leap_frog::predict(body &body) const {
 			particles[i].Syy_t = 0.;
 			particles[i].Szz_t = 0.;
 		}
-
 		particles[i].T = m_init[i].T + 0.5 * dt * particles[i].T_t;
 		if (particles[i].T < T_min)
 			particles[i].T = T_min;
@@ -224,7 +223,6 @@ void leap_frog::correct(body &body) const {
 			particles[i].Syy = 0.;
 			particles[i].Szz = 0.;
 		}
-
 		particles[i].T = m_init[i].T + dt * particles[i].T_t;
 		if (particles[i].T < T_min)
 			particles[i].T = T_min;
