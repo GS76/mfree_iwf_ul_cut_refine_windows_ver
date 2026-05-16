@@ -140,6 +140,9 @@ docker build -t mfree-iwf-ci -f Dockerfile .
 docker run --rm -it -v "${PWD}:/workspace" -w /workspace mfree-iwf-ci /bin/bash -lc "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure"
 ```
 
+On Windows checkouts, this command can fail if `build/CMakeCache.txt` was generated on the host path (for example `D:/...`) and then reused inside `/workspace`.
+If that happens, either remove the host `build/` cache before rerunning, or use the strict CI-parity `/tmp` build command below.
+
 If you hit FE mesh load errors in Linux container tests on Windows checkouts (for example `Failed to load MFREE_FE_TOOL_MSH`), run strict CI-parity from an LF-normalized `git archive` snapshot:
 
 ```powershell
