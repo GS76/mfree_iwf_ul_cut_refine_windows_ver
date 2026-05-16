@@ -8,6 +8,7 @@ This document defines a repeatable workflow for developing, reviewing, and relea
 - [Branching Strategy](#branching-strategy)
 - [Code Review Checklist](#code-review-checklist)
 - [Local Build and Test Gates](#local-build-and-test-gates)
+- [Docker (CI-Parity Container)](#docker-ci-parity-container)
 - [CI/CD Gates](#cicd-gates)
   - [CI Incident Playbook (Quality Workflow)](#ci-incident-playbook-quality-workflow)
 - [One-Time Repo Hygiene](#one-time-repo-hygiene)
@@ -118,6 +119,52 @@ cmake --build build --config Release
 ```powershell
 ctest -C Release --test-dir build --output-on-failure
 ```
+
+## Docker (CI-Parity Container)
+
+This repository now includes a minimal Linux container setup for reproducible build/test checks aligned with `.github/workflows/quality.yml`.
+
+Scope of this container setup:
+- In scope: configure/build/CTest and optional formatting checks.
+- Out of scope (initial phase): replacing native Windows long production simulations and host ParaView/pvpython workflows.
+
+### Build the Docker Image (PowerShell)
+
+```powershell
+docker build -t mfree-iwf-ci -f Dockerfile .
+```
+
+### Run Configure + Build + CTest in Container (PowerShell)
+
+```powershell
+docker run --rm -it -v "${PWD}:/workspace" -w /workspace mfree-iwf-ci /bin/bash -lc "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure"
+```
+
+If you hit FE mesh load errors in Linux container tests on Windows checkouts (for example `Failed to load MFREE_FE_TOOL_MSH`), run strict CI-parity from an LF-normalized `git archive` snapshot:
+
+```powershell
+docker run --rm -it -v "${PWD}:/workspace" mfree-iwf-ci /bin/bash -lc "rm -rf /tmp/src /tmp/mfree-build && mkdir -p /tmp/src && git -C /workspace archive --format=tar HEAD | tar -xf - -C /tmp/src && cmake -S /tmp/src -B /tmp/mfree-build -DCMAKE_BUILD_TYPE=Release && cmake --build /tmp/mfree-build --config Release && ctest --test-dir /tmp/mfree-build -C Release --output-on-failure"
+```
+
+Equivalent `docker compose` command:
+
+```powershell
+docker compose run --rm ci-parity
+```
+
+### Run Formatting Gates in Container (PowerShell)
+
+```powershell
+docker run --rm -it -v "${PWD}:/workspace" -w /workspace mfree-iwf-ci /bin/bash -lc "python3 scripts/check_editorconfig_basic.py && python3 scripts/check_clang_format.py"
+```
+
+### Preprocess-Only Smoke Run with Mounted Outputs (PowerShell)
+
+```powershell
+docker run --rm -it -v "${PWD}:/workspace" -w /workspace -e MFREE_PREPROCESS_ONLY=1 -e MFREE_CLEAN_RESULTS=1 -e MFREE_RESULTS_DIR=/workspace/results/docker_preprocess -e MFREE_FE_TOOL_MSH=/workspace/snapshots/tool_plane_strain/meshes/tool_h_0.01mm.msh mfree-iwf-ci /bin/bash -lc "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && ./build/mfree_iwf -m 1"
+```
+
+The results are written to `results/docker_preprocess/` in the host repository via bind mount.
 
 ## CI/CD Gates
 
