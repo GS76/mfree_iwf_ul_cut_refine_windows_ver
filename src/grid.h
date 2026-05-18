@@ -55,6 +55,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <cstdint>
 #include <float.h>
 #include <math.h>
 #include <assert.h>
@@ -77,13 +78,14 @@ class grid {
 
 	friend class body;
 
-  private:
+private:
+
 	std::vector<int> m_cells;
 
 	void assign_hashes(std::vector<particle> &particles, unsigned int n) const;
-	bool in_bbox(glm::dvec3 qp) const;
+	bool in_bbox(glm::dvec3 qp) const ;
 	void get_bbox(glm::dvec3 &bbmin, glm::dvec3 &bbmax) const;
-	void unhash(int idx, unsigned int &i, unsigned int &j) const;
+	void unhash(std::uint64_t idx, std::uint64_t &i, std::uint64_t &j) const;
 	const std::vector<int> &get_cells(const std::vector<particle> &particles, unsigned int n);
 	void update_geometry(const std::vector<particle> &particles, unsigned int n, double kernel_width);
 	void debug_print() const;
@@ -91,9 +93,8 @@ class grid {
 	// constructs verlet lists (particles[i]->nbh). indices are such that they point
 	// into array sorted by hash
 	void construct_verlet_lists(std::vector<particle> &particles, unsigned int n, double kernel_width = 2.);
-
-	unsigned int nx() const;
-	unsigned int ny() const;
+	std::uint64_t nx() const;
+	std::uint64_t ny() const;
 
 	double bbmin_x() const;
 	double bbmin_y() const;
@@ -102,14 +103,21 @@ class grid {
 
 	void dbg_print_bbox() const;
 
-	double m_dx;				   /*!< Box dimension (edge length of cube) */
-	double m_lx, m_ly, m_lz;	   /*!< Size in x/y/z direction */
-	unsigned int m_nx, m_ny, m_nz; /*!< Number of boxes in x/y/z direction */
-	unsigned int m_num_cell;	   /*!< Total number of boxes */
 
-	double m_bbmin_x, m_bbmax_x; /*!< Min/Max coordinate in x- direction */
-	double m_bbmin_y, m_bbmax_y; /*!< Min/Max coordinate in y- direction */
-	double m_bbmin_z, m_bbmax_z; /*!< Min/Max coordinate in z- direction */
+	double m_dx;					/*!< Box dimension (edge length of cube) */
+	double m_lx, m_ly, m_lz;		/*!< Size in x/y/z direction */
+	std::uint64_t m_nx = 0, m_ny = 0, m_nz = 0;	/*!< Number of boxes in x/y/z direction */
+	std::uint64_t m_num_cell = 0;		/*!< Total number of boxes */
+
+	double m_bbmin_x, m_bbmax_x;	/*!< Min/Max coordinate in x- direction */
+	double m_bbmin_y, m_bbmax_y;	/*!< Min/Max coordinate in y- direction */
+	double m_bbmin_z, m_bbmax_z;	/*!< Min/Max coordinate in z- direction */
+
+	bool m_bounds_ref_initialized = false;
+	double m_bounds_ref_min_x = 0.;
+	double m_bounds_ref_max_x = 0.;
+	double m_bounds_ref_min_y = 0.;
+	double m_bounds_ref_max_y = 0.;
 };
 
 #endif /* GRID_H_ */
