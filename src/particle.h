@@ -52,6 +52,7 @@
 #define PARTICLE_H_
 
 #include "kernel.h"
+#include <cstdint>
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -75,7 +76,8 @@ class particle {
 	virtual void copy_into(particle &p) const;
 
 	// index + hash for spatial hashing
-	unsigned int idx = 0, hash = 0;
+	unsigned int idx = 0;
+	std::uint64_t hash = 0;
 
 	double x = 0., y = 0.; /* Current particle location */
 	double X = 0.;
