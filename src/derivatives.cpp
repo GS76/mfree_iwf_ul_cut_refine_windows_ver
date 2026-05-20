@@ -68,6 +68,15 @@ double mixed_level_artificial_stress_scale() {
 	}();
 	return scale;
 }
+
+double monaghan_reference_kernel(double h, double hdx, double fallback) {
+	if (!(hdx > 0.) || !std::isfinite(h) || h <= 0.)
+		return fallback;
+	const kernel_result w_ref = cubic_spline(0., 0., h / hdx, 0., h);
+	if (!std::isfinite(w_ref.w) || w_ref.w <= 0.)
+		return fallback;
+	return w_ref.w;
+}
 } // namespace
 
 void derive_velocity(body &b) {
@@ -132,6 +141,7 @@ void derive_stress_monaghan(body &b) {
 	const double wdeltap_global = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
 	const double hdx = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_hdx();
 	const unsigned int corr_exp = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_corr_exp();
+	const double mixed_level_scale = mixed_level_artificial_stress_scale();
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
@@ -163,8 +173,8 @@ void derive_stress_monaghan(body &b) {
 		double rhoi21 = 1. / (rhoi * rhoi);
 
 		// Per-particle reference kernel value: W(h_i / hdx, h_i). This keeps the Monaghan artificial-stress
-		// correction normalized at each particle's own equilibrium spacing across mixed-resolution interfaces.
-		const double wdeltap_i = (hdx > 0.) ? cubic_spline(0., 0., particles[i].h / hdx, 0., particles[i].h).w : wdeltap_global;
+		// correction normalized at each particle's own equilibrium spacing.
+		const double wdeltap_i = monaghan_reference_kernel(particles[i].h, hdx, wdeltap_global);
 
 		double Sxx_x = 0.;
 		double Sxy_y = 0.;
@@ -201,23 +211,41 @@ void derive_stress_monaghan(body &b) {
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			// Same-resolution pairs retain full tensile-instability protection.  Mixed
-			// refined<->coarse pairs receive a conservative, env-configurable blend so
-			// the refinement interface is not left completely unstabilized in tension.
-			// The default scale is intentionally small because coarse particles observing
-			// fine neighbours at roughly half their own equilibrium spacing can otherwise
-			// over-correct (large fab^corr_exp) and drive repulsive oscillations.
-			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx &&
-				(particles[i].refine_step == particles[jdx].refine_step || mixed_level_artificial_stress_scale() > 0.)) {
-				double fab = w.w / wdeltap_i;
+			// Same-resolution pairs retain full tensile-instability protection. Mixed
+			// refined<->coarse pairs use a symmetric kernel-ratio blend so interface
+			// stabilization is present on both sides rather than being dominated by the
+			// observer particle's smoothing length.
+			const bool same_level = particles[i].refine_step == particles[jdx].refine_step;
+			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx && (same_level || mixed_level_scale > 0.)) {
+				double fab_i = w.w / wdeltap_i;
+				if (!std::isfinite(fab_i) || fab_i <= 0.)
+					continue;
+
+				double fab = fab_i;
+				if (!same_level) {
+					const double hj = particles[jdx].h;
+					const double wdeltap_j = monaghan_reference_kernel(hj, hdx, wdeltap_global);
+					if (wdeltap_j <= 0.)
+						continue;
+
+					const kernel_result wji = cubic_spline(particles[jdx].x, particles[jdx].y, particles[i].x, particles[i].y, hj);
+					const double fab_j = wji.w / wdeltap_j;
+					if (!std::isfinite(fab_j) || fab_j <= 0.)
+						continue;
+
+					// Symmetric mixed-level normalization damps directional bias at the
+					// coarse/fine interface and reduces visible interface cracking.
+					fab = 0.5 * (fab_i + fab_j);
+				}
+
 				//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
 				for (unsigned int powi = 0; powi < corr_exp; powi++) {
 					t = t * fab;
 				}
 				fab = t;
-				if (particles[i].refine_step != particles[jdx].refine_step)
-					fab *= mixed_level_artificial_stress_scale();
+				if (!same_level)
+					fab *= mixed_level_scale;
 
 				Rxx = fab * (Rxxi + Rxxj);
 				Rxy = fab * (Rxyi + Rxyj);
