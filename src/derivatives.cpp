@@ -153,7 +153,7 @@ void derive_stress_monaghan(body &b) {
 
 		double rhoi = particles[i].rho;
 		if (!std::isfinite(Sxxi) || !std::isfinite(Sxyi) || !std::isfinite(Syyi) || !std::isfinite(Rxxi) || !std::isfinite(Rxyi) ||
-		    !std::isfinite(Ryyi) || !std::isfinite(rhoi) || rhoi < rho_min || !std::isfinite(particles[i].h) || particles[i].h <= 0.) {
+			!std::isfinite(Ryyi) || !std::isfinite(rhoi) || rhoi < rho_min || !std::isfinite(particles[i].h) || particles[i].h <= 0.) {
 			particles[i].Sxx_x = 0.;
 			particles[i].Sxy_y = 0.;
 			particles[i].Sxy_x = 0.;

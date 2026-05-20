@@ -96,7 +96,7 @@ void contmech_momentum(body &b) {
 		if (!std::isfinite(rho) || rho < rho_min || !std::isfinite(m) || m <= m_min)
 			continue;
 		if (!std::isfinite(particles[i].fcx) || !std::isfinite(particles[i].fcy) || !std::isfinite(particles[i].ftx) ||
-		    !std::isfinite(particles[i].fty))
+			!std::isfinite(particles[i].fty))
 			continue;
 
 		const double inv_rho = 1. / rho;
