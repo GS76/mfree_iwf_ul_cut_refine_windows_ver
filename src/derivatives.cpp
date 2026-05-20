@@ -52,6 +52,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cmath>
 
 namespace {
 double mixed_level_artificial_stress_scale() {
@@ -72,6 +73,8 @@ double mixed_level_artificial_stress_scale() {
 void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -80,6 +83,13 @@ void derive_velocity(body &b) {
 		const unsigned int i = static_cast<unsigned int>(ii);
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
+		if (!std::isfinite(vxi) || !std::isfinite(vyi)) {
+			particles[i].vx_x = 0.;
+			particles[i].vx_y = 0.;
+			particles[i].vy_x = 0.;
+			particles[i].vy_y = 0.;
+			continue;
+		}
 
 		double vx_x = 0.;
 		double vx_y = 0.;
@@ -89,11 +99,21 @@ void derive_velocity(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
+			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
+				continue;
 
 			double vxj = particles[jdx].vx;
 			double vyj = particles[jdx].vy;
+			if (!std::isfinite(vxj) || !std::isfinite(vyj))
+				continue;
 
-			double quad_weight = particles[jdx].m / particles[jdx].rho;
+			const double mj = particles[jdx].m;
+			const double rhoj = particles[jdx].rho;
+			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
+				continue;
+			double quad_weight = mj / rhoj;
+			if (!std::isfinite(quad_weight))
+				continue;
 
 			vx_x += (vxj - vxi) * w.w_x * quad_weight;
 			vx_y += (vxj - vxi) * w.w_y * quad_weight;
@@ -115,6 +135,8 @@ void derive_stress_monaghan(body &b) {
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -130,6 +152,14 @@ void derive_stress_monaghan(body &b) {
 		double Ryyi = particles[i].Ryy;
 
 		double rhoi = particles[i].rho;
+		if (!std::isfinite(Sxxi) || !std::isfinite(Sxyi) || !std::isfinite(Syyi) || !std::isfinite(Rxxi) || !std::isfinite(Rxyi) ||
+		    !std::isfinite(Ryyi) || !std::isfinite(rhoi) || rhoi < rho_min || !std::isfinite(particles[i].h) || particles[i].h <= 0.) {
+			particles[i].Sxx_x = 0.;
+			particles[i].Sxy_y = 0.;
+			particles[i].Sxy_x = 0.;
+			particles[i].Syy_y = 0.;
+			continue;
+		}
 		double rhoi21 = 1. / (rhoi * rhoi);
 
 		// Per-particle reference kernel value: W(h_i / hdx, h_i). This keeps the Monaghan artificial-stress
@@ -144,17 +174,28 @@ void derive_stress_monaghan(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
+			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
+				continue;
 
 			double Sxxj = particles[jdx].Sxx - particles[jdx].p;
 			double Sxyj = particles[jdx].Sxy;
 			double Syyj = particles[jdx].Syy - particles[jdx].p;
+			if (!std::isfinite(Sxxj) || !std::isfinite(Sxyj) || !std::isfinite(Syyj))
+				continue;
 
 			double Rxxj = particles[jdx].Rxx;
 			double Rxyj = particles[jdx].Rxy;
 			double Ryyj = particles[jdx].Ryy;
+			if (!std::isfinite(Rxxj) || !std::isfinite(Rxyj) || !std::isfinite(Ryyj))
+				continue;
 
 			double mj = particles[jdx].m;
-			double rhoj21 = 1. / (particles[jdx].rho * particles[jdx].rho);
+			double rhoj = particles[jdx].rho;
+			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
+				continue;
+			double rhoj21 = 1. / (rhoj * rhoj);
+			if (!std::isfinite(rhoj21))
+				continue;
 
 			double Rxx = 0;
 			double Rxy = 0.;

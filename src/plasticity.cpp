@@ -50,6 +50,7 @@
 
 #include "plasticity.h"
 #include "body.h"
+#include <cmath>
 
 double plasticity::plastic_state_by_radial_return(body &b) {
 	if (!b.get_sim_data().get_physical_constants().jc().valid())
@@ -85,16 +86,11 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 	double step_plastic_dissipation = 0.;
 
 	double rho0 = data.get_physical_constants().rho0();
-	double density_floor_frac_env = 0.0;
-	const char *v = getenv("MFREE_DENSITY_FLOOR_FRAC");
-	if (v != nullptr) {
-		density_floor_frac_env = atof(v);
-	}
-	double rho_min = density_floor_frac_env > 0. ? density_floor_frac_env * rho0 : 0.;
+	double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 0.;
 
 	for (unsigned int i = 0; i < num_part; i++) {
 		// Skip plasticity entirely for density-floored particles: their stress state is artificial
-		if (rho_min > 0. && particles[i].rho <= 1.01 * rho_min) {
+		if (rho_min > 0. && std::isfinite(particles[i].rho) && particles[i].rho < rho_min) {
 			// Zero the stress state for particles that hit the density floor.
 			// Without this, old trial stresses (computed with pre-floor density)
 			// can become NaN/Inf when later combined with the floored density.

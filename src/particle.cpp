@@ -78,88 +78,9 @@ void particle::reset() {
 	T_t = 0.;
 }
 
-particle::particle(const particle &other) {
-	idx = other.idx;
-	hash = other.hash;
+particle::particle(const particle &other) = default;
 
-	m = other.m;
-	rho = other.rho;
-	rho_init = other.rho_init;
-	h = other.h;
-
-	x = other.x;
-	y = other.y;
-
-	X = other.X;
-	Y = other.Y;
-
-	vx = other.vx;
-	vy = other.vy;
-
-	Sxx = other.Sxx;
-	Sxy = other.Sxy;
-	Syy = other.Syy;
-	Szz = other.Szz;
-
-	eps_pl_equiv = other.eps_pl_equiv;
-	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
-
-	T = other.T;
-	T_init = other.T_init;
-
-	contact_lambda_n = other.contact_lambda_n;
-
-	last_refine_at = other.last_refine_at;
-	refine_step = other.refine_step;
-	split = other.split;
-	merge = other.merge;
-
-	fixed = other.fixed;
-}
-
-particle &particle::operator=(const particle &other) {
-	if (this == &other)
-		return *this;
-
-	idx = other.idx;
-	hash = other.hash;
-
-	m = other.m;
-	rho = other.rho;
-	rho_init = other.rho_init;
-	h = other.h;
-
-	x = other.x;
-	y = other.y;
-
-	X = other.X;
-	Y = other.Y;
-
-	vx = other.vx;
-	vy = other.vy;
-
-	Sxx = other.Sxx;
-	Sxy = other.Sxy;
-	Syy = other.Syy;
-	Szz = other.Szz;
-
-	eps_pl_equiv = other.eps_pl_equiv;
-	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
-
-	T = other.T;
-	T_init = other.T_init;
-
-	contact_lambda_n = other.contact_lambda_n;
-
-	last_refine_at = other.last_refine_at;
-	refine_step = other.refine_step;
-	split = other.split;
-	merge = other.merge;
-
-	fixed = other.fixed;
-
-	return *this;
-}
+particle &particle::operator=(const particle &other) = default;
 
 void particle::copy_into(particle &p) const {
 	p.idx = idx;
