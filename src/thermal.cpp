@@ -57,10 +57,7 @@ void thermal::heat_conduction_pse(body &b) const {
 	unsigned int num_part = b.get_num_part();
 
 	// Explicit stability for the heat equation requires V_j = m_j/rho_j to stay
-	// bounded.  If the density floor (MFREE_DENSITY_FLOOR_FRAC) clamps rho_j to
-	// 0.001*rho0, V_j inflates 1000x, raising the PSE eigenvalue above the
-	// explicit stability limit and driving temperatures to near-zero over many
-	// steps.  Cap V_j at the volume corresponding to 5% of rho0 (20x natural),
+	// bounded.  Cap V_j at the volume corresponding to 5% of rho0 (20x natural),
 	// which keeps the stability ratio well below 1 for any realistic dt.
 	// This only affects severely-expanded / failed particles; normal particles
 	// (rho close to rho0) are completely unaffected.
@@ -88,8 +85,8 @@ void thermal::heat_conduction_pse(body &b) const {
 			const double xj = particles[jdx].x;
 			const double yj = particles[jdx].y;
 			const double mj = particles[jdx].m;
-			// Use rho_pse_floor so that a density-floor particle (rho≈0.001*rho0)
-			// cannot inflate V_j=m/rho beyond 20×V_natural and break stability.
+			// Use rho_pse_floor so that a low-density particle cannot inflate
+			// V_j=m/rho beyond 20×V_natural and break stability.
 			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
 			const double hj = particles[jdx].h;
 
