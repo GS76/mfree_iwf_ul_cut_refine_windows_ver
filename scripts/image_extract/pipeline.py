@@ -40,6 +40,8 @@ def analyze_image(
     dark_threshold: int = 38,
     edge_threshold: int = 42,
     min_component_area: int = 30,
+    presence_area_ratio_threshold: float = 0.0015,
+    presence_edge_ratio_threshold: float = 0.0060,
     enable_ocr: bool = True,
     ocr_language: str = "eng",
     debug_dir: str | None = None,
@@ -62,6 +64,8 @@ def analyze_image(
         dark_threshold=dark_threshold,
         edge_threshold=edge_threshold,
         min_component_area=min_component_area,
+        presence_area_ratio_threshold=presence_area_ratio_threshold,
+        presence_edge_ratio_threshold=presence_edge_ratio_threshold,
     )
     confidence, confidence_breakdown = score_fracture_confidence(fracture_features)
 
@@ -116,6 +120,8 @@ def analyze_images(
     dark_threshold: int = 38,
     edge_threshold: int = 42,
     min_component_area: int = 30,
+    presence_area_ratio_threshold: float = 0.0015,
+    presence_edge_ratio_threshold: float = 0.0060,
     enable_ocr: bool = True,
     ocr_language: str = "eng",
     debug_dir: str | None = None,
@@ -132,6 +138,8 @@ def analyze_images(
                     dark_threshold=dark_threshold,
                     edge_threshold=edge_threshold,
                     min_component_area=min_component_area,
+                    presence_area_ratio_threshold=presence_area_ratio_threshold,
+                    presence_edge_ratio_threshold=presence_edge_ratio_threshold,
                     enable_ocr=enable_ocr,
                     ocr_language=ocr_language,
                     debug_dir=debug_dir,

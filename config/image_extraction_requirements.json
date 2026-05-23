@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "name": "mfree_sph_fracture_image_extraction",
+  "description": "Canonical requirements for extracting fracture-related information from result screenshots and plots.",
+  "strict_requirements_default": true,
+  "defaults": {
+    "input_patterns": "*.png,*.jpg,*.jpeg,*.bmp,*.tif,*.tiff,*.webp",
+    "recursive": false,
+    "roi_preset": "full",
+    "dark_threshold": 38,
+    "edge_threshold": 42,
+    "min_component_area": 30,
+    "presence_area_ratio_threshold": 0.0015,
+    "presence_edge_ratio_threshold": 0.006,
+    "enable_ocr": true,
+    "ocr_language": "eng",
+    "output_json": "results/image_extract/image_extract_summary.json",
+    "output_csv": "results/image_extract/image_extract_summary.csv",
+    "debug_dir": "results/image_extract/debug"
+  },
+  "required_output_fields": [
+    "status",
+    "image_path",
+    "roi_source",
+    "fracture.fracture_present",
+    "fracture.fracture_area_px",
+    "fracture.fracture_length_px",
+    "fracture.fracture_component_count",
+    "fracture.fracture_bbox_image_px",
+    "fracture.fracture_centroid_image_px",
+    "fracture.confidence",
+    "text.enabled",
+    "text.available",
+    "text.text"
+  ],
+  "output_conventions": {
+    "json_summary": "Machine-readable aggregate report for downstream automation and prompt reuse.",
+    "csv_summary": "Tabular summary for quick filtering and spreadsheet workflows.",
+    "debug_overlay": "ROI + detected fracture box/centroid visualization.",
+    "debug_mask": "Binary mask used for fracture candidate detection."
+  },
+  "maintenance_rules": [
+    "Update this contract before changing extraction defaults or required output fields.",
+    "Keep field names backward compatible whenever possible so prior prompts remain valid.",
+    "If required_output_fields changes, run extraction once and confirm strict validation passes."
+  ]
+}
