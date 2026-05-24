@@ -49,11 +49,10 @@
  */
 
 #include "material.h"
+#include "env_table.h"
 
 #include <cstdlib>
 #include <cstdio>
-#include <algorithm>
-#include <cctype>
 #include <vector>
 
 namespace {
@@ -77,80 +76,12 @@ struct wp_mech_tables {
 	bool parsed = false;
 };
 
-static bool parse_env_table(const char *key, std::vector<double> &Tout, std::vector<double> &Vout) {
-	const char *s = std::getenv(key);
-	if (!s || s[0] == '\0')
-		return false;
-	std::vector<std::pair<double, double>> pairs;
-	const char *p = s;
-	while (*p) {
-		while (*p && (std::isspace(static_cast<unsigned char>(*p)) || *p == ',' || *p == ';'))
-			++p;
-		if (!*p)
-			break;
-		char *end = nullptr;
-		double T = std::strtod(p, &end);
-		if (end == p || !std::isfinite(T))
-			return false;
-		p = end;
-		while (*p && std::isspace(static_cast<unsigned char>(*p)))
-			++p;
-		if (*p != ':' && *p != '=')
-			return false;
-		++p;
-		while (*p && std::isspace(static_cast<unsigned char>(*p)))
-			++p;
-		end = nullptr;
-		double v = std::strtod(p, &end);
-		if (end == p || !std::isfinite(v))
-			return false;
-		p = end;
-		pairs.push_back({T, v});
-	}
-	if (pairs.size() < 2)
-		return false;
-	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-	Tout.clear();
-	Vout.clear();
-	for (const auto &kv : pairs) {
-		if (!Tout.empty() && kv.first == Tout.back()) {
-			Vout.back() = kv.second;
-			continue;
-		}
-		Tout.push_back(kv.first);
-		Vout.push_back(kv.second);
-	}
-	return Tout.size() >= 2;
-}
-
-static double table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
-	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T))
-		return fallback;
-	if (T <= T_tab.front())
-		return v_tab.front();
-	if (T >= T_tab.back())
-		return v_tab.back();
-	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
-	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
-	if (i1 == 0 || i1 >= T_tab.size())
-		return fallback;
-	std::size_t i0 = i1 - 1;
-	double T0 = T_tab[i0];
-	double T1 = T_tab[i1];
-	double v0 = v_tab[i0];
-	double v1 = v_tab[i1];
-	double dT = T1 - T0;
-	if (!(dT > 0.))
-		return fallback;
-	double a = (T - T0) / dT;
-	return (1.0 - a) * v0 + a * v1;
-}
 
 static const wp_mech_tables &get_wp_mech_tables() {
 	static wp_mech_tables tbl;
 	if (!tbl.parsed) {
-		parse_env_table("MFREE_WP_E_TABLE", tbl.E_T, tbl.E_v);
-		parse_env_table("MFREE_WP_G_TABLE", tbl.G_T, tbl.G_v);
+		env_table::parse_from_env_any({"MFREE_WP_E_TABLE", "MFREE_WORKPIECE_E_TABLE"}, tbl.E_T, tbl.E_v);
+		env_table::parse_from_env_any({"MFREE_WP_G_TABLE", "MFREE_WORKPIECE_G_TABLE"}, tbl.G_T, tbl.G_v);
 		tbl.parsed = true;
 	}
 	return tbl;
@@ -158,9 +89,9 @@ static const wp_mech_tables &get_wp_mech_tables() {
 
 static double workpiece_G_at(double T, double G0, double nu0) {
 	const wp_mech_tables &tbl = get_wp_mech_tables();
-	double G = table_eval(T, tbl.G_T, tbl.G_v, G0);
+	double G = env_table::eval_linear_clamped(T, tbl.G_T, tbl.G_v, G0);
 	if (!std::isfinite(G) || G <= 0.) {
-		double E = table_eval(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * G0);
+		double E = env_table::eval_linear_clamped(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * G0);
 		if (std::isfinite(E) && E > 0. && std::isfinite(nu0) && (1.0 + nu0) > 0.)
 			G = E / (2.0 * (1.0 + nu0));
 	}

@@ -61,6 +61,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cassert>
+#include <string>
 #include <vector>
 #include "../particle.h"
 #include "../adaptivity.h"
@@ -475,6 +476,128 @@ static bool test_interface_suppression_ratio() {
 	return true;
 }
 
+static std::string get_env_copy(const char *key) {
+	const char *v = std::getenv(key);
+	return v ? std::string(v) : std::string();
+}
+
+static void set_env_local(const char *key, const char *value) {
+#if defined(_WIN32)
+	_putenv_s(key, value);
+#else
+	setenv(key, value, 1);
+#endif
+}
+
+static void unset_env_local(const char *key) {
+#if defined(_WIN32)
+	_putenv_s(key, "");
+#else
+	unsetenv(key);
+#endif
+}
+
+static bool test_fe_tool_thermal_table_activation() {
+	const std::string prev_k = get_env_copy("MFREE_FE_K_TABLE");
+	const std::string prev_k_tool = get_env_copy("MFREE_FE_TOOL_K_TABLE");
+	const std::string prev_cp = get_env_copy("MFREE_FE_CP_TABLE");
+	const std::string prev_cp_tool = get_env_copy("MFREE_FE_TOOL_CP_TABLE");
+	const std::string prev_rho = get_env_copy("MFREE_FE_RHO_TABLE");
+	const std::string prev_rho_tool = get_env_copy("MFREE_FE_TOOL_RHO_TABLE");
+
+	unset_env_local("MFREE_FE_TOOL_K_TABLE");
+	unset_env_local("MFREE_FE_TOOL_CP_TABLE");
+	unset_env_local("MFREE_FE_TOOL_RHO_TABLE");
+	unset_env_local("MFREE_FE_K_TABLE");
+	unset_env_local("MFREE_FE_CP_TABLE");
+	unset_env_local("MFREE_FE_RHO_TABLE");
+
+	fe_tool ft = make_rect_tool_mesh(1.0e-3, 1.0e-3, 9, 9, 1, 2, 3);
+	fe_tool::thermal_material mat;
+	mat.rho = 14500.0;
+	mat.cp = 200.0;
+	mat.k = 20.0;
+	ft.set_material(mat);
+	ft.set_initial_temperature(300.0);
+
+	const double dt_ref = ft.thermal_dt_crit();
+
+	set_env_local("MFREE_FE_K_TABLE", "300:20,1200:200");
+	set_env_local("MFREE_FE_CP_TABLE", "300:200,1200:200");
+	set_env_local("MFREE_FE_RHO_TABLE", "300:14500,1200:14500");
+
+	std::vector<double> Tvals = {300.0, 1200.0};
+	std::vector<double> kvals = {20.0, 200.0};
+	std::vector<double> cpvals = {200.0, 200.0};
+	std::vector<double> rhovals = {14500.0, 14500.0};
+	ft.set_material_table_k(Tvals, kvals);
+	ft.set_material_table_cp(Tvals, cpvals);
+	ft.set_material_table_rho(Tvals, rhovals);
+	ft.set_initial_temperature(1200.0);
+	ft.advance_explicit(1.0e-9);
+	const double dt_hot = ft.thermal_dt_crit();
+
+	if (prev_k.empty())
+		unset_env_local("MFREE_FE_K_TABLE");
+	else
+		set_env_local("MFREE_FE_K_TABLE", prev_k.c_str());
+	if (prev_k_tool.empty())
+		unset_env_local("MFREE_FE_TOOL_K_TABLE");
+	else
+		set_env_local("MFREE_FE_TOOL_K_TABLE", prev_k_tool.c_str());
+	if (prev_cp.empty())
+		unset_env_local("MFREE_FE_CP_TABLE");
+	else
+		set_env_local("MFREE_FE_CP_TABLE", prev_cp.c_str());
+	if (prev_cp_tool.empty())
+		unset_env_local("MFREE_FE_TOOL_CP_TABLE");
+	else
+		set_env_local("MFREE_FE_TOOL_CP_TABLE", prev_cp_tool.c_str());
+	if (prev_rho.empty())
+		unset_env_local("MFREE_FE_RHO_TABLE");
+	else
+		set_env_local("MFREE_FE_RHO_TABLE", prev_rho.c_str());
+	if (prev_rho_tool.empty())
+		unset_env_local("MFREE_FE_TOOL_RHO_TABLE");
+	else
+		set_env_local("MFREE_FE_TOOL_RHO_TABLE", prev_rho_tool.c_str());
+
+	const bool ok = std::isfinite(dt_ref) && std::isfinite(dt_hot) && dt_hot > 0.0 && dt_ref > 0.0 && (dt_hot < 0.5 * dt_ref);
+	std::printf("fe_tool_thermal_table_activation dt_ref=%e dt_hot=%e ratio=%g\n", dt_ref, dt_hot,
+				(std::isfinite(dt_ref) && dt_ref > 0.0) ? (dt_hot / dt_ref) : -1.0);
+	return ok;
+}
+
+static bool test_fe_tool_mechanical_table_activation() {
+	fe_tool ft = make_rect_tool_mesh(1.0e-3, 1.0e-3, 9, 9, 1, 2, 3);
+	fe_tool::thermal_material tmat;
+	tmat.rho = 14500.0;
+	tmat.cp = 200.0;
+	tmat.k = 20.0;
+	ft.set_material(tmat);
+
+	fe_tool::mechanical_material mmat;
+	mmat.E = 600e9;
+	mmat.nu = 0.22;
+	mmat.alpha = 4.5e-6;
+	ft.set_mechanical_material(mmat);
+
+	std::vector<double> Tvals = {300.0, 1200.0};
+	std::vector<double> Evals = {600e9, 60e9};
+	std::vector<double> nuvals = {0.22, 0.22};
+	ft.set_mechanical_table_E(Tvals, Evals);
+	ft.set_mechanical_table_nu(Tvals, nuvals);
+
+	ft.set_initial_temperature(300.0);
+	const double dt_cold = ft.mechanics_dt_crit();
+	ft.set_initial_temperature(1200.0);
+	const double dt_hot = ft.mechanics_dt_crit();
+	const bool ok = std::isfinite(dt_cold) && std::isfinite(dt_hot) && dt_hot > 0.0 && dt_cold > 0.0 && (dt_hot > 2.0 * dt_cold);
+	std::printf("fe_tool_mechanical_table_activation dt_cold=%e dt_hot=%e ratio=%g\n", dt_cold, dt_hot,
+				(std::isfinite(dt_cold) && dt_cold > 0.0) ? (dt_hot / dt_cold) : -1.0);
+	return ok;
+}
+
 int main() {
 #if defined(_WIN32)
 	_putenv_s("MFREE_DEFORMABLE_FE_TOOL", "");
@@ -489,12 +612,16 @@ int main() {
 	bool ok3 = test_convection_lumped();
 	bool ok4 = test_coupled_timestep_estimator();
 	bool ok5 = test_interface_suppression_ratio();
+	bool ok6 = test_fe_tool_thermal_table_activation();
+	bool ok7 = test_fe_tool_mechanical_table_activation();
 	std::printf("tool_1d_conduction %s\n", ok1 ? "ok" : "fail");
 	std::printf("friction_partition %s\n", ok2 ? "ok" : "fail");
 	std::printf("convection_lumped %s\n", ok3 ? "ok" : "fail");
 	std::printf("coupled_timestep_estimator %s\n", ok4 ? "ok" : "fail");
 	std::printf("interface_suppression_ratio %s\n", ok5 ? "ok" : "fail");
-	ok = ok1 && ok2 && ok3 && ok4 && ok5;
+	std::printf("fe_tool_thermal_table_activation %s\n", ok6 ? "ok" : "fail");
+	std::printf("fe_tool_mechanical_table_activation %s\n", ok7 ? "ok" : "fail");
+	ok = ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7;
 
 	if (!ok) {
 		std::printf("validation_failed\n");

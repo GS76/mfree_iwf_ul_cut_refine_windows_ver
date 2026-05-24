@@ -49,6 +49,7 @@
  */
 
 #include "test_cuttings.h"
+#include "../env_table.h"
 
 #include <algorithm>
 #include <limits>
@@ -93,58 +94,6 @@ static bool try_read_env_int(const char *key, int &out) {
 	return true;
 }
 
-static bool try_read_env_table(const char *key, std::vector<double> &T_out, std::vector<double> &v_out) {
-	const char *s = getenv(key);
-	if (!s || s[0] == '\0')
-		return false;
-
-	std::vector<std::pair<double, double>> pairs;
-	const char *p = s;
-	while (*p) {
-		while (*p == ' ' || *p == '\t' || *p == ',' || *p == ';' || *p == '\n' || *p == '\r')
-			++p;
-		if (!*p)
-			break;
-
-		char *end = nullptr;
-		double T = strtod(p, &end);
-		if (end == p || !std::isfinite(T))
-			return false;
-		p = end;
-
-		while (*p == ' ' || *p == '\t')
-			++p;
-		if (*p != ':' && *p != '=')
-			return false;
-		++p;
-		while (*p == ' ' || *p == '\t')
-			++p;
-
-		end = nullptr;
-		double v = strtod(p, &end);
-		if (end == p || !std::isfinite(v))
-			return false;
-		p = end;
-
-		pairs.push_back({T, v});
-	}
-
-	if (pairs.size() < 2)
-		return false;
-	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
-
-	T_out.clear();
-	v_out.clear();
-	for (const auto &kv : pairs) {
-		if (!T_out.empty() && kv.first == T_out.back()) {
-			v_out.back() = kv.second;
-			continue;
-		}
-		T_out.push_back(kv.first);
-		v_out.push_back(kv.second);
-	}
-	return T_out.size() >= 2;
-}
 
 static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_y, unsigned int base_ny, double target_feed,
 											   unsigned int safety_layers, double &lo_y, double &hi_y, unsigned int &ny, double &dy) {
@@ -543,11 +492,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	{
 		std::vector<double> T;
 		std::vector<double> v;
-		if (try_read_env_table("MFREE_FE_TOOL_RHO_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_RHO_TABLE", "MFREE_FE_RHO_TABLE"}, T, v))
 			ft->set_material_table_rho(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_CP_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_CP_TABLE", "MFREE_FE_CP_TABLE"}, T, v))
 			ft->set_material_table_cp(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_K_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_K_TABLE", "MFREE_FE_K_TABLE"}, T, v))
 			ft->set_material_table_k(std::move(T), std::move(v));
 	}
 
@@ -563,11 +512,11 @@ static fe_tool *attach_fe_tool_from_env(double T0, glm::dvec2 desired_center, gl
 	{
 		std::vector<double> T;
 		std::vector<double> v;
-		if (try_read_env_table("MFREE_FE_TOOL_E_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_E_TABLE", "MFREE_FE_E_TABLE"}, T, v))
 			ft->set_mechanical_table_E(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_NU_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_NU_TABLE", "MFREE_FE_NU_TABLE"}, T, v))
 			ft->set_mechanical_table_nu(std::move(T), std::move(v));
-		if (try_read_env_table("MFREE_FE_TOOL_ALPHA_TABLE", T, v))
+		if (env_table::parse_from_env_any({"MFREE_FE_TOOL_ALPHA_TABLE", "MFREE_FE_ALPHA_TABLE"}, T, v))
 			ft->set_mechanical_table_alpha(std::move(T), std::move(v));
 	}
 	ft->set_reference_temperature(T0);

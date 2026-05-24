@@ -99,6 +99,11 @@ Tables are piecewise-linear and clamped outside the provided range. Format:
 
 - `T1:V1,T2:V2,...` (commas/semicolons/whitespace allowed, `:` or `=` allowed).
 
+Canonical naming contract:
+- `MFREE_<DOMAIN>_<PROPERTY>_TABLE`
+- `<DOMAIN>` is `FE_TOOL` for tool fields and `WP` for workpiece fields.
+- All table readers now use the same parser contract and interpolation behavior.
+
 Thermal:
 - `MFREE_FE_TOOL_RHO_TABLE`
 - `MFREE_FE_TOOL_CP_TABLE`
@@ -108,6 +113,18 @@ Mechanical:
 - `MFREE_FE_TOOL_E_TABLE`
 - `MFREE_FE_TOOL_NU_TABLE`
 - `MFREE_FE_TOOL_ALPHA_TABLE`
+
+Supported FE alias names (equivalent to canonical FE tool names):
+- `MFREE_FE_RHO_TABLE`, `MFREE_FE_CP_TABLE`, `MFREE_FE_K_TABLE`
+- `MFREE_FE_E_TABLE`, `MFREE_FE_NU_TABLE`, `MFREE_FE_ALPHA_TABLE`
+
+Workpiece temperature-table names (same format):
+- Thermal: `MFREE_WP_K_TABLE`, `MFREE_WP_CP_TABLE`
+- Mechanical: `MFREE_WP_E_TABLE`, `MFREE_WP_G_TABLE`
+
+Supported workpiece alias names:
+- `MFREE_WORKPIECE_K_TABLE`, `MFREE_WORKPIECE_CP_TABLE`
+- `MFREE_WORKPIECE_E_TABLE`, `MFREE_WORKPIECE_G_TABLE`
 
 ### Mechanics explicit toggle and damping
 
