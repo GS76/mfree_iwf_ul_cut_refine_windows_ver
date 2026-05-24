@@ -36,8 +36,7 @@ if ($PreprocessOnly) { $env:MFREE_PREPROCESS_ONLY = "1" } else { Remove-Item Env
 
 if ($MaxSteps -gt 0) { $env:MFREE_MAX_STEPS = "$MaxSteps" } else { Remove-Item Env:\MFREE_MAX_STEPS -ErrorAction SilentlyContinue }
 
-foreach ($m in 1..4) {
-	$env:MFREE_RESULTS_DIR = "results\validate_model_$m"
-	$env:MFREE_CLEAN_RESULTS = "1"
-	& $exe -m $m
-}
+$m = 5
+$env:MFREE_RESULTS_DIR = "results\\validate_model_$m"
+$env:MFREE_CLEAN_RESULTS = "1"
+& $exe -m $m

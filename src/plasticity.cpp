@@ -50,7 +50,123 @@
 
 #include "plasticity.h"
 #include "body.h"
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <cmath>
+
+namespace {
+struct wp_tables {
+	std::vector<double> cp_T;
+	std::vector<double> cp_v;
+	std::vector<double> E_T;
+	std::vector<double> E_v;
+	std::vector<double> G_T;
+	std::vector<double> G_v;
+	bool parsed = false;
+};
+
+static bool parse_env_table(const char *key, std::vector<double> &Tout, std::vector<double> &Vout) {
+	const char *s = std::getenv(key);
+	if (!s || s[0] == '\0')
+		return false;
+	std::vector<std::pair<double, double>> pairs;
+	const char *p = s;
+	while (*p) {
+		while (*p && (std::isspace(static_cast<unsigned char>(*p)) || *p == ',' || *p == ';'))
+			++p;
+		if (!*p)
+			break;
+		char *end = nullptr;
+		double T = std::strtod(p, &end);
+		if (end == p || !std::isfinite(T))
+			return false;
+		p = end;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		if (*p != ':' && *p != '=')
+			return false;
+		++p;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		end = nullptr;
+		double v = std::strtod(p, &end);
+		if (end == p || !std::isfinite(v))
+			return false;
+		p = end;
+		pairs.push_back({T, v});
+	}
+	if (pairs.size() < 2)
+		return false;
+	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	Tout.clear();
+	Vout.clear();
+	for (const auto &kv : pairs) {
+		if (!Tout.empty() && kv.first == Tout.back()) {
+			Vout.back() = kv.second;
+			continue;
+		}
+		Tout.push_back(kv.first);
+		Vout.push_back(kv.second);
+	}
+	return Tout.size() >= 2;
+}
+
+static double table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
+	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T))
+		return fallback;
+	if (T <= T_tab.front())
+		return v_tab.front();
+	if (T >= T_tab.back())
+		return v_tab.back();
+	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
+	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
+	if (i1 == 0 || i1 >= T_tab.size())
+		return fallback;
+	std::size_t i0 = i1 - 1;
+	double T0 = T_tab[i0];
+	double T1 = T_tab[i1];
+	double v0 = v_tab[i0];
+	double v1 = v_tab[i1];
+	double dT = T1 - T0;
+	if (!(dT > 0.))
+		return fallback;
+	double a = (T - T0) / dT;
+	return (1.0 - a) * v0 + a * v1;
+}
+
+static const wp_tables &get_wp_tables() {
+	static wp_tables tbl;
+	if (!tbl.parsed) {
+		parse_env_table("MFREE_WP_CP_TABLE", tbl.cp_T, tbl.cp_v);
+		parse_env_table("MFREE_WP_E_TABLE", tbl.E_T, tbl.E_v);
+		parse_env_table("MFREE_WP_G_TABLE", tbl.G_T, tbl.G_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double workpiece_cp_at(double T, double cp0) {
+	const wp_tables &tbl = get_wp_tables();
+	double cp = table_eval(T, tbl.cp_T, tbl.cp_v, cp0);
+	if (!std::isfinite(cp) || cp <= 0.)
+		cp = cp0;
+	return cp;
+}
+
+static double workpiece_mu_at(double T, double mu0, double nu0) {
+	const wp_tables &tbl = get_wp_tables();
+	double mu = table_eval(T, tbl.G_T, tbl.G_v, mu0);
+	if (!std::isfinite(mu) || mu <= 0.) {
+		double E = table_eval(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * mu0);
+		if (std::isfinite(E) && E > 0. && std::isfinite(nu0) && (1.0 + nu0) > 0.)
+			mu = E / (2.0 * (1.0 + nu0));
+	}
+	if (!std::isfinite(mu) || mu <= 0.)
+		mu = mu0;
+	return mu;
+}
+} // namespace
 
 double plasticity::plastic_state_by_radial_return(body &b) {
 	if (!b.get_sim_data().get_physical_constants().jc().valid())
@@ -78,9 +194,10 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 double plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) { // 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
-	double mu = data.get_physical_constants().G();
-
-	double cp = data.get_physical_constants().tc().cp();
+	const auto pc = data.get_physical_constants();
+	double mu0 = pc.G();
+	double nu0 = pc.nu();
+	double cp0 = pc.tc().cp();
 	double tq = data.get_physical_constants().tc().Taylor_Quinney();
 
 	double step_plastic_dissipation = 0.;
@@ -89,6 +206,9 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 	double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 0.;
 
 	for (unsigned int i = 0; i < num_part; i++) {
+		double mu = workpiece_mu_at(particles[i].T, mu0, nu0);
+		double cp = workpiece_cp_at(particles[i].T, cp0);
+		m_plasticity_model->set_shear_modulus(mu);
 		// Skip plasticity entirely for density-floored particles: their stress state is artificial
 		if (rho_min > 0. && std::isfinite(particles[i].rho) && particles[i].rho < rho_min) {
 			// Zero the stress state for particles that hit the density floor.

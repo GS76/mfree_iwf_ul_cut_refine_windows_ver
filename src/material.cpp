@@ -52,6 +52,9 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <algorithm>
+#include <cctype>
+#include <vector>
 
 namespace {
 static double env_positive_double_or(const char *name, double fallback) {
@@ -64,6 +67,106 @@ static double env_positive_double_or(const char *name, double fallback) {
 	if (end == s || !std::isfinite(v) || v <= 0.)
 		return fallback;
 	return v;
+}
+
+struct wp_mech_tables {
+	std::vector<double> E_T;
+	std::vector<double> E_v;
+	std::vector<double> G_T;
+	std::vector<double> G_v;
+	bool parsed = false;
+};
+
+static bool parse_env_table(const char *key, std::vector<double> &Tout, std::vector<double> &Vout) {
+	const char *s = std::getenv(key);
+	if (!s || s[0] == '\0')
+		return false;
+	std::vector<std::pair<double, double>> pairs;
+	const char *p = s;
+	while (*p) {
+		while (*p && (std::isspace(static_cast<unsigned char>(*p)) || *p == ',' || *p == ';'))
+			++p;
+		if (!*p)
+			break;
+		char *end = nullptr;
+		double T = std::strtod(p, &end);
+		if (end == p || !std::isfinite(T))
+			return false;
+		p = end;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		if (*p != ':' && *p != '=')
+			return false;
+		++p;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		end = nullptr;
+		double v = std::strtod(p, &end);
+		if (end == p || !std::isfinite(v))
+			return false;
+		p = end;
+		pairs.push_back({T, v});
+	}
+	if (pairs.size() < 2)
+		return false;
+	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	Tout.clear();
+	Vout.clear();
+	for (const auto &kv : pairs) {
+		if (!Tout.empty() && kv.first == Tout.back()) {
+			Vout.back() = kv.second;
+			continue;
+		}
+		Tout.push_back(kv.first);
+		Vout.push_back(kv.second);
+	}
+	return Tout.size() >= 2;
+}
+
+static double table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
+	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T))
+		return fallback;
+	if (T <= T_tab.front())
+		return v_tab.front();
+	if (T >= T_tab.back())
+		return v_tab.back();
+	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
+	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
+	if (i1 == 0 || i1 >= T_tab.size())
+		return fallback;
+	std::size_t i0 = i1 - 1;
+	double T0 = T_tab[i0];
+	double T1 = T_tab[i1];
+	double v0 = v_tab[i0];
+	double v1 = v_tab[i1];
+	double dT = T1 - T0;
+	if (!(dT > 0.))
+		return fallback;
+	double a = (T - T0) / dT;
+	return (1.0 - a) * v0 + a * v1;
+}
+
+static const wp_mech_tables &get_wp_mech_tables() {
+	static wp_mech_tables tbl;
+	if (!tbl.parsed) {
+		parse_env_table("MFREE_WP_E_TABLE", tbl.E_T, tbl.E_v);
+		parse_env_table("MFREE_WP_G_TABLE", tbl.G_T, tbl.G_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double workpiece_G_at(double T, double G0, double nu0) {
+	const wp_mech_tables &tbl = get_wp_mech_tables();
+	double G = table_eval(T, tbl.G_T, tbl.G_v, G0);
+	if (!std::isfinite(G) || G <= 0.) {
+		double E = table_eval(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * G0);
+		if (std::isfinite(E) && E > 0. && std::isfinite(nu0) && (1.0 + nu0) > 0.)
+			G = E / (2.0 * (1.0 + nu0));
+	}
+	if (!std::isfinite(G) || G <= 0.)
+		G = G0;
+	return G;
 }
 } // namespace
 
@@ -133,7 +236,9 @@ void material_eos(body &b) {
 
 void material_stress_rate_jaumann(body &b) {
 	std::vector<particle> &particles = b.get_particles();
-	double G = b.get_sim_data().get_physical_constants().G();
+	const auto pc = b.get_sim_data().get_physical_constants();
+	const double G0 = pc.G();
+	const double nu0 = pc.nu();
 
 	const unsigned int n = b.get_num_part();
 #ifdef _OPENMP
@@ -151,6 +256,7 @@ void material_stress_rate_jaumann(body &b) {
 
 		const double trace_epsdot = epsdot[0][0] + epsdot[1][1] + epsdot[2][2];
 
+		const double G = workpiece_G_at(particles[i].T, G0, nu0);
 		const glm::dmat3x3 S_t = 2 * G * (epsdot - 1. / 3. * trace_epsdot * I) + omega * S + S * glm::transpose(omega); // Belytschko
 																														// (3.7.9)
 

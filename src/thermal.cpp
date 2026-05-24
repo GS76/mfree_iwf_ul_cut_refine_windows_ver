@@ -51,6 +51,114 @@
 #include "thermal.h"
 
 #include "body.h"
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <limits>
+#include <vector>
+
+namespace {
+struct wp_thermal_tables {
+	std::vector<double> k_T;
+	std::vector<double> k_v;
+	std::vector<double> cp_T;
+	std::vector<double> cp_v;
+	bool parsed = false;
+};
+
+static bool parse_env_table(const char *key, std::vector<double> &Tout, std::vector<double> &Vout) {
+	const char *s = std::getenv(key);
+	if (!s || s[0] == '\0')
+		return false;
+
+	std::vector<std::pair<double, double>> pairs;
+	const char *p = s;
+	while (*p) {
+		while (*p && (std::isspace(static_cast<unsigned char>(*p)) || *p == ',' || *p == ';'))
+			++p;
+		if (!*p)
+			break;
+		char *end = nullptr;
+		double T = std::strtod(p, &end);
+		if (end == p || !std::isfinite(T))
+			return false;
+		p = end;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		if (*p != ':' && *p != '=')
+			return false;
+		++p;
+		while (*p && std::isspace(static_cast<unsigned char>(*p)))
+			++p;
+		end = nullptr;
+		double v = std::strtod(p, &end);
+		if (end == p || !std::isfinite(v))
+			return false;
+		p = end;
+		pairs.push_back({T, v});
+	}
+	if (pairs.size() < 2)
+		return false;
+	std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+	Tout.clear();
+	Vout.clear();
+	for (const auto &kv : pairs) {
+		if (!Tout.empty() && kv.first == Tout.back()) {
+			Vout.back() = kv.second;
+			continue;
+		}
+		Tout.push_back(kv.first);
+		Vout.push_back(kv.second);
+	}
+	return Tout.size() >= 2;
+}
+
+static const wp_thermal_tables &get_wp_thermal_tables() {
+	static wp_thermal_tables tbl;
+	if (!tbl.parsed) {
+		parse_env_table("MFREE_WP_K_TABLE", tbl.k_T, tbl.k_v);
+		parse_env_table("MFREE_WP_CP_TABLE", tbl.cp_T, tbl.cp_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
+	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T))
+		return fallback;
+	if (T <= T_tab.front())
+		return v_tab.front();
+	if (T >= T_tab.back())
+		return v_tab.back();
+	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
+	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
+	if (i1 == 0 || i1 >= T_tab.size())
+		return fallback;
+	std::size_t i0 = i1 - 1;
+	double T0 = T_tab[i0];
+	double T1 = T_tab[i1];
+	double v0 = v_tab[i0];
+	double v1 = v_tab[i1];
+	double dT = T1 - T0;
+	if (!(dT > 0.))
+		return fallback;
+	double a = (T - T0) / dT;
+	return (1.0 - a) * v0 + a * v1;
+}
+
+static double workpiece_alpha_at(double T, double rho0, double k0, double cp0) {
+	const wp_thermal_tables &tbl = get_wp_thermal_tables();
+	double k = table_eval(T, tbl.k_T, tbl.k_v, k0);
+	double cp = table_eval(T, tbl.cp_T, tbl.cp_v, cp0);
+	if (!std::isfinite(k) || k < 0.)
+		k = k0;
+	if (!std::isfinite(cp) || cp <= 0.)
+		cp = cp0;
+	if (!std::isfinite(rho0) || rho0 <= 0.)
+		return 0.;
+	return k / (rho0 * cp);
+}
+} // namespace
 
 void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
@@ -105,7 +213,9 @@ void thermal::heat_conduction_pse(body &b) const {
 			T_lapl += (Tj - Ti) * w_pse * mj / rhoj / h_sym2;
 		}
 
-		particles[i].T_t += m_alpha * T_lapl;
+		const auto pc = b.get_sim_data().get_physical_constants();
+		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
+		particles[i].T_t += alpha_i * T_lapl;
 	}
 }
 
@@ -158,7 +268,9 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			T_lapl += 2.0 * (mj / rhoj) * (Ti - Tj) * rij1 * (eijx * w.w_x + eijy * w.w_y);
 		}
 
-		particles[i].T_t += m_alpha * T_lapl;
+		const auto pc = b.get_sim_data().get_physical_constants();
+		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
+		particles[i].T_t += alpha_i * T_lapl;
 	}
 }
 

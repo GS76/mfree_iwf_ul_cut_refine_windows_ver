@@ -833,6 +833,11 @@ body *cutting_ref_mr(unsigned int ny) {
 	return b;
 }
 
+body *cutting_ref_model5_fe_only(unsigned int nbox) {
+	// Model 5 is derived from Model 2 with FE-tool-only coupled thermo-mechanical behavior.
+	return cutting_ref_multi_resol_apriori(nbox);
+}
+
 body *cutting_ref_single_resol(unsigned int nbox) {
 	/*
 	 * ===========================================================
