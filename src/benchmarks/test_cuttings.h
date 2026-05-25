@@ -83,5 +83,6 @@ body *cutting_ref_mr(unsigned int nbox);
 body *cutting_ref_single_resol(unsigned int nbox);
 body *cutting_ref_multi_resol_apriori(unsigned int nbox);
 body *cutting_ref_multi_resol_dynamic(unsigned int nbox);
+body *cutting_ref_model5_fe_only(unsigned int nbox);
 
 #endif /* BENCHMARKS_TEST_CUTTINGS_H_ */

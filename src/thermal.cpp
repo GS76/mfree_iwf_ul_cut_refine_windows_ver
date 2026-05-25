@@ -49,8 +49,45 @@
  */
 
 #include "thermal.h"
+#include "env_table.h"
 
 #include "body.h"
+#include <cstdlib>
+#include <vector>
+
+namespace {
+struct wp_thermal_tables {
+	std::vector<double> k_T;
+	std::vector<double> k_v;
+	std::vector<double> cp_T;
+	std::vector<double> cp_v;
+	bool parsed = false;
+};
+
+
+static const wp_thermal_tables &get_wp_thermal_tables() {
+	static wp_thermal_tables tbl;
+	if (!tbl.parsed) {
+		env_table::parse_from_env_any({"MFREE_WP_K_TABLE", "MFREE_WORKPIECE_K_TABLE"}, tbl.k_T, tbl.k_v);
+		env_table::parse_from_env_any({"MFREE_WP_CP_TABLE", "MFREE_WORKPIECE_CP_TABLE"}, tbl.cp_T, tbl.cp_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double workpiece_alpha_at(double T, double rho0, double k0, double cp0) {
+	const wp_thermal_tables &tbl = get_wp_thermal_tables();
+	double k = env_table::eval_linear_clamped(T, tbl.k_T, tbl.k_v, k0);
+	double cp = env_table::eval_linear_clamped(T, tbl.cp_T, tbl.cp_v, cp0);
+	if (!std::isfinite(k) || k < 0.)
+		k = k0;
+	if (!std::isfinite(cp) || cp <= 0.)
+		cp = cp0;
+	if (!std::isfinite(rho0) || rho0 <= 0.)
+		return 0.;
+	return k / (rho0 * cp);
+}
+} // namespace
 
 void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
@@ -105,7 +142,9 @@ void thermal::heat_conduction_pse(body &b) const {
 			T_lapl += (Tj - Ti) * w_pse * mj / rhoj / h_sym2;
 		}
 
-		particles[i].T_t += m_alpha * T_lapl;
+		const auto pc = b.get_sim_data().get_physical_constants();
+		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
+		particles[i].T_t += alpha_i * T_lapl;
 	}
 }
 
@@ -158,7 +197,9 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			T_lapl += 2.0 * (mj / rhoj) * (Ti - Tj) * rij1 * (eijx * w.w_x + eijy * w.w_y);
 		}
 
-		particles[i].T_t += m_alpha * T_lapl;
+		const auto pc = b.get_sim_data().get_physical_constants();
+		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
+		particles[i].T_t += alpha_i * T_lapl;
 	}
 }
 

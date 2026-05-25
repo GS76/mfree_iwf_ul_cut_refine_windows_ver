@@ -83,6 +83,7 @@ class body {
 	simulation_data m_simulation_data;													// all physical constants
 	void (*m_basis_fun)(std::vector<particle> &particles, unsigned int) = &precomp_sph; // basis function chosen SPH
 	double m_step_plastic_dissipation = 0.;												// Taylor-Quinney energy deposited this step (J)
+	void apply_radiation();
 
   public:
 	void set_plasticity(plasticity *plasticity);

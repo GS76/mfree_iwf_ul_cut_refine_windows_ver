@@ -49,9 +49,11 @@
  */
 
 #include "material.h"
+#include "env_table.h"
 
 #include <cstdlib>
 #include <cstdio>
+#include <vector>
 
 namespace {
 static double env_positive_double_or(const char *name, double fallback) {
@@ -64,6 +66,38 @@ static double env_positive_double_or(const char *name, double fallback) {
 	if (end == s || !std::isfinite(v) || v <= 0.)
 		return fallback;
 	return v;
+}
+
+struct wp_mech_tables {
+	std::vector<double> E_T;
+	std::vector<double> E_v;
+	std::vector<double> G_T;
+	std::vector<double> G_v;
+	bool parsed = false;
+};
+
+
+static const wp_mech_tables &get_wp_mech_tables() {
+	static wp_mech_tables tbl;
+	if (!tbl.parsed) {
+		env_table::parse_from_env_any({"MFREE_WP_E_TABLE", "MFREE_WORKPIECE_E_TABLE"}, tbl.E_T, tbl.E_v);
+		env_table::parse_from_env_any({"MFREE_WP_G_TABLE", "MFREE_WORKPIECE_G_TABLE"}, tbl.G_T, tbl.G_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double workpiece_G_at(double T, double G0, double nu0) {
+	const wp_mech_tables &tbl = get_wp_mech_tables();
+	double G = env_table::eval_linear_clamped(T, tbl.G_T, tbl.G_v, G0);
+	if (!std::isfinite(G) || G <= 0.) {
+		double E = env_table::eval_linear_clamped(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * G0);
+		if (std::isfinite(E) && E > 0. && std::isfinite(nu0) && (1.0 + nu0) > 0.)
+			G = E / (2.0 * (1.0 + nu0));
+	}
+	if (!std::isfinite(G) || G <= 0.)
+		G = G0;
+	return G;
 }
 } // namespace
 
@@ -133,7 +167,9 @@ void material_eos(body &b) {
 
 void material_stress_rate_jaumann(body &b) {
 	std::vector<particle> &particles = b.get_particles();
-	double G = b.get_sim_data().get_physical_constants().G();
+	const auto pc = b.get_sim_data().get_physical_constants();
+	const double G0 = pc.G();
+	const double nu0 = pc.nu();
 
 	const unsigned int n = b.get_num_part();
 #ifdef _OPENMP
@@ -151,6 +187,7 @@ void material_stress_rate_jaumann(body &b) {
 
 		const double trace_epsdot = epsdot[0][0] + epsdot[1][1] + epsdot[2][2];
 
+		const double G = workpiece_G_at(particles[i].T, G0, nu0);
 		const glm::dmat3x3 S_t = 2 * G * (epsdot - 1. / 3. * trace_epsdot * I) + omega * S + S * glm::transpose(omega); // Belytschko
 																														// (3.7.9)
 
