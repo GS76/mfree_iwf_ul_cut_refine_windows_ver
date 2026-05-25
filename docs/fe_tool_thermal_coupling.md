@@ -2,7 +2,7 @@
 
 ## Overview
 
-This codebase now supports a thermally active cutting tool represented by a finite element (FE) surface/volume mesh with an explicit thermal solver. Mechanical contact remains the existing rigid, parametrized tool contact, but thermal exchange and frictional heat are transferred into the FE tool mesh conservatively (equal and opposite power on SPH vs FE).
+This codebase uses a thermally active cutting tool represented by a finite element (FE) surface/volume mesh with an explicit thermal solver. Contact geometry and coupling are FE-tool-based for the forward workflow, and thermal exchange plus frictional heat are transferred into the FE tool mesh conservatively (equal and opposite power on SPH vs FE).
 
 Core implementation:
 
@@ -15,7 +15,7 @@ Core implementation:
 The cutting benchmarks can optionally attach an FE tool by setting an environment variable:
 
 - `MFREE_FE_TOOL_MSH`: path to a Gmsh v2 ASCII `.msh` file containing the tool mesh
-- `MFREE_USE_FE_TOOL_FOR_CONTACT`: if set to nonzero, the rigid contact geometry is constructed from the FE tool boundary edges (piecewise-linear polygon), instead of the analytic 4-segment tool definition
+- `MFREE_USE_FE_TOOL_FOR_CONTACT`: if set to nonzero, contact geometry is constructed from FE tool boundary edges (piecewise-linear polygon)
 - `MFREE_COOLANT_Y_THRESHOLD` (optional): world-space y threshold; boundary edges with midpoint `y >= threshold` use the flooded-water convection model, below use still air
 
 Optional deformable plane-strain response (quasi-static):
@@ -27,7 +27,7 @@ Optional deformable plane-strain response (quasi-static):
 
 Run:
 
-- `mfree_iwf.exe -m 1` (or `-m 2/3/4`)
+- `mfree_iwf.exe -m 5`
 
 Attachment wiring is in [test_cuttings.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/benchmarks/test_cuttings.cpp).
 
@@ -60,7 +60,7 @@ with:
 
 ### Conservative SPH↔FE Flux Coupling
 
-For each contacting particle, thermal exchange is computed at the rigid-tool contact point and applied as:
+For each contacting particle, thermal exchange is computed at the FE-tool contact point and applied as:
 
 - particle temperature rate: `T_t += (-P_cond + f_wp * P_fric) / (m * cp)`
 - tool nodal power source: `P_cond + f_tool * P_fric` distributed to the nearest FE boundary edge by linear shape weights

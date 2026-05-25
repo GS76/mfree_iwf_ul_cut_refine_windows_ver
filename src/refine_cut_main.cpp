@@ -1055,8 +1055,7 @@ int main(int argc, char *argv[]) {
 	//
 	// Practical range [20, 201]:
 	//   20  -> dx ~ 26 um   (debugging / quick feasibility only)
-	//   31  -> dx ~ 17 um   (model 1 default)
-	//   61  -> dx ~  8 um   (models 2-4 default, standard production)
+	//   61  -> dx ~  8 um   (standard production)
 	//   91  -> dx ~  6 um   (high-fidelity DOE)
 	//  121  -> dx ~  4 um   (maximum practical on a workstation)
 	//  201  -> dx ~  2.5 um (HPC cluster only)
@@ -1076,8 +1075,8 @@ int main(int argc, char *argv[]) {
 
 	/*
 	 ==========================
-	 *  set up chosen benchmark
-	 *  	this branch runs model 5 (derived from model 2, FE-tool-only)
+	 * 	set up chosen benchmark
+	 * 	this branch runs model 5 (model2-equivalent SPH baseline, FE-tool-only)
 	 *  	other preliminary simulations are available in test_benches.h
 	 *  	density reapproximation tests are aviable in test_density.h
 	 ==========================

@@ -93,6 +93,15 @@ static bool try_read_env_int(const char *key, int &out) {
 	out = static_cast<int>(v);
 	return true;
 }
+static constexpr double k_model5_fe_contact_mu_default = 0.35;
+
+static double read_model5_fe_contact_mu() {
+	double mu = k_model5_fe_contact_mu_default;
+	try_read_env_double("MFREE_CONTACT_MU", mu);
+	if (!std::isfinite(mu) || mu < 0.)
+		return k_model5_fe_contact_mu_default;
+	return mu;
+}
 
 
 static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_y, unsigned int base_ny, double target_feed,
@@ -782,9 +791,14 @@ body *cutting_ref_mr(unsigned int ny) {
 	return b;
 }
 
-body *cutting_ref_model5_fe_only(unsigned int nbox) {
-	// Model 5 is derived from Model 2 with FE-tool-only coupled thermo-mechanical behavior.
+static body *cutting_ref_model5_from_model2_parity(unsigned int nbox) {
 	return cutting_ref_multi_resol_apriori(nbox);
+}
+
+body *cutting_ref_model5_fe_only(unsigned int nbox) {
+	// Model 5 is a strict forward-path copy of Model 2's a-priori SPH setup,
+	// with FE-tool-only coupled thermo-mechanical contact.
+	return cutting_ref_model5_from_model2_parity(nbox);
 }
 
 body *cutting_ref_single_resol(unsigned int nbox) {
@@ -948,7 +962,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	float_t length_tool = -0.000086824 - -0.000500000;
 	float_t height_tool = 0.000986074 - 0.000555074;
 
-	double mu_friction = 0.35;
+	double mu_friction = read_model5_fe_contact_mu();
 	double fillet_radius = 5e-6;
 	double rake_deg = rake;
 	double clear_deg = clear;
@@ -1265,7 +1279,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	float_t length_tool = -0.000086824 - -0.000500000;
 	float_t height_tool = 0.000986074 - 0.000555074;
 
-	double mu_friction = 0.35;
+	double mu_friction = read_model5_fe_contact_mu();
 	double fillet_radius = 5e-6;
 	double rake_deg = rake;
 	double clear_deg = clear;
