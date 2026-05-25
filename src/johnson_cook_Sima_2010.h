@@ -52,6 +52,7 @@
 #define JOHNSON_COOK_SIMA_2010_H_
 
 #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <assert.h>
 #include <float.h>
@@ -108,6 +109,7 @@ public:
 	void set_norm_s_trial(double norm_s_trial);
 	void set_eps_init(double eps_init);
 	void set_temp(double theta);
+	void set_shear_modulus(double mu);
 
 	double sigma_yield(double eps_pl, double eps_dot_pl);
 	double sigma_yield(double eps_pl, double eps_dot_pl, double theta);

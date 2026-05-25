@@ -49,6 +49,7 @@
  */
 
 #include "material.h"
+#include "workpiece_env_table.h"
 
 #include <cstdlib>
 #include <cstdio>
@@ -93,6 +94,7 @@ void material_eos(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	double K = b.get_sim_data().get_physical_constants().K();
 	double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	double Tref = b.get_sim_data().get_physical_constants().jc().Tref();
 
 	const unsigned int n = b.get_num_part();
 	const double c0 = sqrt(K / rho0);
@@ -102,7 +104,13 @@ void material_eos(body &b) {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		const double raw_p = c0 * c0 * (particles[i].rho - rho0);
+		double alpha_wp = workpiece_env_table::alpha_at(particles[i].T, 0.0);
+		if (!std::isfinite(alpha_wp) || alpha_wp < 0.)
+			alpha_wp = 0.;
+		double thermal_p = 0.;
+		if (alpha_wp > 0. && std::isfinite(particles[i].T) && std::isfinite(Tref))
+			thermal_p = 3.0 * K * alpha_wp * (particles[i].T - Tref);
+		const double raw_p = c0 * c0 * (particles[i].rho - rho0) - thermal_p;
 		particles[i].p = raw_p;
 		// Clamp: no material sustains hundreds of GPa in tension.
 		if (p_tensile_cutoff > 0. && particles[i].p < -p_tensile_cutoff)
@@ -133,7 +141,9 @@ void material_eos(body &b) {
 
 void material_stress_rate_jaumann(body &b) {
 	std::vector<particle> &particles = b.get_particles();
-	double G = b.get_sim_data().get_physical_constants().G();
+	double E = b.get_sim_data().get_physical_constants().E();
+	double nu_default = b.get_sim_data().get_physical_constants().nu();
+	double G_default = b.get_sim_data().get_physical_constants().G();
 
 	const unsigned int n = b.get_num_part();
 #ifdef _OPENMP
@@ -148,6 +158,12 @@ void material_stress_rate_jaumann(body &b) {
 		const glm::dmat3x3 S =
 			glm::dmat3x3(particles[i].Sxx, particles[i].Sxy, 0., particles[i].Sxy, particles[i].Syy, 0., 0., 0., particles[i].Szz);
 		const glm::dmat3x3 I = glm::dmat3x3(1.);
+		double nu_wp = workpiece_env_table::nu_at(particles[i].T, nu_default);
+		if (!std::isfinite(nu_wp) || nu_wp <= -0.999 || nu_wp >= 0.499)
+			nu_wp = nu_default;
+		double G = E / (2.0 * (1.0 + nu_wp));
+		if (!std::isfinite(G) || G <= 0.)
+			G = G_default;
 
 		const double trace_epsdot = epsdot[0][0] + epsdot[1][1] + epsdot[2][2];
 

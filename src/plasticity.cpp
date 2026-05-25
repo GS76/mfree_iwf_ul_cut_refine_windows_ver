@@ -50,6 +50,7 @@
 
 #include "plasticity.h"
 #include "body.h"
+#include "workpiece_env_table.h"
 #include <cmath>
 
 double plasticity::plastic_state_by_radial_return(body &b) {
@@ -78,7 +79,9 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 double plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) { // 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
-	double mu = data.get_physical_constants().G();
+	double mu_default = data.get_physical_constants().G();
+	double E = data.get_physical_constants().E();
+	double nu_default = data.get_physical_constants().nu();
 
 	double cp = data.get_physical_constants().tc().cp();
 	double tq = data.get_physical_constants().tc().Taylor_Quinney();
@@ -170,6 +173,13 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 
 		m_plasticity_model->set_eps_init(eps_pl_equiv_init);
 		m_plasticity_model->set_temp(particles[i].T);
+		double nu_wp = workpiece_env_table::nu_at(particles[i].T, nu_default);
+		if (!std::isfinite(nu_wp) || nu_wp <= -0.999 || nu_wp >= 0.499)
+			nu_wp = nu_default;
+		double mu = E / (2.0 * (1.0 + nu_wp));
+		if (!std::isfinite(mu) || mu <= 0.)
+			mu = mu_default;
+		m_plasticity_model->set_shear_modulus(mu);
 		m_plasticity_model->set_norm_s_trial(norm_Strial);
 
 		bool failed = false;
