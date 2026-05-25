@@ -40,7 +40,7 @@ Runtimes are measured and reported in CPU minutes, implemented in C++14, taken o
 
 Result frames presented above can be viewed using [ParaView](https://www.paraview.org/) using the legacy VTK format.
 
-This branch is maintained as a Windows PowerShell-first workflow for Model 5 FE-tool-only coupled cutting. The only dependency is [GLM](https://glm.g-truc.net/0.9.9/index.html). Build files for both a Release version and a Debug build are provided. Historical model1-4 workflows are retained under legacy scripts/branches for traceability and are not part of supported forward execution on this branch. **mfree_iwf-ul_cut-refine** was developed at _IWF_ [ETHZ](www.ethz.ch) by the following authors:
+This branch is maintained as a Windows PowerShell-first workflow for Model 5 FE-tool-only coupled cutting. The only dependency is [GLM](https://glm.g-truc.net/0.9.9/index.html). Build files for both a Release version and a Debug build are provided. Historical workflows are retained under legacy scripts/branches for traceability and are not part of supported forward execution on this branch. **mfree_iwf-ul_cut-refine** was developed at _IWF_ [ETHZ](www.ethz.ch) by the following authors:
 
 * Mohamadreza Afrasiabi, afrasiabi@ethz.ch
 * Matthias Röthlin, mroethli@ethz.ch

@@ -54,6 +54,6 @@ Outputs in `results/fe_bc_validate/model_5/`:
 3. Render FE tool as `Surface With Edges` with partial opacity.
 4. Inspect FE fields (`temperature`, `power`, `nodal_force`) and save a `.pvsm` state.
 
-## Legacy Model 1–4 Notes
+## Legacy Notes
 
-Legacy model1-4 scripts are archived under `scripts/legacy/` for historical traceability and are not part of the active forward workflow on this branch.
+Legacy scripts are archived under `scripts/legacy/` for historical traceability and are not part of the active forward workflow on this branch.
