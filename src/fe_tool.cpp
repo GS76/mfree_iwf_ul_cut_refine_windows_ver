@@ -62,6 +62,52 @@
 #include <sstream>
 
 static bool starts_with(const std::string &s, const char *prefix) { return s.rfind(prefix, 0) == 0; }
+static bool unit_audit_enabled() {
+	static int cached = -1;
+	if (cached < 0) {
+		const char *s = std::getenv("MFREE_UNIT_AUDIT");
+		cached = (s && s[0] != '\0' && std::atoi(s) != 0) ? 1 : 0;
+	}
+	return cached != 0;
+}
+
+static void validate_table_contract(const char *label, const std::vector<double> &T, const std::vector<double> &v, double min_allowed,
+									double max_allowed) {
+	if (!unit_audit_enabled())
+		return;
+	if (T.size() < 2 || T.size() != v.size()) {
+		std::fprintf(stderr, "[unit-audit] WARNING: %s table invalid size (T=%zu values=%zu)\n", label, T.size(), v.size());
+		return;
+	}
+	bool monotonic = true;
+	for (std::size_t i = 1; i < T.size(); ++i) {
+		if (!(T[i] > T[i - 1])) {
+			monotonic = false;
+			break;
+		}
+	}
+	if (!monotonic)
+		std::fprintf(stderr, "[unit-audit] WARNING: %s temperature grid is not strictly increasing.\n", label);
+	double lo = std::numeric_limits<double>::infinity();
+	double hi = -std::numeric_limits<double>::infinity();
+	bool finite = true;
+	for (double x : v) {
+		if (!std::isfinite(x)) {
+			finite = false;
+			break;
+		}
+		lo = std::min(lo, x);
+		hi = std::max(hi, x);
+	}
+	if (!finite) {
+		std::fprintf(stderr, "[unit-audit] WARNING: %s table contains non-finite values.\n", label);
+		return;
+	}
+	if ((std::isfinite(min_allowed) && lo < min_allowed) || (std::isfinite(max_allowed) && hi > max_allowed)) {
+		std::fprintf(stderr, "[unit-audit] WARNING: %s values out of expected range [%.6e, %.6e], observed [%.6e, %.6e].\n", label,
+					 min_allowed, max_allowed, lo, hi);
+	}
+}
 
 static double tri_area2(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dvec2 &c) {
 	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -70,12 +116,26 @@ static double tri_area2(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dve
 fe_tool::fe_tool() {}
 
 double fe_tool::table_eval(double T, const std::vector<double> &T_tab, const std::vector<double> &v_tab, double fallback) {
+	static int warn_low = 0;
+	static int warn_high = 0;
 	if (T_tab.size() < 2 || T_tab.size() != v_tab.size() || !std::isfinite(T))
 		return fallback;
-	if (T <= T_tab.front())
+	if (T <= T_tab.front()) {
+		if (unit_audit_enabled() && warn_low < 8) {
+			std::fprintf(stderr, "[unit-audit] FE table clamp-low: T=%.6e below %.6e (range %.6e..%.6e)\n", T, T_tab.front(),
+						 T_tab.front(), T_tab.back());
+			++warn_low;
+		}
 		return v_tab.front();
-	if (T >= T_tab.back())
+	}
+	if (T >= T_tab.back()) {
+		if (unit_audit_enabled() && warn_high < 8) {
+			std::fprintf(stderr, "[unit-audit] FE table clamp-high: T=%.6e above %.6e (range %.6e..%.6e)\n", T, T_tab.back(),
+						 T_tab.front(), T_tab.back());
+			++warn_high;
+		}
 		return v_tab.back();
+	}
 	auto it = std::upper_bound(T_tab.begin(), T_tab.end(), T);
 	std::size_t i1 = static_cast<std::size_t>(it - T_tab.begin());
 	if (i1 == 0 || i1 >= T_tab.size())
@@ -831,31 +891,37 @@ fe_tool::contact_energy_balance fe_tool::get_contact_energy_balance() const { re
 void fe_tool::set_dirichlet_on_physical(int physical_tag, double T) { m_dirichlet_by_tag[physical_tag] = T; }
 
 void fe_tool::set_material_table_rho(std::vector<double> T, std::vector<double> rho) {
+	validate_table_contract("MFREE_FE_TOOL_RHO_TABLE", T, rho, 1e-12, std::numeric_limits<double>::infinity());
 	m_rho_T = std::move(T);
 	m_rho_val = std::move(rho);
 }
 
 void fe_tool::set_material_table_cp(std::vector<double> T, std::vector<double> cp) {
+	validate_table_contract("MFREE_FE_TOOL_CP_TABLE", T, cp, 1e-12, std::numeric_limits<double>::infinity());
 	m_cp_T = std::move(T);
 	m_cp_val = std::move(cp);
 }
 
 void fe_tool::set_material_table_k(std::vector<double> T, std::vector<double> k) {
+	validate_table_contract("MFREE_FE_TOOL_K_TABLE", T, k, 0.0, std::numeric_limits<double>::infinity());
 	m_k_T = std::move(T);
 	m_k_val = std::move(k);
 }
 
 void fe_tool::set_mechanical_table_E(std::vector<double> T, std::vector<double> E) {
+	validate_table_contract("MFREE_FE_TOOL_E_TABLE", T, E, 1e-12, std::numeric_limits<double>::infinity());
 	m_E_T = std::move(T);
 	m_E_val = std::move(E);
 }
 
 void fe_tool::set_mechanical_table_nu(std::vector<double> T, std::vector<double> nu) {
+	validate_table_contract("MFREE_FE_TOOL_NU_TABLE", T, nu, -1.0, 0.5);
 	m_nu_T = std::move(T);
 	m_nu_val = std::move(nu);
 }
 
 void fe_tool::set_mechanical_table_alpha(std::vector<double> T, std::vector<double> alpha) {
+	validate_table_contract("MFREE_FE_TOOL_ALPHA_TABLE", T, alpha, 0.0, std::numeric_limits<double>::infinity());
 	m_alpha_T = std::move(T);
 	m_alpha_val = std::move(alpha);
 }

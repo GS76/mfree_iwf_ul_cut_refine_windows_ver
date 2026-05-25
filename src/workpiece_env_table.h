@@ -5,6 +5,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <cstdio>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -15,6 +17,15 @@ struct table {
 	std::vector<double> v;
 	bool enabled = false;
 };
+
+inline bool unit_audit_enabled() {
+	static int cached = -1;
+	if (cached < 0) {
+		const char *s = std::getenv("MFREE_UNIT_AUDIT");
+		cached = (s && s[0] != '\0' && std::atoi(s) != 0) ? 1 : 0;
+	}
+	return cached != 0;
+}
 
 inline bool parse_pairs(const char *s, table &out) {
 	if (!s || s[0] == '\0')
@@ -104,12 +115,26 @@ inline table load_table(const char *primary, const char *alias) {
 }
 
 inline double eval(double T, const table &t, double fallback) {
+	static int warn_low = 0;
+	static int warn_high = 0;
 	if (!t.enabled || t.T.size() != t.v.size() || t.T.size() < 2 || !std::isfinite(T))
 		return fallback;
-	if (T <= t.T.front())
+	if (T <= t.T.front()) {
+		if (unit_audit_enabled() && warn_low < 8) {
+			std::fprintf(stderr, "[unit-audit] workpiece table clamp-low: T=%.6e below %.6e (range %.6e..%.6e)\n", T, t.T.front(),
+						 t.T.front(), t.T.back());
+			++warn_low;
+		}
 		return t.v.front();
-	if (T >= t.T.back())
+	}
+	if (T >= t.T.back()) {
+		if (unit_audit_enabled() && warn_high < 8) {
+			std::fprintf(stderr, "[unit-audit] workpiece table clamp-high: T=%.6e above %.6e (range %.6e..%.6e)\n", T, t.T.back(),
+						 t.T.front(), t.T.back());
+			++warn_high;
+		}
 		return t.v.back();
+	}
 	auto it = std::upper_bound(t.T.begin(), t.T.end(), T);
 	std::size_t i1 = static_cast<std::size_t>(it - t.T.begin());
 	if (i1 == 0 || i1 >= t.T.size())
@@ -129,12 +154,50 @@ inline double eval(double T, const table &t, double fallback) {
 inline double nu_at(double T, double fallback) {
 	static const table nu_table = load_table("MFREE_WP_NU_TABLE", "MFREE_WORKPIECE_NU_TABLE");
 	static const double nu_const = parse_const_or("MFREE_WP_NU", "MFREE_WORKPIECE_NU", fallback);
+	static bool audit_once = false;
+	if (!audit_once && unit_audit_enabled() && nu_table.enabled) {
+		double lo = std::numeric_limits<double>::infinity();
+		double hi = -std::numeric_limits<double>::infinity();
+		bool monotonic = true;
+		for (std::size_t i = 0; i < nu_table.v.size(); ++i) {
+			lo = std::min(lo, nu_table.v[i]);
+			hi = std::max(hi, nu_table.v[i]);
+			if (i > 0 && !(nu_table.T[i] > nu_table.T[i - 1]))
+				monotonic = false;
+		}
+		std::fprintf(stderr, "[unit-audit] %s loaded: points=%zu T_range=[%.6e, %.6e] nu_range=[%.6e, %.6e]\n", "MFREE_WP_NU_TABLE",
+					 nu_table.T.size(), nu_table.T.front(), nu_table.T.back(), lo, hi);
+		if (!monotonic)
+			std::fprintf(stderr, "[unit-audit] WARNING: MFREE_WP_NU_TABLE temperature grid is not strictly increasing.\n");
+		if (lo <= -1.0 || hi >= 0.5)
+			std::fprintf(stderr, "[unit-audit] WARNING: MFREE_WP_NU_TABLE has values outside admissible interval (-1, 0.5).\n");
+		audit_once = true;
+	}
 	return eval(T, nu_table, nu_const);
 }
 
 inline double alpha_at(double T, double fallback) {
 	static const table alpha_table = load_table("MFREE_WP_ALPHA_TABLE", "MFREE_WORKPIECE_ALPHA_TABLE");
 	static const double alpha_const = parse_const_or("MFREE_WP_ALPHA", "MFREE_WORKPIECE_ALPHA", fallback);
+	static bool audit_once = false;
+	if (!audit_once && unit_audit_enabled() && alpha_table.enabled) {
+		double lo = std::numeric_limits<double>::infinity();
+		double hi = -std::numeric_limits<double>::infinity();
+		bool monotonic = true;
+		for (std::size_t i = 0; i < alpha_table.v.size(); ++i) {
+			lo = std::min(lo, alpha_table.v[i]);
+			hi = std::max(hi, alpha_table.v[i]);
+			if (i > 0 && !(alpha_table.T[i] > alpha_table.T[i - 1]))
+				monotonic = false;
+		}
+		std::fprintf(stderr, "[unit-audit] %s loaded: points=%zu T_range=[%.6e, %.6e] alpha_range=[%.6e, %.6e]\n",
+					 "MFREE_WP_ALPHA_TABLE", alpha_table.T.size(), alpha_table.T.front(), alpha_table.T.back(), lo, hi);
+		if (!monotonic)
+			std::fprintf(stderr, "[unit-audit] WARNING: MFREE_WP_ALPHA_TABLE temperature grid is not strictly increasing.\n");
+		if (lo < 0.0)
+			std::fprintf(stderr, "[unit-audit] WARNING: MFREE_WP_ALPHA_TABLE contains negative alpha values.\n");
+		audit_once = true;
+	}
 	return eval(T, alpha_table, alpha_const);
 }
 

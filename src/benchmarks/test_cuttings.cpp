@@ -145,6 +145,30 @@ static bool try_read_env_table(const char *key, std::vector<double> &T_out, std:
 	}
 	return T_out.size() >= 2;
 }
+static bool unit_audit_enabled() {
+	static int cached = -1;
+	if (cached < 0) {
+		const char *s = getenv("MFREE_UNIT_AUDIT");
+		cached = (s && s[0] != '\0' && atoi(s) != 0) ? 1 : 0;
+	}
+	return cached != 0;
+}
+
+static void log_cutting_unit_audit(const char *model_label, double v_m_min, double vc_m_s, double feed_per_rev_mm, double target_feed_m,
+								   double thickness_mm, double thickness_m, double dx_m, double dt_empirical_s) {
+	if (!unit_audit_enabled())
+		return;
+	std::fprintf(stderr,
+				 "[unit-audit] %s: speed=%.6e m/min -> %.6e m/s, feed=%.6e mm -> target_feed=%.6e m, thickness=%.6e mm -> %.6e m, dx=%.6e m, "
+				 "dt_empirical=%.6e s\n",
+				 model_label, v_m_min, vc_m_s, feed_per_rev_mm, target_feed_m, thickness_mm, thickness_m, dx_m, dt_empirical_s);
+	if (!(vc_m_s > 0.0))
+		std::fprintf(stderr, "[unit-audit] WARNING: %s speed conversion produced non-positive m/s.\n", model_label);
+	if (!(thickness_m > 0.0) || !(target_feed_m >= 0.0))
+		std::fprintf(stderr, "[unit-audit] WARNING: %s has non-physical thickness/feed after conversion.\n", model_label);
+	if (!(dx_m > 0.0) || !(dt_empirical_s > 0.0))
+		std::fprintf(stderr, "[unit-audit] WARNING: %s has invalid discretization/time-step scales.\n", model_label);
+}
 
 static void adjust_workpiece_y_bounds_for_feed(double base_lo_y, double base_hi_y, unsigned int base_ny, double target_feed,
 											   unsigned int safety_layers, double &lo_y, double &hi_y, unsigned int &ny, double &dy) {
@@ -913,6 +937,7 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
 	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
 		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	log_cutting_unit_audit("model-1/4", v_m_min, vc, feed_per_rev_mm, target_feed, thickness_mm, thickness, dx, dt_empirical);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1178,6 +1203,7 @@ body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
 	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
 		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	log_cutting_unit_audit("model-2", v_m_min, vc, feed_per_rev_mm, target_feed, thickness_mm, thickness, dx, dt_empirical);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
@@ -1493,6 +1519,7 @@ body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	try_read_env_double("MFREE_TIMESTEP_EMPIRICAL_CAP", dt_empirical);
 	if (!std::isfinite(dt_empirical) || dt_empirical <= 0.)
 		dt_empirical = 0.20 * hdx * dx / (pc.c0() + vc);
+	log_cutting_unit_audit("model-3", v_m_min, vc, feed_per_rev_mm, target_feed, thickness_mm, thickness, dx, dt_empirical);
 	double dt = estimate_dt_for_cutting(pc, dx, hdx, vc, dt_empirical, nullptr);
 
 	simulation_time *time = &simulation_time::getInstance();
