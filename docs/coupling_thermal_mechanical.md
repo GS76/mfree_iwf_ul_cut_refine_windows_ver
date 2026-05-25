@@ -286,5 +286,19 @@ For a uniform particle lattice, `sqrt(m/rho) ≈ dx` (the inter-particle spacing
 | `MFREE_DEFORMABLE_TOOL_EXPLICIT_SUBSTEPS` | Overrides FE mechanics substep count in explicit coupled mode. |
 | `MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS` | Overrides FE thermal substep count in explicit coupled mode. |
 | `MFREE_DEFORMABLE_TOOL_EXPLICIT_MAX_SUBSTEPS` | Caps substeps when auto-computed from `mechanics_dt_crit()`. |
+| `MFREE_TOOL_REMOVAL_STEP` | If set to integer `N > 0`, detaches FE tool when `step >= N` and continues SPH-only relaxation/cooling in the same run. `0`/unset disables. |
 | `MFREE_FE_TOOL_RAYLEIGH_A0`, `MFREE_FE_TOOL_RAYLEIGH_A1` | Rayleigh damping in FE explicit mechanics. |
 | `MFREE_THERMAL_*` | Interfacial thermal coupling coefficients and friction heat split (see table above). |
+
+## Residual-Stress Relaxation in One Run (Tool-Removal Step)
+
+Use `MFREE_TOOL_REMOVAL_STEP` to run cutting and post-cut relaxation in a single production run:
+
+- Tool is fully active for steps `< MFREE_TOOL_REMOVAL_STEP`.
+- At the first step where `step >= MFREE_TOOL_REMOVAL_STEP`, FE tool is detached (`body::set_fe_tool(nullptr)`).
+- The run then continues with SPH-only mechanics/thermal evolution (no further tool contact, no FE tool motion).
+
+Notes:
+
+- This is intended for workflows where you want to preserve the thermal-mechanical history from cutting and then observe relaxation/residual stress after tool removal without restarting.
+- FE-tool-specific thermal/contact CSV rows stop after detachment because FE-tool accounting is unavailable once detached; workpiece metrics and VTK output continue.

@@ -40,7 +40,8 @@ param(
 	[double]$RefineFrameWidthMm  = 0.50,    # moving-frame width ahead of tool, mm
 	[int]   $RefineHaloLayers    = 2,       # extra coarse-grid layers around the moving frame
 	[double]$TensionCutoffPa     = 3e9,     # EOS tension cutoff (Pa); 3 GPa default, try 1e9 for tighter clamp
-	[double]$DensityFloorFrac    = 0.001    # density floor as fraction of rho0 (0 = disabled)
+	[double]$DensityFloorFrac    = 0.001,   # density floor as fraction of rho0 (0 = disabled)
+	[int]   $ToolRemovalStep     = 0        # remove FE tool at this increment and continue SPH-only relaxation (0 = disabled)
 )
 
 $ErrorActionPreference = "Stop"
@@ -135,6 +136,15 @@ $env:MFREE_TENSION_CUTOFF     = "$TensionCutoffPa"
 # terms.  0.001 -> rho_min = 4.43 kg/m³ for Ti-6Al-4V (0.1% of reference).
 $env:MFREE_DENSITY_FLOOR_FRAC = "$DensityFloorFrac"
 
+# ── optional FE tool removal for residual-stress relaxation ──────────────────
+# If ToolRemovalStep > 0, the solver detaches the FE tool at that increment and
+# continues with SPH-only relaxation/cooling in the same run.
+if ($ToolRemovalStep -gt 0) {
+	$env:MFREE_TOOL_REMOVAL_STEP = "$ToolRemovalStep"
+} else {
+	Remove-Item Env:\MFREE_TOOL_REMOVAL_STEP -ErrorAction SilentlyContinue
+}
+
 # ── run control ───────────────────────────────────────────────────────────────
 $env:MFREE_MAX_STEPS = "$MaxSteps"
 
@@ -167,6 +177,11 @@ Write-Host "   cut distance ~ $cut_mm mm"
 Write-Host "   VTK frames   = $OutputFrames  (every $outputFreq steps)"
 Write-Host "   Refinement   = depth_factor $RefineDepthFactor, width ${RefineFrameWidthMm} mm, halo $RefineHaloLayers layers"
 Write-Host "   TensionCutoff= $TensionCutoffPa Pa  DensityFloor= $DensityFloorFrac * rho0"
+if ($ToolRemovalStep -gt 0) {
+	Write-Host "   Tool removal = enabled at step $ToolRemovalStep (SPH-only relaxation after detachment)"
+} else {
+	Write-Host "   Tool removal = disabled"
+}
 Write-Host "   Results      -> $ResultsDir"
 Write-Host "============================================================"
 Write-Host ""

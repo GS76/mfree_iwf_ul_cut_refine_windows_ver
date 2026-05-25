@@ -1183,6 +1183,21 @@ int main(int argc, char *argv[]) {
 	}
 	unsigned int max_steps = 0;
 	max_steps = static_cast<unsigned int>(std::max(0, env_int("MFREE_MAX_STEPS", 0)));
+	bool tool_removal_enabled = false;
+	unsigned int tool_removal_step = std::numeric_limits<unsigned int>::max();
+	{
+		const char *s = std::getenv("MFREE_TOOL_REMOVAL_STEP");
+		if (s && s[0] != '\0') {
+			int v = 0;
+			if (!try_parse_int_strict(s, v) || v < 0) {
+				std::fprintf(stderr, "warning: invalid MFREE_TOOL_REMOVAL_STEP=\"%s\"; expected integer >= 0\n", s);
+			} else if (v > 0) {
+				tool_removal_enabled = true;
+				tool_removal_step = static_cast<unsigned int>(v);
+			}
+		}
+	}
+	bool tool_removed = false;
 
 	/*
 	  ========================
@@ -1203,6 +1218,16 @@ int main(int argc, char *argv[]) {
 	 *
 	 */
 	while (!time->finished() && (max_steps == 0 || time->get_step() < max_steps)) {
+		if (!tool_removed && tool_removal_enabled && time->get_step() >= tool_removal_step) {
+			if (b->get_fe_tool()) {
+				std::printf("[tool-removal] Removing FE tool at step %u (MFREE_TOOL_REMOVAL_STEP=%u); continuing SPH-only relaxation.\n",
+							time->get_step(), tool_removal_step);
+				b->set_fe_tool(nullptr);
+				if (global_logger)
+					global_logger->set_fe_tool(nullptr);
+			}
+			tool_removed = true;
+		}
 
 		// plot with given frequency
 		if (time->get_step() % freq == 0) {
