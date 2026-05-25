@@ -52,6 +52,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cmath>
 
 namespace {
 double mixed_level_artificial_stress_scale() {
@@ -67,11 +68,22 @@ double mixed_level_artificial_stress_scale() {
 	}();
 	return scale;
 }
+
+double monaghan_reference_kernel(double h, double hdx, double fallback) {
+	if (!(hdx > 0.) || !std::isfinite(h) || h <= 0.)
+		return fallback;
+	const kernel_result w_ref = cubic_spline(0., 0., h / hdx, 0., h);
+	if (!std::isfinite(w_ref.w) || w_ref.w <= 0.)
+		return fallback;
+	return w_ref.w;
+}
 } // namespace
 
 void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -80,6 +92,13 @@ void derive_velocity(body &b) {
 		const unsigned int i = static_cast<unsigned int>(ii);
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
+		if (!std::isfinite(vxi) || !std::isfinite(vyi)) {
+			particles[i].vx_x = 0.;
+			particles[i].vx_y = 0.;
+			particles[i].vy_x = 0.;
+			particles[i].vy_y = 0.;
+			continue;
+		}
 
 		double vx_x = 0.;
 		double vx_y = 0.;
@@ -89,11 +108,21 @@ void derive_velocity(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
+			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
+				continue;
 
 			double vxj = particles[jdx].vx;
 			double vyj = particles[jdx].vy;
+			if (!std::isfinite(vxj) || !std::isfinite(vyj))
+				continue;
 
-			double quad_weight = particles[jdx].m / particles[jdx].rho;
+			const double mj = particles[jdx].m;
+			const double rhoj = particles[jdx].rho;
+			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
+				continue;
+			double quad_weight = mj / rhoj;
+			if (!std::isfinite(quad_weight))
+				continue;
 
 			vx_x += (vxj - vxi) * w.w_x * quad_weight;
 			vx_y += (vxj - vxi) * w.w_y * quad_weight;
@@ -112,9 +141,12 @@ void derive_stress_monaghan(body &b) {
 	const double wdeltap_global = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
 	const double hdx = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_hdx();
 	const unsigned int corr_exp = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_corr_exp();
+	const double mixed_level_scale = mixed_level_artificial_stress_scale();
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -130,11 +162,19 @@ void derive_stress_monaghan(body &b) {
 		double Ryyi = particles[i].Ryy;
 
 		double rhoi = particles[i].rho;
+		if (!std::isfinite(Sxxi) || !std::isfinite(Sxyi) || !std::isfinite(Syyi) || !std::isfinite(Rxxi) || !std::isfinite(Rxyi) ||
+			!std::isfinite(Ryyi) || !std::isfinite(rhoi) || rhoi < rho_min || !std::isfinite(particles[i].h) || particles[i].h <= 0.) {
+			particles[i].Sxx_x = 0.;
+			particles[i].Sxy_y = 0.;
+			particles[i].Sxy_x = 0.;
+			particles[i].Syy_y = 0.;
+			continue;
+		}
 		double rhoi21 = 1. / (rhoi * rhoi);
 
 		// Per-particle reference kernel value: W(h_i / hdx, h_i). This keeps the Monaghan artificial-stress
-		// correction normalized at each particle's own equilibrium spacing across mixed-resolution interfaces.
-		const double wdeltap_i = (hdx > 0.) ? cubic_spline(0., 0., particles[i].h / hdx, 0., particles[i].h).w : wdeltap_global;
+		// correction normalized at each particle's own equilibrium spacing.
+		const double wdeltap_i = monaghan_reference_kernel(particles[i].h, hdx, wdeltap_global);
 
 		double Sxx_x = 0.;
 		double Sxy_y = 0.;
@@ -144,39 +184,68 @@ void derive_stress_monaghan(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
+			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
+				continue;
 
 			double Sxxj = particles[jdx].Sxx - particles[jdx].p;
 			double Sxyj = particles[jdx].Sxy;
 			double Syyj = particles[jdx].Syy - particles[jdx].p;
+			if (!std::isfinite(Sxxj) || !std::isfinite(Sxyj) || !std::isfinite(Syyj))
+				continue;
 
 			double Rxxj = particles[jdx].Rxx;
 			double Rxyj = particles[jdx].Rxy;
 			double Ryyj = particles[jdx].Ryy;
+			if (!std::isfinite(Rxxj) || !std::isfinite(Rxyj) || !std::isfinite(Ryyj))
+				continue;
 
 			double mj = particles[jdx].m;
-			double rhoj21 = 1. / (particles[jdx].rho * particles[jdx].rho);
+			double rhoj = particles[jdx].rho;
+			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
+				continue;
+			double rhoj21 = 1. / (rhoj * rhoj);
+			if (!std::isfinite(rhoj21))
+				continue;
 
 			double Rxx = 0;
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			// Same-resolution pairs retain full tensile-instability protection.  Mixed
-			// refined<->coarse pairs receive a conservative, env-configurable blend so
-			// the refinement interface is not left completely unstabilized in tension.
-			// The default scale is intentionally small because coarse particles observing
-			// fine neighbours at roughly half their own equilibrium spacing can otherwise
-			// over-correct (large fab^corr_exp) and drive repulsive oscillations.
-			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx &&
-				(particles[i].refine_step == particles[jdx].refine_step || mixed_level_artificial_stress_scale() > 0.)) {
-				double fab = w.w / wdeltap_i;
+			// Same-resolution pairs retain full tensile-instability protection. Mixed
+			// refined<->coarse pairs use a symmetric kernel-ratio blend so interface
+			// stabilization is present on both sides rather than being dominated by the
+			// observer particle's smoothing length.
+			const bool same_level = particles[i].refine_step == particles[jdx].refine_step;
+			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx && (same_level || mixed_level_scale > 0.)) {
+				double fab_i = w.w / wdeltap_i;
+				if (!std::isfinite(fab_i) || fab_i <= 0.)
+					continue;
+
+				double fab = fab_i;
+				if (!same_level) {
+					const double hj = particles[jdx].h;
+					const double wdeltap_j = monaghan_reference_kernel(hj, hdx, wdeltap_global);
+					if (wdeltap_j <= 0.)
+						continue;
+
+					const kernel_result wji = cubic_spline(particles[jdx].x, particles[jdx].y, particles[i].x, particles[i].y, hj);
+					const double fab_j = wji.w / wdeltap_j;
+					if (!std::isfinite(fab_j) || fab_j <= 0.)
+						continue;
+
+					// Symmetric mixed-level normalization damps directional bias at the
+					// coarse/fine interface and reduces visible interface cracking.
+					fab = 0.5 * (fab_i + fab_j);
+				}
+
 				//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
 				for (unsigned int powi = 0; powi < corr_exp; powi++) {
 					t = t * fab;
 				}
 				fab = t;
-				if (particles[i].refine_step != particles[jdx].refine_step)
-					fab *= mixed_level_artificial_stress_scale();
+				if (!same_level)
+					fab *= mixed_level_scale;
 
 				Rxx = fab * (Rxxi + Rxxj);
 				Rxy = fab * (Rxyi + Rxyj);

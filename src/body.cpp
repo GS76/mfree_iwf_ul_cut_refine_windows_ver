@@ -80,6 +80,7 @@ static bool parse_env_bool_strict(const char *name) {
 	return v != 0;
 }
 
+
 static bool parse_env_uint_strict_min(const char *name, unsigned int min_value, unsigned int &out) {
 	if (!name || name[0] == '\0')
 		return false;
@@ -142,6 +143,77 @@ static bool parse_env_double_strict_min(const char *name, double min_value, doub
 }
 } // namespace
 
+void body::apply_radiation() {
+	constexpr double stefan_boltzmann = 5.670374419e-8; // W/(m^2 K^4)
+	double eps_wp = 0.7;
+	double eps_tool = 0.7;
+	double T_amb = 298.15;
+	double thickness = 1.0;
+	double area_factor = 1.0;
+	parse_env_double_strict_range("MFREE_WP_RADIATION_EMISSIVITY", 0.0, 1.0, eps_wp);
+	parse_env_double_strict_range("MFREE_FE_TOOL_RADIATION_EMISSIVITY", 0.0, 1.0, eps_tool);
+	parse_env_double_strict_min("MFREE_RADIATION_AMBIENT_K", 0.0, T_amb);
+	parse_env_double_strict_min("MFREE_PLANE_STRAIN_THICKNESS", 1.0e-12, thickness);
+	parse_env_double_strict_min("MFREE_RADIATION_AREA_FACTOR", 1.0e-12, area_factor);
+	if (eps_wp <= 0.0 && eps_tool <= 0.0)
+		return;
+	const auto pc = get_sim_data().get_physical_constants();
+	const double cp_wp = pc.tc().cp();
+	if (eps_wp > 0.0 && cp_wp > 0.0 && std::isfinite(cp_wp)) {
+		std::vector<particle> &particles = get_particles();
+		for (particle &p : particles) {
+			if (!std::isfinite(p.T) || !std::isfinite(p.m) || !std::isfinite(p.rho))
+				continue;
+			if (p.m <= 0.0 || p.rho <= 0.0)
+				continue;
+			double area_per_depth = p.m / p.rho;
+			if (!std::isfinite(area_per_depth) || area_per_depth <= 0.0)
+				continue;
+			double A_eff = std::sqrt(area_per_depth) * thickness * area_factor;
+			if (!std::isfinite(A_eff) || A_eff <= 0.0)
+				continue;
+			double T4 = std::pow(std::max(0.0, p.T), 4.0);
+			double Tamb4 = std::pow(std::max(0.0, T_amb), 4.0);
+			double P_rad = eps_wp * stefan_boltzmann * A_eff * (T4 - Tamb4);
+			if (!std::isfinite(P_rad))
+				continue;
+			double denom = p.m * cp_wp;
+			if (!(denom > 0.0) || !std::isfinite(denom))
+				continue;
+			p.T_t += (-P_rad / denom);
+		}
+	}
+	if (eps_tool > 0.0 && m_fe_tool) {
+		const std::size_t nn = m_fe_tool->nodes_tool_frame().size();
+		std::vector<double> nodal_area(nn, 0.0);
+		for (const auto &e : m_fe_tool->boundary_edges()) {
+			if (e.n0 >= nn || e.n1 >= nn)
+				continue;
+			glm::dvec2 p0 = m_fe_tool->node_world(e.n0);
+			glm::dvec2 p1 = m_fe_tool->node_world(e.n1);
+			double L = glm::length(p1 - p0);
+			if (!std::isfinite(L) || L <= 0.0)
+				continue;
+			double A_edge = L * thickness * area_factor;
+			nodal_area[e.n0] += 0.5 * A_edge;
+			nodal_area[e.n1] += 0.5 * A_edge;
+		}
+		double Tamb4 = std::pow(std::max(0.0, T_amb), 4.0);
+		for (std::size_t i = 0; i < nn; i++) {
+			if (!std::isfinite(nodal_area[i]) || nodal_area[i] <= 0.0)
+				continue;
+			double T = m_fe_tool->temperature_at_node(static_cast<unsigned int>(i));
+			if (!std::isfinite(T))
+				continue;
+			double T4 = std::pow(std::max(0.0, T), 4.0);
+			double P_rad = eps_tool * stefan_boltzmann * nodal_area[i] * (T4 - Tamb4);
+			if (!std::isfinite(P_rad))
+				continue;
+			m_fe_tool->add_nodal_power(static_cast<unsigned int>(i), -P_rad);
+		}
+	}
+}
+
 void body::apply_plasticity() {
 	if (m_plast == 0) {
 		m_step_plastic_dissipation = 0.;
@@ -156,6 +228,7 @@ void body::apply_thermal_conduction() {
 	if (m_thermal == 0)
 		return;
 	m_thermal->conduction(*this);
+	apply_radiation();
 }
 
 void body::apply_contact() {

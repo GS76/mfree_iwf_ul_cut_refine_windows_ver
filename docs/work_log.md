@@ -1,5 +1,7 @@
 # Work Log
 
+> Legacy historical log content is preserved for traceability and is not maintained as active forward-path guidance.
+
 - 2026-04-30: branch `feat/tighten-fe-sph-thermal-energy-accounting` — Phases 1–5 completed
 
   **Phase 1** (commit `7f40d2f8`): Remove dead `cumulative_*` fields from `fe_tool::thermal_energy_accounting`.  Fields were reset each step and aliased rather than accumulated; canonical source is the logger `m_cum_*` members.

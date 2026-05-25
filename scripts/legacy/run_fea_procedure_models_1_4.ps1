@@ -89,7 +89,7 @@ function Select-FrameIndices([string]$ModelDir, [int]$Count)
 	return ($out | Sort-Object -Unique)
 }
 
-$modelDir = Join-Path $ResultsRoot "model_3"
+$modelDir = Join-Path $ResultsRoot "model_5"
 New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
 
 $env:MFREE_RESULTS_DIR   = $modelDir
@@ -101,7 +101,7 @@ $env:MFREE_FE_BC_TOP_TAG   = "110"
 $env:MFREE_FE_BC_REAR_TAG  = "114"
 $env:MFREE_FE_BC_AMBIENT_C = "25"
 $env:MFREE_FE_BC_ANCHOR_UX = "1"
-& $exe -m 3
+& $exe -m 5
 
 if ($GeneratePNGs)
 {
@@ -110,12 +110,12 @@ if ($GeneratePNGs)
 		-TopCsv (Join-Path $modelDir "fe_bc_top_edge.csv") `
 		-RearCsv (Join-Path $modelDir "fe_bc_rear_edge.csv") `
 		-OutDir (Join-Path $modelDir "pv_bc_png") `
-		-ModelLabel "model_3" `
+		-ModelLabel "model_5" `
 		-CuttingSpeed_m_min $CuttingSpeed_m_min
 }
 
 $env:MFREE_PREPROCESS_ONLY = "0"
-& $exe -m 3
+& $exe -m 5
 
 if ($GeneratePNGs)
 {
@@ -133,7 +133,7 @@ if ($GeneratePNGs)
 			--steps $steps `
 			--field $RenderField `
 			--out-dir (Join-Path $modelDir "pv_adv_png") `
-			--model-label "model_3"
+			--model-label "model_5"
 	}
 }
 
@@ -160,7 +160,7 @@ if (Test-Path $thermalPath)
 }
 
 $modelSummaries += [pscustomobject]@{
-	model              = 3
+	model              = 5
 	results_dir        = $modelDir
 	bc_top_nodes       = if ($bcReport)
 	{ $bcReport.top_nodes
@@ -244,7 +244,7 @@ if ($GenerateReport)
 		return ("{0}" -f ([int]$v))
 	}
 	$lines = @()
-	$lines += "# FE Advancement Procedure Report (Model 3)"
+	$lines += "# FE Advancement Procedure Report (Model 5)"
 	$lines += ""
 	$lines += "- Generated: $now"
 	$lines += "- Cutting speed: $CuttingSpeed_m_min m/min"
@@ -278,7 +278,7 @@ if ($GenerateReport)
 	foreach ($r in $modelSummaries)
 	{
 		$rel = Resolve-Path $r.results_dir
-		$lines += "## Model 3"
+		$lines += "## Model 5"
 		$lines += ""
 		$lines += "- Results: $rel"
 		$lines += '- BC report: `fe_bc_report.json`, `fe_bc_top_edge.csv`, `fe_bc_rear_edge.csv`'
@@ -287,9 +287,9 @@ if ($GenerateReport)
 		$lines += ""
 		$lines += "### BC Visualizations"
 		$lines += ""
-		$lines += "![](./model_3/pv_bc_png/edge_nodes.png)"
+		$lines += "![](./model_5/pv_bc_png/edge_nodes.png)"
 		$lines += ""
-		$lines += "![](./model_3/pv_bc_png/velocity_glyphs.png)"
+		$lines += "![](./model_5/pv_bc_png/velocity_glyphs.png)"
 		$lines += ""
 		$lines += "### Advancement Frames ($RenderField)"
 		$lines += ""
@@ -297,7 +297,7 @@ if ($GenerateReport)
 		$pngs = Get-ChildItem -Path $advDir -Filter ("adv_{0}_*.png" -f $RenderField) -ErrorAction SilentlyContinue | Sort-Object Name
 		foreach ($p in $pngs)
 		{
-			$lines += "![](./model_3/pv_adv_png/$($p.Name))"
+			$lines += "![](./model_5/pv_adv_png/$($p.Name))"
 			$lines += ""
 		}
 	}

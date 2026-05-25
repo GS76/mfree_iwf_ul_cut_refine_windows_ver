@@ -52,6 +52,10 @@
 #include "body.h"
 
 #include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
 
 static bool inside_bounding_box(glm::dvec2 xlim, glm::dvec2 ylim, glm::dvec2 pos) {
 	double xmin = xlim.x;
@@ -61,6 +65,94 @@ static bool inside_bounding_box(glm::dvec2 xlim, glm::dvec2 ylim, glm::dvec2 pos
 	double x = pos.x;
 	double y = pos.y;
 	return (x > xmin) && (x < xmax) && (y > ymin) && (y < ymax);
+}
+
+static unsigned int read_env_uint(const char *name, unsigned int fallback) {
+	const char *raw = std::getenv(name);
+	if (!raw || raw[0] == '\0')
+		return fallback;
+	char *end = nullptr;
+	unsigned long parsed = std::strtoul(raw, &end, 10);
+	if (end == raw)
+		return fallback;
+	if (parsed > static_cast<unsigned long>(std::numeric_limits<unsigned int>::max()))
+		return fallback;
+	return static_cast<unsigned int>(parsed);
+}
+
+static double read_env_fraction(const char *name, double fallback) {
+	const char *raw = std::getenv(name);
+	if (!raw || raw[0] == '\0')
+		return fallback;
+	char *end = nullptr;
+	double parsed = std::strtod(raw, &end);
+	if (end == raw || !std::isfinite(parsed))
+		return fallback;
+	if (parsed < 0.)
+		return 0.;
+	if (parsed > 1.)
+		return 1.;
+	return parsed;
+}
+
+static unsigned int min_refine_diff_steps() {
+	static const unsigned int value = read_env_uint("MFREE_ADAPT_MIN_REFINE_DIFF_STEPS", MIN_REFINE_DIFF);
+	return value;
+}
+
+static double max_split_fraction_per_step() {
+	// Fraction of current particles that can be selected as split "DAD" particles
+	// in a single adaptivity step. Lower values reduce sudden particle-count jumps.
+	static const double value = read_env_fraction("MFREE_ADAPT_MAX_SPLIT_FRACTION", 0.10);
+	return value;
+}
+
+static unsigned int count_marked_for_split(const std::vector<particle> &particles) {
+	unsigned int marked = 0;
+	for (const auto &p : particles) {
+		if (p.split)
+			marked++;
+	}
+	return marked;
+}
+
+static unsigned int cap_split_candidates(body &b, unsigned int requested_dad, unsigned int num_child) {
+	if (requested_dad == 0 || num_child <= 1)
+		return requested_dad;
+
+	std::vector<particle> &particles = b.get_particles();
+	const unsigned int n_before = b.get_num_part();
+	const double frac_cap = max_split_fraction_per_step();
+
+	// Keep at most +50% particle growth in a single adaptation step.
+	const unsigned int per_dad_births = num_child - 1;
+	const unsigned int growth_cap = std::max(1u, n_before / (2u * per_dad_births));
+	const unsigned int fraction_cap = std::max(1u, static_cast<unsigned int>(std::floor(frac_cap * static_cast<double>(n_before))));
+	const unsigned int dad_cap = std::max(1u, std::min(growth_cap, fraction_cap));
+
+	if (requested_dad <= dad_cap)
+		return requested_dad;
+
+	const unsigned int marked = count_marked_for_split(particles);
+	if (marked <= dad_cap)
+		return marked;
+
+	std::uint64_t carry = 0;
+	unsigned int kept = 0;
+	for (auto &p : particles) {
+		if (!p.split)
+			continue;
+		carry += dad_cap;
+		if (carry >= marked && kept < dad_cap) {
+			carry -= marked;
+			kept++;
+			continue;
+		}
+		p.split = false;
+	}
+
+	std::printf("[adaptivity] split throttled: requested=%u capped=%u n_before=%u frac_cap=%.3f\n", marked, kept, n_before, frac_cap);
+	return kept;
 }
 
 void adaptivity::set_refine_criterion(refine_criteria crit) { m_refine_criteria = crit; }
@@ -520,7 +612,8 @@ void adaptivity::perform_split_triangular(body &b) const {
 		unsigned int delta_st = step - particles[i].last_refine_at;
 		assert(delta_st >= 0);
 		// if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
+		const unsigned int min_step_gap = min_refine_diff_steps();
+		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
 
 			// 0. call your DAD
 			double dx = sqrt(particles[i].m / particles[i].rho);
@@ -586,7 +679,8 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 		unsigned int delta_st = step - particles[i].last_refine_at;
 		assert(delta_st >= 0);
 
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
+		const unsigned int min_step_gap = min_refine_diff_steps();
+		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
 			std::array<double, max_SON2D> x_SON{};
 			std::array<double, max_SON2D> y_SON{};
 			std::array<double, max_SON2D> h_SON{};
@@ -722,7 +816,8 @@ void adaptivity::perform_split_cubic(body &b) const {
 		unsigned int delta_st = step - particles[i].last_refine_at;
 		assert(delta_st >= 0);
 
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
+		const unsigned int min_step_gap = min_refine_diff_steps();
+		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
 			std::array<double, max_SON2D> x_SON{};
 			std::array<double, max_SON2D> y_SON{};
 			std::array<double, max_SON2D> h_SON{};
@@ -839,7 +934,8 @@ void adaptivity::perform_split_hexagonal(body &b) const {
 		unsigned int delta_st = step - particles[i].last_refine_at;
 		assert(delta_st >= 0);
 		// if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
+		const unsigned int min_step_gap = min_refine_diff_steps();
+		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
 
 			std::vector<double> x_SON(num_SON2D);
 			std::vector<double> y_SON(num_SON2D);
@@ -998,6 +1094,8 @@ void adaptivity::adapt_resolution(body &b) const {
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	flag_reset(b);
 	int num_dad = evaluate_refinement(b);
+	if (num_dad > 0)
+		num_dad = static_cast<int>(cap_split_candidates(b, static_cast<unsigned int>(num_dad), m_num_child));
 
 	if (num_dad == 0)
 		return;

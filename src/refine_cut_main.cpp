@@ -1033,7 +1033,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	int model = 1;
+	int model = 5;
 	for (int i = 1; i < argc; i++) {
 		std::string arg(argv[i]);
 		if (arg == "-m" && i + 1 < argc) {
@@ -1043,24 +1043,24 @@ int main(int argc, char *argv[]) {
 	}
 	printf("running model %d\n", model);
 
-	assert(model >= 1);
-	assert(model <= 4);
+	if (model != 5) {
+		std::fprintf(stderr, "ERROR: this branch supports only Model 5 FE-only coupled workflow (received -m %d)\n", model);
+		return EXIT_FAILURE;
+	}
 
 	// Number of particle layers through the workpiece thickness (nbox).
 	// With default thickness 0.5 mm: dx = 0.5 mm / (nbox - 1).
-	// Per-model defaults: model 1 uses 31 (coarser, faster baseline);
-	// models 2-4 use 61 (standard production resolution).
+	// Model-5 default uses 61 (standard production resolution).
 	// Override at runtime via MFREE_NBOX.
 	//
 	// Practical range [20, 201]:
 	//   20  -> dx ~ 26 um   (debugging / quick feasibility only)
-	//   31  -> dx ~ 17 um   (model 1 default)
-	//   61  -> dx ~  8 um   (models 2-4 default, standard production)
+	//   61  -> dx ~  8 um   (standard production)
 	//   91  -> dx ~  6 um   (high-fidelity DOE)
 	//  121  -> dx ~  4 um   (maximum practical on a workstation)
 	//  201  -> dx ~  2.5 um (HPC cluster only)
 	// Note: compute cost scales as ~nbox^3 (2-D particle count x timestep halving).
-	const int nbox_default = (model == 1) ? 31 : 61;
+	const int nbox_default = 61;
 	const int NBOX_MIN = 20;
 	const int NBOX_MAX = 201;
 	int nx = env_int("MFREE_NBOX", nbox_default);
@@ -1075,25 +1075,16 @@ int main(int argc, char *argv[]) {
 
 	/*
 	 ==========================
-	 *  set up chosen benchmark
-	 *  	this runs model 1-4 in the paper
+	 * 	set up chosen benchmark
+	 * 	this branch runs model 5 (model2-equivalent SPH baseline, FE-tool-only)
 	 *  	other preliminary simulations are available in test_benches.h
 	 *  	density reapproximation tests are aviable in test_density.h
 	 ==========================
 	 */
 	body *b = 0;
 	switch (model) {
-	case 1:
-		b = cutting_ref_single_resol(nx);
-		break;
-	case 2:
-		b = cutting_ref_multi_resol_apriori(nx);
-		break;
-	case 3:
-		b = cutting_ref_multi_resol_dynamic(nx);
-		break;
-	case 4:
-		b = cutting_ref_single_resol(nx);
+	case 5:
+		b = cutting_ref_model5_fe_only(nx);
 		break;
 	}
 

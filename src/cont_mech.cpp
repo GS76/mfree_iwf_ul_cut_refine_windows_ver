@@ -49,11 +49,14 @@
  */
 
 #include "cont_mech.h"
+#include <cmath>
 
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
 	const unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -62,6 +65,8 @@ void contmech_continuity(body &b) {
 		const double rho = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
+		if (!std::isfinite(rho) || rho < rho_min || !std::isfinite(vx_x) || !std::isfinite(vy_y))
+			continue;
 
 		particles[i].rho_t -= rho * (vx_x + vy_y);
 	}
@@ -71,6 +76,9 @@ void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
 	const unsigned int n = b.get_num_part();
+	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
+	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
+	const double m_min = 1e-18;
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -82,9 +90,19 @@ void contmech_momentum(body &b) {
 		const double Syy_y = particles[i].Syy_y;
 
 		const double rho = particles[i].rho;
+		const double m = particles[i].m;
+		if (!std::isfinite(Sxx_x) || !std::isfinite(Sxy_y) || !std::isfinite(Sxy_x) || !std::isfinite(Syy_y))
+			continue;
+		if (!std::isfinite(rho) || rho < rho_min || !std::isfinite(m) || m <= m_min)
+			continue;
+		if (!std::isfinite(particles[i].fcx) || !std::isfinite(particles[i].fcy) || !std::isfinite(particles[i].ftx) ||
+			!std::isfinite(particles[i].fty))
+			continue;
 
-		particles[i].vx_t += 1. / rho * (Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
-		particles[i].vy_t += 1. / rho * (Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
+		const double inv_rho = 1. / rho;
+		const double inv_m = 1. / m;
+		particles[i].vx_t += inv_rho * (Sxx_x + Sxy_y) + (particles[i].fcx + particles[i].ftx) * inv_m;
+		particles[i].vy_t += inv_rho * (Sxy_x + Syy_y) + (particles[i].fcy + particles[i].fty) * inv_m;
 	}
 }
 
@@ -97,6 +115,8 @@ void contmech_advection(body &b) {
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
+		if (!std::isfinite(particles[i].vx) || !std::isfinite(particles[i].vy))
+			continue;
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
 	}

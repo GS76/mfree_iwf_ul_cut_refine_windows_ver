@@ -62,6 +62,11 @@ void johnson_cook_Sima_2010::set_temp(double t) {
 	m_t = t;
 }
 
+void johnson_cook_Sima_2010::set_shear_modulus(double mu) {
+	if (std::isfinite(mu) && mu > 0.)
+		m_mu = mu;
+}
+
 double johnson_cook_Sima_2010::operator() (double delta_lambda) {
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();

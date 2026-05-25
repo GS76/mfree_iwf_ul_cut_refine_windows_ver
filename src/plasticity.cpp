@@ -50,6 +50,55 @@
 
 #include "plasticity.h"
 #include "body.h"
+#include "env_table.h"
+#include <algorithm>
+#include <cstdlib>
+#include <cmath>
+
+namespace {
+struct wp_tables {
+	std::vector<double> cp_T;
+	std::vector<double> cp_v;
+	std::vector<double> E_T;
+	std::vector<double> E_v;
+	std::vector<double> G_T;
+	std::vector<double> G_v;
+	bool parsed = false;
+};
+
+
+static const wp_tables &get_wp_tables() {
+	static wp_tables tbl;
+	if (!tbl.parsed) {
+		env_table::parse_from_env_any({"MFREE_WP_CP_TABLE", "MFREE_WORKPIECE_CP_TABLE"}, tbl.cp_T, tbl.cp_v);
+		env_table::parse_from_env_any({"MFREE_WP_E_TABLE", "MFREE_WORKPIECE_E_TABLE"}, tbl.E_T, tbl.E_v);
+		env_table::parse_from_env_any({"MFREE_WP_G_TABLE", "MFREE_WORKPIECE_G_TABLE"}, tbl.G_T, tbl.G_v);
+		tbl.parsed = true;
+	}
+	return tbl;
+}
+
+static double workpiece_cp_at(double T, double cp0) {
+	const wp_tables &tbl = get_wp_tables();
+	double cp = env_table::eval_linear_clamped(T, tbl.cp_T, tbl.cp_v, cp0);
+	if (!std::isfinite(cp) || cp <= 0.)
+		cp = cp0;
+	return cp;
+}
+
+static double workpiece_mu_at(double T, double mu0, double nu0) {
+	const wp_tables &tbl = get_wp_tables();
+	double mu = env_table::eval_linear_clamped(T, tbl.G_T, tbl.G_v, mu0);
+	if (!std::isfinite(mu) || mu <= 0.) {
+		double E = env_table::eval_linear_clamped(T, tbl.E_T, tbl.E_v, 2.0 * (1.0 + nu0) * mu0);
+		if (std::isfinite(E) && E > 0. && std::isfinite(nu0) && (1.0 + nu0) > 0.)
+			mu = E / (2.0 * (1.0 + nu0));
+	}
+	if (!std::isfinite(mu) || mu <= 0.)
+		mu = mu0;
+	return mu;
+}
+} // namespace
 
 double plasticity::plastic_state_by_radial_return(body &b) {
 	if (!b.get_sim_data().get_physical_constants().jc().valid())
@@ -77,24 +126,23 @@ void plasticity::print_debug(const std::vector<particle> &particles, unsigned in
 double plasticity::do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data) { // 2D
 	simulation_time *time = &simulation_time::getInstance();
 	double delta_t = time->get_dt();
-	double mu = data.get_physical_constants().G();
-
-	double cp = data.get_physical_constants().tc().cp();
+	const auto pc = data.get_physical_constants();
+	double mu0 = pc.G();
+	double nu0 = pc.nu();
+	double cp0 = pc.tc().cp();
 	double tq = data.get_physical_constants().tc().Taylor_Quinney();
 
 	double step_plastic_dissipation = 0.;
 
 	double rho0 = data.get_physical_constants().rho0();
-	double density_floor_frac_env = 0.0;
-	const char *v = getenv("MFREE_DENSITY_FLOOR_FRAC");
-	if (v != nullptr) {
-		density_floor_frac_env = atof(v);
-	}
-	double rho_min = density_floor_frac_env > 0. ? density_floor_frac_env * rho0 : 0.;
+	double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 0.;
 
 	for (unsigned int i = 0; i < num_part; i++) {
+		double mu = workpiece_mu_at(particles[i].T, mu0, nu0);
+		double cp = workpiece_cp_at(particles[i].T, cp0);
+		m_plasticity_model->set_shear_modulus(mu);
 		// Skip plasticity entirely for density-floored particles: their stress state is artificial
-		if (rho_min > 0. && particles[i].rho <= 1.01 * rho_min) {
+		if (rho_min > 0. && std::isfinite(particles[i].rho) && particles[i].rho < rho_min) {
 			// Zero the stress state for particles that hit the density floor.
 			// Without this, old trial stresses (computed with pre-floor density)
 			// can become NaN/Inf when later combined with the floored density.

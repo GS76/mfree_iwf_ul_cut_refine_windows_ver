@@ -28,14 +28,12 @@ Code references:
 
 ## Coupling Modes (What Runs When)
 
-There are three main tool/contact setups, plus two deformable-tool coupling modes.
+There are two forward FE-tool coupling modes.
 
 | Mode | Enabled By | Tool Geometry Used For Contact | FE Tool Mechanics | FE Tool Thermal | Notes |
 |---|---|---|---|---|---|
-| Rigid analytic tool | no FE tool attached | `tool` polygon | N/A | N/A | SPH contact only. |
-| FE tool attached, rigid in mechanics | `MFREE_USE_FE_TOOL_FOR_CONTACT=0` OR `MFREE_USE_FE_TOOL_FOR_CONTACT=1` + `MFREE_DEFORMABLE_FE_TOOL=0` | Either analytic `tool` or FE boundary polygon | No mechanics solve | Yes (can receive heat) | FE tool is used mainly as a thermal body (and for contact geometry if enabled). |
-| Deformable FE tool (quasi-static coupling) | `MFREE_DEFORMABLE_FE_TOOL=1` and `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=0` | FE boundary polygon | Quasi-static solve per contact iteration | Thermal load mapping exists, but thermal advance is not part of the inner quasi-static loop | Iterative contact loop enforces force/power convergence with optional relaxation. |
-| Deformable FE tool (explicit coupled) | `MFREE_DEFORMABLE_FE_TOOL=1` and `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=1` | FE boundary polygon | Explicit mechanics substepping inside `apply_contact()` | Explicit thermal substepping inside `apply_contact()` | Strong serial coupling inside a single SPH step; later per-step FE calls are skipped. |
+| FE tool (quasi-static coupling) | `MFREE_DEFORMABLE_FE_TOOL=1` and `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=0` | FE boundary polygon | Quasi-static solve per contact iteration | Thermal load mapping exists, but thermal advance is not part of the inner quasi-static loop | Iterative contact loop enforces force/power convergence with optional relaxation. |
+| FE tool (explicit coupled) | `MFREE_DEFORMABLE_FE_TOOL=1` and `MFREE_DEFORMABLE_FE_TOOL_EXPLICIT=1` | FE boundary polygon | Explicit mechanics substepping inside `apply_contact()` | Explicit thermal substepping inside `apply_contact()` | Strong serial coupling inside a single SPH step; later per-step FE calls are skipped. |
 
 ## Mechanical Coupling Details
 
@@ -264,7 +262,7 @@ For a uniform particle lattice, `sqrt(m/rho) ≈ dx` (the inter-particle spacing
 - **Single-executable coupled run**: SPH and FE domains exchange forces and heat every step with a clear and deterministic execution order.
 - **Strong coupling option (explicit coupled mode)**: repeating contact + FE updates inside a substep loop improves consistency between interface loads and tool state within a single SPH timestep.
 - **Robust thermal stabilization**: contact heat exchange is capped by `MFREE_THERMAL_MAX_DT_PER_STEP`, which can prevent runaway temperatures from a single step.
-- **Flexible FE tool behavior**: tool can be rigid, thermal-only, quasi-static deformable, or explicit deformable depending on env vars.
+- **Flexible FE tool behavior**: FE tool can be thermal-only, quasi-static deformable, or explicit deformable depending on env vars.
 - **Natural “reaction” coupling**: action/reaction forces are mapped to the FE boundary automatically from the same contact events used on the SPH side.
 
 ### Disadvantages / Limitations

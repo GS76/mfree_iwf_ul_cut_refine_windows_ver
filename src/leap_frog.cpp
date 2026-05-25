@@ -54,28 +54,92 @@
 #include <cstdio>
 #include <cmath>
 
-// Returns the density floor (kg/m³) for a given rho0, read once from
-// MFREE_DENSITY_FLOOR_FRAC (fraction of rho0; default 0 = disabled).
-// E.g. 0.001 -> rho >= 0.001 * 4430 = 4.43 kg/m³ for Ti-6Al-4V.
-// This is a belt-and-suspenders guard: the tension cutoff (material_eos)
-// should prevent negative densities in the first place, but if a particle
-// somehow reaches rho <= 0 the sign flip in the 1/rho² stress-divergence
-// terms would corrupt the momentum equation.  The floor keeps rho positive
-// so all downstream computations remain physically meaningful.
+// Returns the density floor (kg/m³) for a given material.
+// The floor is tied to each material's reference density rho0.
 static double density_floor(double rho0) {
-	static const double frac = []() -> double {
-		const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC");
-		if (!s || s[0] == '\0')
-			return 0.0;
-		char *end = nullptr;
-		double v = std::strtod(s, &end);
-		if (end == s || !std::isfinite(v) || v < 0.)
-			return 0.0;
-		std::printf("[leap_frog] density floor enabled: frac=%.6g (rho_min = %.4g * rho0)\n", v, v);
-		std::fflush(stdout);
-		return v;
-	}();
-	return frac * rho0;
+	if (!std::isfinite(rho0) || rho0 <= 0.)
+		return 1e-12;
+	return rho0;
+}
+
+static void zero_stress_state(particle &p, bool zero_rates) {
+	p.Sxx = 0.;
+	p.Sxy = 0.;
+	p.Syy = 0.;
+	p.Szz = 0.;
+	if (zero_rates) {
+		p.Sxx_t = 0.;
+		p.Sxy_t = 0.;
+		p.Syy_t = 0.;
+		p.Szz_t = 0.;
+	}
+}
+
+static bool stress_state_non_finite(const particle &p) {
+	return !std::isfinite(p.Sxx) || !std::isfinite(p.Sxy) || !std::isfinite(p.Syy) || !std::isfinite(p.Szz);
+}
+
+static void sanitize_particle_state(particle &p, const particle &init, double rho_min, double rho_max, double T_min, bool &rho_clamped) {
+	rho_clamped = false;
+
+	if (!std::isfinite(p.x)) {
+		p.x = init.x;
+		p.x_t = 0.;
+	}
+	if (!std::isfinite(p.y)) {
+		p.y = init.y;
+		p.y_t = 0.;
+	}
+
+	const double rho_floor = (rho_min > 0.) ? rho_min : 1e-12;
+	if (!std::isfinite(p.rho) || !(p.rho > 0.)) {
+		if (std::isfinite(init.rho) && init.rho > rho_floor) {
+			p.rho = init.rho;
+		} else {
+			p.rho = rho_floor;
+		}
+		p.rho_t = 0.;
+		rho_clamped = true;
+	}
+	if (p.rho < rho_floor) {
+		p.rho = rho_floor;
+		p.rho_t = 0.;
+		rho_clamped = true;
+	} else if (std::isfinite(rho_max) && p.rho > rho_max) {
+		p.rho = rho_max;
+		p.rho_t = 0.;
+		rho_clamped = true;
+	}
+
+	if (!std::isfinite(p.h) || !(p.h > 0.)) {
+		if (std::isfinite(init.h) && init.h > 0.) {
+			p.h = init.h;
+		} else {
+			p.h = 1e-12;
+		}
+		p.h_t = 0.;
+	}
+
+	if (!std::isfinite(p.vx)) {
+		p.vx = init.vx;
+		p.vx_t = 0.;
+	}
+	if (!std::isfinite(p.vy)) {
+		p.vy = init.vy;
+		p.vy_t = 0.;
+	}
+
+	if (!std::isfinite(p.T)) {
+		if (std::isfinite(init.T)) {
+			p.T = init.T;
+		} else {
+			p.T = T_min;
+		}
+		p.T_t = 0.;
+	}
+	if (p.T < T_min) {
+		p.T = T_min;
+	}
 }
 
 void leap_frog::init(body &body) {
@@ -117,16 +181,6 @@ void leap_frog::predict(body &body) const {
 		particles[i].x = m_init[i].x + 0.5 * dt * particles[i].x_t;
 		particles[i].y = m_init[i].y + 0.5 * dt * particles[i].y_t;
 		particles[i].rho = m_init[i].rho + 0.5 * dt * particles[i].rho_t;
-		bool rho_clamped = false;
-		if (rho_min > 0. && particles[i].rho < rho_min) {
-			particles[i].rho = rho_min;
-			particles[i].rho_t = 0.;
-			rho_clamped = true;
-		} else if (particles[i].rho > rho_max) {
-			particles[i].rho = rho_max;
-			particles[i].rho_t = 0.;
-			rho_clamped = true;
-		}
 		particles[i].h = m_init[i].h + 0.5 * dt * particles[i].h_t;
 		particles[i].vx = m_init[i].vx + 0.5 * dt * particles[i].vx_t;
 		particles[i].vy = m_init[i].vy + 0.5 * dt * particles[i].vy_t;
@@ -134,35 +188,22 @@ void leap_frog::predict(body &body) const {
 		particles[i].Sxy = m_init[i].Sxy + 0.5 * dt * particles[i].Sxy_t;
 		particles[i].Syy = m_init[i].Syy + 0.5 * dt * particles[i].Syy_t;
 		particles[i].Szz = m_init[i].Szz + 0.5 * dt * particles[i].Szz_t;
+		particles[i].T = m_init[i].T + 0.5 * dt * particles[i].T_t;
 
-		if (rho_clamped) {
-			particles[i].Sxx = 0.;
-			particles[i].Sxy = 0.;
-			particles[i].Syy = 0.;
-			particles[i].Szz = 0.;
-			particles[i].Sxx_t = 0.;
-			particles[i].Sxy_t = 0.;
-			particles[i].Syy_t = 0.;
-			particles[i].Szz_t = 0.;
+		bool rho_clamped = false;
+		sanitize_particle_state(particles[i], m_init[i], rho_min, rho_max, T_min, rho_clamped);
+
+		if (rho_clamped || stress_state_non_finite(particles[i])) {
+			zero_stress_state(particles[i], true);
 		}
 
 		// Clamp extreme deviatoric stresses to prevent pathological behavior downstream
 		// (thermal instability, contact divergence, etc.). Threshold 1e15 Pa is ~1e6× typical yield.
 		double norm_S = sqrt(particles[i].Sxx * particles[i].Sxx + particles[i].Syy * particles[i].Syy +
-							 particles[i].Szz * particles[i].Szz + 2.0 * particles[i].Sxy * particles[i].Sxy);
-		if (norm_S > 1e15) {
-			particles[i].Sxx = 0.;
-			particles[i].Sxy = 0.;
-			particles[i].Syy = 0.;
-			particles[i].Szz = 0.;
-			particles[i].Sxx_t = 0.;
-			particles[i].Sxy_t = 0.;
-			particles[i].Syy_t = 0.;
-			particles[i].Szz_t = 0.;
+							 2.0 * particles[i].Sxy * particles[i].Sxy + particles[i].Szz * particles[i].Szz);
+		if (!std::isfinite(norm_S) || norm_S > 1e15) {
+			zero_stress_state(particles[i], true);
 		}
-		particles[i].T = m_init[i].T + 0.5 * dt * particles[i].T_t;
-		if (particles[i].T < T_min)
-			particles[i].T = T_min;
 	}
 }
 
@@ -185,16 +226,6 @@ void leap_frog::correct(body &body) const {
 		particles[i].x = m_init[i].x + dt * particles[i].x_t;
 		particles[i].y = m_init[i].y + dt * particles[i].y_t;
 		particles[i].rho = m_init[i].rho + dt * particles[i].rho_t;
-		bool rho_clamped = false;
-		if (rho_min > 0. && particles[i].rho < rho_min) {
-			particles[i].rho = rho_min;
-			particles[i].rho_t = 0.;
-			rho_clamped = true;
-		} else if (particles[i].rho > rho_max) {
-			particles[i].rho = rho_max;
-			particles[i].rho_t = 0.;
-			rho_clamped = true;
-		}
 		particles[i].h = m_init[i].h + dt * particles[i].h_t;
 		particles[i].vx = m_init[i].vx + dt * particles[i].vx_t;
 		particles[i].vy = m_init[i].vy + dt * particles[i].vy_t;
@@ -202,30 +233,20 @@ void leap_frog::correct(body &body) const {
 		particles[i].Sxy = m_init[i].Sxy + dt * particles[i].Sxy_t;
 		particles[i].Syy = m_init[i].Syy + dt * particles[i].Syy_t;
 		particles[i].Szz = m_init[i].Szz + dt * particles[i].Szz_t;
+		particles[i].T = m_init[i].T + dt * particles[i].T_t;
+		bool rho_clamped = false;
+		sanitize_particle_state(particles[i], m_init[i], rho_min, rho_max, T_min, rho_clamped);
 
-		if (rho_clamped) {
-			particles[i].Sxx = 0.;
-			particles[i].Sxy = 0.;
-			particles[i].Syy = 0.;
-			particles[i].Szz = 0.;
-			particles[i].Sxx_t = 0.;
-			particles[i].Sxy_t = 0.;
-			particles[i].Syy_t = 0.;
-			particles[i].Szz_t = 0.;
+		if (rho_clamped || stress_state_non_finite(particles[i])) {
+			zero_stress_state(particles[i], true);
 		}
 
 		// Clamp extreme deviatoric stresses to prevent pathological behavior downstream
 		double norm_S = sqrt(particles[i].Sxx * particles[i].Sxx + particles[i].Syy * particles[i].Syy +
 							 particles[i].Szz * particles[i].Szz + 2.0 * particles[i].Sxy * particles[i].Sxy);
-		if (norm_S > 1e15) {
-			particles[i].Sxx = 0.;
-			particles[i].Sxy = 0.;
-			particles[i].Syy = 0.;
-			particles[i].Szz = 0.;
+		if (!std::isfinite(norm_S) || norm_S > 1e15) {
+			zero_stress_state(particles[i], false);
 		}
-		particles[i].T = m_init[i].T + dt * particles[i].T_t;
-		if (particles[i].T < T_min)
-			particles[i].T = T_min;
 	}
 }
 
