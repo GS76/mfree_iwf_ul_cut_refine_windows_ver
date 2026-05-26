@@ -137,3 +137,18 @@ add_executable(mfree_extract_final_chip
 )
 
 mfree_apply_warning_options(mfree_extract_final_chip)
+
+add_executable(mfree_jc_sima_flow_stress
+  src/tools/jc_sima_flow_stress.cpp
+  src/johnson_cook_Sima_2010.cpp
+  src/simulation_data.cpp
+  src/simulation_time.cpp
+  src/benchmarks/material_library.cpp
+)
+
+target_include_directories(mfree_jc_sima_flow_stress PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/benchmarks
+)
+
+mfree_apply_warning_options(mfree_jc_sima_flow_stress)
