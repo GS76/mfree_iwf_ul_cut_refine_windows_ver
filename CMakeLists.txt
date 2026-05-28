@@ -152,3 +152,9 @@ target_include_directories(mfree_jc_sima_flow_stress PRIVATE
 )
 
 mfree_apply_warning_options(mfree_jc_sima_flow_stress)
+
+add_executable(mfree_jc_calamaz_2011_flow_stress
+  src/tools/jc_calamaz_2011_flow_stress.cpp
+)
+
+mfree_apply_warning_options(mfree_jc_calamaz_2011_flow_stress)
