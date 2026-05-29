@@ -10,7 +10,7 @@
 //   Int J Adv Manuf Technol (2011) 52:887-895, Eq. (2).
 //
 // Model (Eq. 2):
-//   sigma = [A + B * eps^(n - 0.12*(eps*eps_dot)^a)]
+//   sigma = [A + B * (1/eps_dot)^a * eps^(n - 0.12*(eps*eps_dot)^a)]
 //         * [1 + C * ln(eps_dot / eps_dot_ref)]
 //         * [1 - ((T - Tr) / (Tm - Tr))^m]
 //
@@ -56,6 +56,7 @@ struct calamaz_2011_params {
 static double sigma_calamaz_2011(double eps, double eps_dot, double T,
                                  const calamaz_2011_params &p) {
 	// --- Strain hardening + softening term ---
+	// Term_A = A + B * (1/eps_dot)^a * eps^(n - 0.12*(eps*eps_dot)^a)
 	double Term_A;
 	if (eps <= 0.0) {
 		// At eps = 0 the B-term vanishes (limit of eps^n -> 0 for n > 0)
@@ -63,7 +64,9 @@ static double sigma_calamaz_2011(double eps, double eps_dot, double T,
 	} else {
 		// Effective exponent: n - 0.12 * (eps * eps_dot)^a
 		double eff_exp = p.n - 0.12 * std::pow(eps * eps_dot, p.a);
-		Term_A = p.A + p.B * std::pow(eps, eff_exp);
+		// Rate-dependent pre-factor: (1/eps_dot)^a
+		double rate_prefactor = (eps_dot > 0.0) ? std::pow(1.0 / eps_dot, p.a) : 1.0;
+		Term_A = p.A + p.B * rate_prefactor * std::pow(eps, eff_exp);
 	}
 
 	// --- Strain rate term ---
