@@ -10,7 +10,7 @@
 //   Int J Adv Manuf Technol (2011) 52:887-895, Eq. (2).
 //
 // Model (Eq. 2):
-//   sigma = [A + B * eps^(n - a - 0.12*(eps*eps_dot)^a)]
+//   sigma = [A + B * eps^(n - 0.12*(eps*eps_dot)^a)]
 //         * [1 + C * ln(eps_dot / eps_dot_ref)]
 //         * [1 - ((T - Tr) / (Tm - Tr))^m]
 //
@@ -58,11 +58,11 @@ static double sigma_calamaz_2011(double eps, double eps_dot, double T,
 	// --- Strain hardening + softening term ---
 	double Term_A;
 	if (eps <= 0.0) {
-		// At eps = 0 the B-term vanishes (limit of eps^(n-a) -> 0 for n > a)
+		// At eps = 0 the B-term vanishes (limit of eps^n -> 0 for n > 0)
 		Term_A = p.A;
 	} else {
-		// Effective exponent: n - a - 0.12 * (eps * eps_dot)^a
-		double eff_exp = p.n - p.a - 0.12 * std::pow(eps * eps_dot, p.a);
+		// Effective exponent: n - 0.12 * (eps * eps_dot)^a
+		double eff_exp = p.n - 0.12 * std::pow(eps * eps_dot, p.a);
 		Term_A = p.A + p.B * std::pow(eps, eff_exp);
 	}
 
