@@ -4,6 +4,12 @@
 
 This codebase uses a thermally active cutting tool represented by a finite element (FE) surface/volume mesh with an explicit thermal solver. Contact geometry and coupling are FE-tool-based for the forward workflow, and thermal exchange plus frictional heat are transferred into the FE tool mesh conservatively (equal and opposite power on SPH vs FE).
 
+## Related Documents
+
+- [FE Tool vs Workpiece Material Initialization](material_initialization_fe_tool_vs_workpiece.md)
+- [FE Tool Temperature-Dependent Material (Linear Thermoelastic)](fe_tool_temperature_dependent_material.md)
+- [Thermal + Mechanical Coupling (SPH Workpiece ↔ FE Tool)](coupling_thermal_mechanical.md)
+
 Core implementation:
 
 - FE tool thermal state + explicit conduction + convection: [fe_tool.h](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/fe_tool.h), [fe_tool.cpp](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/src/fe_tool.cpp)

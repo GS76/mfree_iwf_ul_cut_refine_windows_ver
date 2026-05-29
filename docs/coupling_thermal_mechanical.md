@@ -2,6 +2,12 @@
 
 This document describes the thermal and mechanical coupling implemented between the SPH workpiece (“body/particles”) and the FE tool (“fe_tool”) in the current solver, including coupling modes, execution order, exchanged quantities, and main trade-offs.
 
+## Related Documents
+
+- [FE Tool vs Workpiece Material Initialization](material_initialization_fe_tool_vs_workpiece.md)
+- [FE Tool Temperature-Dependent Material (Linear Thermoelastic)](fe_tool_temperature_dependent_material.md)
+- [FE Tool Thermal Coupling (SPH Workpiece ↔ Meshed Tool)](fe_tool_thermal_coupling.md)
+
 ## High-Level Execution Order (Per Global SPH Time Step)
 
 The SPH time integration uses a leapfrog predictor/corrector. Coupling is executed as part of the SPH step, not as a separate process.

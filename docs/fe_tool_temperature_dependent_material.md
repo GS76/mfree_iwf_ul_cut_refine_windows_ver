@@ -2,6 +2,12 @@
 
 This document describes the implemented temperature-dependent material support for the FE tool, including thermal–mechanical coupling.
 
+## Related Documents
+
+- [FE Tool vs Workpiece Material Initialization](material_initialization_fe_tool_vs_workpiece.md)
+- [Thermal + Mechanical Coupling (SPH Workpiece ↔ FE Tool)](coupling_thermal_mechanical.md)
+- [FE Tool Thermal Coupling (SPH Workpiece ↔ Meshed Tool)](fe_tool_thermal_coupling.md)
+
 ## Scope
 
 - Kinematics: small strain, small rotation (plane strain, P1 triangles).
