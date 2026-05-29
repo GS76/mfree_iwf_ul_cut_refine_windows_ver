@@ -163,6 +163,34 @@ double runaway_bounds_margin_m() {
 	fflush(stderr);
 	std::exit(EXIT_FAILURE);
 }
+
+[[noreturn]] void fail_neighbor_overflow(const particle &p,
+                                         unsigned int particle_index,
+                                         unsigned int num_particles,
+                                         unsigned int attempted_neighbor_count,
+                                         unsigned int max_neighbors,
+                                         std::uint64_t cell_index,
+                                         std::uint64_t nx,
+                                         std::uint64_t ny,
+                                         double dx) {
+	const unsigned int step = simulation_time::getInstance().get_step();
+	fprintf(stderr, "[GRID_NEIGHBOR_OVERFLOW] step=%u i=%u n=%u attempted=%u max=%u cell=%llu nx=%llu ny=%llu dx=%e\n",
+	        step, particle_index, num_particles, attempted_neighbor_count, max_neighbors,
+	        static_cast<unsigned long long>(cell_index),
+	        static_cast<unsigned long long>(nx),
+	        static_cast<unsigned long long>(ny),
+	        dx);
+	fprintf(stderr, "  x=%e y=%e h=%e rho=%e m=%e refine_step=%u last_refine_at=%u\n",
+	        p.x, p.y, p.h, p.rho, p.m, p.refine_step, p.last_refine_at);
+	fprintf(stderr, "  finite_flags x=%d y=%d h=%d rho=%d m=%d\n",
+	        std::isfinite(p.x) ? 1 : 0,
+	        std::isfinite(p.y) ? 1 : 0,
+	        std::isfinite(p.h) ? 1 : 0,
+	        std::isfinite(p.rho) ? 1 : 0,
+	        std::isfinite(p.m) ? 1 : 0);
+	fflush(stderr);
+	std::exit(EXIT_FAILURE);
+}
 } // namespace
 void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) const {
 	if (m_nx == 0 || m_ny == 0 || !(m_dx > 0.) || !std::isfinite(m_dx)) {
@@ -444,6 +472,9 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 						const double r2 = xij*xij + yij*yij;
 
 						if (r2 <= radius2) {
+							if (nbh_iter >= MAX_NBH) {
+								fail_neighbor_overflow(particles[i], static_cast<unsigned int>(i), n, nbh_iter + 1, MAX_NBH, b, m_nx, m_ny, m_dx);
+							}
 							particles[i].nbh[nbh_iter] = j;
 							nbh_iter++;
 						}
@@ -453,7 +484,7 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 				}
 			}
 
-			assert(nbh_iter < MAX_NBH);
+			assert(nbh_iter <= MAX_NBH);
 
 			if (nbh_iter == 0) {
 				printf("alarm, particle with no neighbors found!\n");
