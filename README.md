@@ -47,3 +47,7 @@ This branch is maintained as a Windows PowerShell-first workflow for Model 5 FE-
 * Hagen Klippel, hklippel@ethz.ch
 
 **mfree_iwf-ul_cut-refine** is free software and licensed under GPLv3.
+
+## Additional Documentation
+
+- [FE Tool vs Workpiece Material Initialization](docs/material_initialization_fe_tool_vs_workpiece.md)
