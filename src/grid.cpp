@@ -64,10 +64,12 @@
 namespace {
 double parse_env_double_nonnegative(const char *name, double fallback) {
 	const char *s = std::getenv(name);
-	if (!s || s[0] == '\0') return fallback;
+	if (!s || s[0] == '\0')
+		return fallback;
 	char *end = nullptr;
 	double v = std::strtod(s, &end);
-	if (end == s || !std::isfinite(v) || v < 0.) return fallback;
+	if (end == s || !std::isfinite(v) || v < 0.)
+		return fallback;
 	return v;
 }
 
@@ -80,91 +82,66 @@ double runaway_bounds_margin_m() {
 	static const double v = parse_env_double_nonnegative("MFREE_PARTICLE_BOUNDS_MARGIN_M", 0.01);
 	return v;
 }
-[[noreturn]] void fail_invalid_hash(const particle &p,
-                                    unsigned int particle_index,
-                                    unsigned int num_particles,
-                                    std::uint64_t hash,
-                                    std::uint64_t num_cells,
-                                    std::uint64_t nx,
-                                    std::uint64_t ny,
-                                    double bbmin_x,
-                                    double bbmin_y,
-                                    double dx) {
+[[noreturn]] void fail_invalid_hash(const particle &p, unsigned int particle_index, unsigned int num_particles, std::uint64_t hash,
+									std::uint64_t num_cells, std::uint64_t nx, std::uint64_t ny, double bbmin_x, double bbmin_y,
+									double dx) {
 	const unsigned int step = simulation_time::getInstance().get_step();
 	const double fx = (p.x - bbmin_x) / dx;
 	const double fy = (p.y - bbmin_y) / dx;
-	fprintf(stderr, "[GRID_HASH_OOB] step=%u i=%u n=%u hash=%llu num_cells=%llu nx=%llu ny=%llu\n",
-	        step, particle_index, num_particles,
-	        static_cast<unsigned long long>(hash),
-	        static_cast<unsigned long long>(num_cells),
-	        static_cast<unsigned long long>(nx),
-	        static_cast<unsigned long long>(ny));
-	fprintf(stderr, "  x=%e y=%e h=%e rho=%e m=%e refine_step=%u last_refine_at=%u\n",
-	        p.x, p.y, p.h, p.rho, p.m, p.refine_step, p.last_refine_at);
-	fprintf(stderr, "  hash_coords fx=%e fy=%e dx=%e bbmin=(%e,%e)\n",
-	        fx, fy, dx, bbmin_x, bbmin_y);
-	fprintf(stderr, "  finite_flags x=%d y=%d h=%d rho=%d m=%d dx=%d\n",
-	        std::isfinite(p.x) ? 1 : 0,
-	        std::isfinite(p.y) ? 1 : 0,
-	        std::isfinite(p.h) ? 1 : 0,
-	        std::isfinite(p.rho) ? 1 : 0,
-	        std::isfinite(p.m) ? 1 : 0,
-	        std::isfinite(dx) ? 1 : 0);
+	fprintf(stderr, "[GRID_HASH_OOB] step=%u i=%u n=%u hash=%llu num_cells=%llu nx=%llu ny=%llu\n", step, particle_index, num_particles,
+			static_cast<unsigned long long>(hash), static_cast<unsigned long long>(num_cells), static_cast<unsigned long long>(nx),
+			static_cast<unsigned long long>(ny));
+	fprintf(stderr, "  x=%e y=%e h=%e rho=%e m=%e refine_step=%u last_refine_at=%u\n", p.x, p.y, p.h, p.rho, p.m, p.refine_step,
+			p.last_refine_at);
+	fprintf(stderr, "  hash_coords fx=%e fy=%e dx=%e bbmin=(%e,%e)\n", fx, fy, dx, bbmin_x, bbmin_y);
+	fprintf(stderr, "  finite_flags x=%d y=%d h=%d rho=%d m=%d dx=%d\n", std::isfinite(p.x) ? 1 : 0, std::isfinite(p.y) ? 1 : 0,
+			std::isfinite(p.h) ? 1 : 0, std::isfinite(p.rho) ? 1 : 0, std::isfinite(p.m) ? 1 : 0, std::isfinite(dx) ? 1 : 0);
 	fflush(stderr);
 	std::exit(EXIT_FAILURE);
 }
 
-[[noreturn]] void fail_runaway_particle(const particle &p,
-                                        unsigned int particle_index,
-                                        unsigned int num_particles,
-                                        double min_x,
-                                        double max_x,
-                                        double min_y,
-                                        double max_y,
-                                        double ref_min_x,
-                                        double ref_max_x,
-                                        double ref_min_y,
-                                        double ref_max_y,
-                                        double factor,
-                                        double margin_m) {
+[[noreturn]] void fail_runaway_particle(const particle &p, unsigned int particle_index, unsigned int num_particles, double min_x,
+										double max_x, double min_y, double max_y, double ref_min_x, double ref_max_x, double ref_min_y,
+										double ref_max_y, double factor, double margin_m) {
 	const unsigned int step = simulation_time::getInstance().get_step();
 	fprintf(stderr, "[PARTICLE_BOUNDS_OOB] step=%u i=%u n=%u\n", step, particle_index, num_particles);
-	fprintf(stderr, "  x=%e y=%e vx=%e vy=%e h=%e rho=%e m=%e\n",
-	        p.x, p.y, p.vx, p.vy, p.h, p.rho, p.m);
-	fprintf(stderr, "  refine_step=%u last_refine_at=%u fixed=%d\n",
-	        p.refine_step, p.last_refine_at, p.fixed ? 1 : 0);
+	fprintf(stderr, "  x=%e y=%e vx=%e vy=%e h=%e rho=%e m=%e\n", p.x, p.y, p.vx, p.vy, p.h, p.rho, p.m);
+	fprintf(stderr, "  refine_step=%u last_refine_at=%u fixed=%d\n", p.refine_step, p.last_refine_at, p.fixed ? 1 : 0);
 	fprintf(stderr, "  allowed_x=[%e,%e] allowed_y=[%e,%e]\n", min_x, max_x, min_y, max_y);
-	fprintf(stderr, "  ref_bbox_x=[%e,%e] ref_bbox_y=[%e,%e] factor=%e margin_m=%e\n",
-	        ref_min_x, ref_max_x, ref_min_y, ref_max_y, factor, margin_m);
-	fprintf(stderr, "  finite_flags x=%d y=%d vx=%d vy=%d h=%d rho=%d m=%d\n",
-	        std::isfinite(p.x) ? 1 : 0,
-	        std::isfinite(p.y) ? 1 : 0,
-	        std::isfinite(p.vx) ? 1 : 0,
-	        std::isfinite(p.vy) ? 1 : 0,
-	        std::isfinite(p.h) ? 1 : 0,
-	        std::isfinite(p.rho) ? 1 : 0,
-	        std::isfinite(p.m) ? 1 : 0);
+	fprintf(stderr, "  ref_bbox_x=[%e,%e] ref_bbox_y=[%e,%e] factor=%e margin_m=%e\n", ref_min_x, ref_max_x, ref_min_y, ref_max_y, factor,
+			margin_m);
+	fprintf(stderr, "  finite_flags x=%d y=%d vx=%d vy=%d h=%d rho=%d m=%d\n", std::isfinite(p.x) ? 1 : 0, std::isfinite(p.y) ? 1 : 0,
+			std::isfinite(p.vx) ? 1 : 0, std::isfinite(p.vy) ? 1 : 0, std::isfinite(p.h) ? 1 : 0, std::isfinite(p.rho) ? 1 : 0,
+			std::isfinite(p.m) ? 1 : 0);
 	fflush(stderr);
 	std::exit(EXIT_FAILURE);
 }
 
-[[noreturn]] void fail_invalid_grid_geometry(const char *reason,
-                                             unsigned int num_particles,
-                                             double minx,
-                                             double maxx,
-                                             double miny,
-                                             double maxy,
-                                             double h_max,
-                                             double dx) {
+[[noreturn]] void fail_invalid_grid_geometry(const char *reason, unsigned int num_particles, double minx, double maxx, double miny,
+											 double maxy, double h_max, double dx) {
 	const unsigned int step = simulation_time::getInstance().get_step();
 	fprintf(stderr, "[GRID_GEOMETRY_INVALID] step=%u n=%u reason=%s\n", step, num_particles, reason);
-	fprintf(stderr, "  minx=%e maxx=%e miny=%e maxy=%e h_max=%e dx=%e\n",
-	        minx, maxx, miny, maxy, h_max, dx);
+	fprintf(stderr, "  minx=%e maxx=%e miny=%e maxy=%e h_max=%e dx=%e\n", minx, maxx, miny, maxy, h_max, dx);
+	fflush(stderr);
+	std::exit(EXIT_FAILURE);
+}
+
+[[noreturn]] void fail_neighbor_overflow(const particle &p, unsigned int particle_index, unsigned int num_particles,
+										 unsigned int attempted_neighbor_count, unsigned int max_neighbors, std::uint64_t cell_index,
+										 std::uint64_t nx, std::uint64_t ny, double dx) {
+	const unsigned int step = simulation_time::getInstance().get_step();
+	fprintf(stderr, "[GRID_NEIGHBOR_OVERFLOW] step=%u i=%u n=%u attempted=%u max=%u cell=%llu nx=%llu ny=%llu dx=%e\n", step,
+			particle_index, num_particles, attempted_neighbor_count, max_neighbors, static_cast<unsigned long long>(cell_index),
+			static_cast<unsigned long long>(nx), static_cast<unsigned long long>(ny), dx);
+	fprintf(stderr, "  x=%e y=%e h=%e rho=%e m=%e refine_step=%u last_refine_at=%u\n", p.x, p.y, p.h, p.rho, p.m, p.refine_step,
+			p.last_refine_at);
+	fprintf(stderr, "  finite_flags x=%d y=%d h=%d rho=%d m=%d\n", std::isfinite(p.x) ? 1 : 0, std::isfinite(p.y) ? 1 : 0,
+			std::isfinite(p.h) ? 1 : 0, std::isfinite(p.rho) ? 1 : 0, std::isfinite(p.m) ? 1 : 0);
 	fflush(stderr);
 	std::exit(EXIT_FAILURE);
 }
 } // namespace
-void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) const {
+void grid::assign_hashes(std::vector<particle> &particles, unsigned int n) const {
 	if (m_nx == 0 || m_ny == 0 || !(m_dx > 0.) || !std::isfinite(m_dx)) {
 		fail_invalid_grid_geometry("invalid_grid_spacing_or_shape", n, m_bbmin_x, m_bbmax_x, m_bbmin_y, m_bbmax_y, 0., m_dx);
 	}
@@ -181,21 +158,25 @@ void grid::assign_hashes(std::vector<particle> &particles , unsigned int n) cons
 #endif
 	for (int ii = 0; ii < static_cast<int>(n); ii++) {
 		const unsigned int i = static_cast<unsigned int>(ii);
-		const double fx = (particles[i].x - m_bbmin_x)/m_dx;
-		const double fy = (particles[i].y - m_bbmin_y)/m_dx;
+		const double fx = (particles[i].x - m_bbmin_x) / m_dx;
+		const double fy = (particles[i].y - m_bbmin_y) / m_dx;
 		if (!std::isfinite(fx) || !std::isfinite(fy) || fx < 0. || fy < 0.) {
-			fail_invalid_hash(particles[i], i, n, std::numeric_limits<std::uint64_t>::max(), m_num_cell, m_nx, m_ny, m_bbmin_x, m_bbmin_y, m_dx);
+			fail_invalid_hash(particles[i], i, n, std::numeric_limits<std::uint64_t>::max(), m_num_cell, m_nx, m_ny, m_bbmin_x, m_bbmin_y,
+							  m_dx);
 		}
 
 		std::uint64_t ix = static_cast<std::uint64_t>(fx);
 		std::uint64_t iy = static_cast<std::uint64_t>(fy);
-		if (ix >= m_nx) ix = m_nx - 1;
-		if (iy >= m_ny) iy = m_ny - 1;
+		if (ix >= m_nx)
+			ix = m_nx - 1;
+		if (iy >= m_ny)
+			iy = m_ny - 1;
 
 		if (ix > std::numeric_limits<std::uint64_t>::max() / m_ny) {
-			fail_invalid_hash(particles[i], i, n, std::numeric_limits<std::uint64_t>::max(), m_num_cell, m_nx, m_ny, m_bbmin_x, m_bbmin_y, m_dx);
+			fail_invalid_hash(particles[i], i, n, std::numeric_limits<std::uint64_t>::max(), m_num_cell, m_nx, m_ny, m_bbmin_x, m_bbmin_y,
+							  m_dx);
 		}
-		particles[i].hash = ix*m_ny + iy;
+		particles[i].hash = ix * m_ny + iy;
 	}
 }
 
@@ -217,19 +198,19 @@ void grid::get_bbox(glm::dvec3 &bbmin, glm::dvec3 &bbmax) const {
 }
 
 void grid::unhash(std::uint64_t idx, std::uint64_t &i, std::uint64_t &j) const {
-	i = idx/(m_ny);
-	j = idx-(i)*(m_ny);
+	i = idx / (m_ny);
+	j = idx - (i) * (m_ny);
 }
 
-const std::vector<int> &grid::get_cells(const std::vector<particle> &particles, unsigned int n)  {
+const std::vector<int> &grid::get_cells(const std::vector<particle> &particles, unsigned int n) {
 	if (n == 0) {
 		m_cells.clear();
 		return m_cells;
 	}
 
-	//needs to be sorted for this to work
-	for (unsigned int i = 0; i < n-1; i++) {
-		assert(particles[i].hash <= particles[i+1].hash);
+	// needs to be sorted for this to work
+	for (unsigned int i = 0; i < n - 1; i++) {
+		assert(particles[i].hash <= particles[i + 1].hash);
 	}
 
 	for (unsigned int i = 0; i < n; i++) {
@@ -256,16 +237,16 @@ const std::vector<int> &grid::get_cells(const std::vector<particle> &particles, 
 
 	m_cells[static_cast<std::size_t>(particles[0].hash)] = 0;
 
-	for (unsigned int i = 0; i < n-1; i++) {
-		if (particles[i].hash != particles[i+1].hash) {
-			m_cells[static_cast<std::size_t>(particles[i+1].hash)] = static_cast<int>(i+1);
+	for (unsigned int i = 0; i < n - 1; i++) {
+		if (particles[i].hash != particles[i + 1].hash) {
+			m_cells[static_cast<std::size_t>(particles[i + 1].hash)] = static_cast<int>(i + 1);
 		}
 	}
-	m_cells[static_cast<std::size_t>(particles[n-1].hash+1)] = static_cast<int>(n);
+	m_cells[static_cast<std::size_t>(particles[n - 1].hash + 1)] = static_cast<int>(n);
 
-	//empty boxes are now set to -1
-	//in order to iterate through a cell by [cells(cell_index),...,cells(cell_index+1)[
-	//those need to be fixed by propagating a "fix" value from the right
+	// empty boxes are now set to -1
+	// in order to iterate through a cell by [cells(cell_index),...,cells(cell_index+1)[
+	// those need to be fixed by propagating a "fix" value from the right
 	//(such that the above range will just be empty)
 
 	int fix = static_cast<int>(n);
@@ -304,9 +285,9 @@ void grid::update_geometry(const std::vector<particle> &particles, unsigned int 
 		miny = fmin(particles[i].y, miny);
 		maxx = fmax(particles[i].x, maxx);
 		maxy = fmax(particles[i].y, maxy);
-
 	}
-	if (!std::isfinite(h_max) || !(h_max > 0.) || !std::isfinite(minx) || !std::isfinite(maxx) || !std::isfinite(miny) || !std::isfinite(maxy)) {
+	if (!std::isfinite(h_max) || !(h_max > 0.) || !std::isfinite(minx) || !std::isfinite(maxx) || !std::isfinite(miny) ||
+		!std::isfinite(maxy)) {
 		fail_invalid_grid_geometry("invalid_particle_extents_or_hmax", n, minx, maxx, miny, maxy, h_max, 0.);
 	}
 	if (maxx < minx || maxy < miny) {
@@ -325,37 +306,31 @@ void grid::update_geometry(const std::vector<particle> &particles, unsigned int 
 	if (factor > 0.) {
 		const double ref_lx = std::max(m_bounds_ref_max_x - m_bounds_ref_min_x, 1e-12);
 		const double ref_ly = std::max(m_bounds_ref_max_y - m_bounds_ref_min_y, 1e-12);
-		const double ref_cx = 0.5*(m_bounds_ref_min_x + m_bounds_ref_max_x);
-		const double ref_cy = 0.5*(m_bounds_ref_min_y + m_bounds_ref_max_y);
-		const double half_x = 0.5*factor*ref_lx + margin_m;
-		const double half_y = 0.5*factor*ref_ly + margin_m;
+		const double ref_cx = 0.5 * (m_bounds_ref_min_x + m_bounds_ref_max_x);
+		const double ref_cy = 0.5 * (m_bounds_ref_min_y + m_bounds_ref_max_y);
+		const double half_x = 0.5 * factor * ref_lx + margin_m;
+		const double half_y = 0.5 * factor * ref_ly + margin_m;
 		const double allowed_min_x = ref_cx - half_x;
 		const double allowed_max_x = ref_cx + half_x;
 		const double allowed_min_y = ref_cy - half_y;
 		const double allowed_max_y = ref_cy + half_y;
 		for (unsigned int i = 0; i < n; i++) {
-			const bool oob = !std::isfinite(particles[i].x) || !std::isfinite(particles[i].y) ||
-			                 particles[i].x < allowed_min_x || particles[i].x > allowed_max_x ||
-			                 particles[i].y < allowed_min_y || particles[i].y > allowed_max_y;
+			const bool oob = !std::isfinite(particles[i].x) || !std::isfinite(particles[i].y) || particles[i].x < allowed_min_x ||
+							 particles[i].x > allowed_max_x || particles[i].y < allowed_min_y || particles[i].y > allowed_max_y;
 			if (oob) {
-				fail_runaway_particle(particles[i], i, n,
-				                      allowed_min_x, allowed_max_x,
-				                      allowed_min_y, allowed_max_y,
-				                      m_bounds_ref_min_x, m_bounds_ref_max_x,
-				                      m_bounds_ref_min_y, m_bounds_ref_max_y,
-				                      factor, margin_m);
+				fail_runaway_particle(particles[i], i, n, allowed_min_x, allowed_max_x, allowed_min_y, allowed_max_y, m_bounds_ref_min_x,
+									  m_bounds_ref_max_x, m_bounds_ref_min_y, m_bounds_ref_max_y, factor, margin_m);
 			}
 		}
 	}
 
-	//some nudging to prevent round off errors
+	// some nudging to prevent round off errors
 	m_bbmin_x = minx - 1e-6;
 	m_bbmax_x = maxx + 1e-6;
 	m_bbmin_y = miny - 1e-6;
 	m_bbmax_y = maxy + 1e-6;
 
-
-	m_dx = h_max*kernel_width;
+	m_dx = h_max * kernel_width;
 	if (!(m_dx > 0.) || !std::isfinite(m_dx)) {
 		fail_invalid_grid_geometry("invalid_grid_spacing", n, minx, maxx, miny, maxy, h_max, m_dx);
 	}
@@ -366,14 +341,16 @@ void grid::update_geometry(const std::vector<particle> &particles, unsigned int 
 		fail_invalid_grid_geometry("invalid_grid_lengths", n, minx, maxx, miny, maxy, h_max, m_dx);
 	}
 
-	m_nx = static_cast<std::uint64_t>(std::ceil(m_lx/m_dx));
-	m_ny = static_cast<std::uint64_t>(std::ceil(m_ly/m_dx));
-	if (m_nx == 0) m_nx = 1;
-	if (m_ny == 0) m_ny = 1;
-	if (m_nx > std::numeric_limits<std::uint64_t>::max()/m_ny) {
+	m_nx = static_cast<std::uint64_t>(std::ceil(m_lx / m_dx));
+	m_ny = static_cast<std::uint64_t>(std::ceil(m_ly / m_dx));
+	if (m_nx == 0)
+		m_nx = 1;
+	if (m_ny == 0)
+		m_ny = 1;
+	if (m_nx > std::numeric_limits<std::uint64_t>::max() / m_ny) {
 		fail_invalid_grid_geometry("num_cells_overflow", n, minx, maxx, miny, maxy, h_max, m_dx);
 	}
-	m_num_cell = m_nx*m_ny;
+	m_num_cell = m_nx * m_ny;
 	if (m_num_cell == 0) {
 		fail_invalid_grid_geometry("zero_cells_after_geometry_update", n, minx, maxx, miny, maxy, h_max, m_dx);
 	}
@@ -383,11 +360,11 @@ void grid::debug_print() const {
 	FILE *fp = fopen("grid.txt", "w+");
 	for (std::uint64_t i = 0; i < m_nx; i++) {
 		for (std::uint64_t j = 0; j < m_ny; j++) {
-			double x_lo = m_bbmin_x + i*m_dx;
-			double x_hi = m_bbmin_x + (i+1)*m_dx;
+			double x_lo = m_bbmin_x + i * m_dx;
+			double x_hi = m_bbmin_x + (i + 1) * m_dx;
 
-			double y_lo = m_bbmin_y + j*m_dx;
-			double y_hi = m_bbmin_y + (j+1)*m_dx;
+			double y_lo = m_bbmin_y + j * m_dx;
+			double y_hi = m_bbmin_y + (j + 1) * m_dx;
 
 			fprintf(fp, "%f %f %f %f\n", x_lo, x_hi, y_lo, y_hi);
 		}
@@ -428,32 +405,34 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 			const double xi = particles[i].x;
 			const double yi = particles[i].y;
 
-			double radius2 = hi*hi*2*2;
+			double radius2 = hi * hi * 2 * 2;
 			for (std::uint64_t ni = low_i; ni < high_i; ni++) {
 				for (std::uint64_t nj = low_j; nj < high_j; nj++) {
-					const std::size_t cell_idx = static_cast<std::size_t>(ni*m_ny + nj);
+					const std::size_t cell_idx = static_cast<std::size_t>(ni * m_ny + nj);
 					const std::size_t next_cell_idx = cell_idx + 1;
 					for (int j = cells[cell_idx]; j < cells[next_cell_idx]; j++) {
 
 						const double xj = particles[j].x;
 						const double yj = particles[j].y;
 
-						const double xij = xi-xj;
-						const double yij = yi-yj;
+						const double xij = xi - xj;
+						const double yij = yi - yj;
 
-						const double r2 = xij*xij + yij*yij;
+						const double r2 = xij * xij + yij * yij;
 
 						if (r2 <= radius2) {
+							if (nbh_iter >= MAX_NBH) {
+								fail_neighbor_overflow(particles[i], static_cast<unsigned int>(i), n, nbh_iter + 1, MAX_NBH, b, m_nx, m_ny,
+													   m_dx);
+							}
 							particles[i].nbh[nbh_iter] = j;
 							nbh_iter++;
 						}
-
 					}
-
 				}
 			}
 
-			assert(nbh_iter < MAX_NBH);
+			assert(nbh_iter <= MAX_NBH);
 
 			if (nbh_iter == 0) {
 				printf("alarm, particle with no neighbors found!\n");
@@ -464,24 +443,14 @@ void grid::construct_verlet_lists(std::vector<particle> &particles, unsigned int
 	}
 }
 
-std::uint64_t grid::nx() const {
-	return m_nx;
-}
-std::uint64_t grid::ny() const {
-	return m_ny;
-}
+std::uint64_t grid::nx() const { return m_nx; }
+std::uint64_t grid::ny() const { return m_ny; }
 
-double grid::bbmin_x() const {
-	return m_bbmin_x;
-}
+double grid::bbmin_x() const { return m_bbmin_x; }
 
-double grid::bbmin_y() const {
-	return m_bbmin_y;
-}
+double grid::bbmin_y() const { return m_bbmin_y; }
 
-double grid::dx() const {
-	return m_dx;
-}
+double grid::dx() const { return m_dx; }
 
 void grid::dbg_print_bbox() const {
 	printf("%f %f %f\n", m_bbmin_x, m_bbmin_y, m_bbmin_z);

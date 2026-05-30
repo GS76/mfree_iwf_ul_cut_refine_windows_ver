@@ -391,7 +391,7 @@ static glm::dvec2 compute_friction_ldyna(const tool_contact_2d &master, glm::dve
 
 	glm::dvec2 vm = master.velocity_world();
 	glm::dvec2 v = vs - vm;
-	glm::dvec2 vr = v - v * n;
+	glm::dvec2 vr = v - glm::dot(v, n) * n;
 
 	glm::dvec2 kdeltae = alpha * ms * vr / dt;
 	double fy = mu * glm::length(fN);

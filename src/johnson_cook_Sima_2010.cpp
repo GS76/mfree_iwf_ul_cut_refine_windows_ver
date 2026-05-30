@@ -49,6 +49,7 @@
  */
 
 #include "johnson_cook_Sima_2010.h"
+#include <cmath>
 
 void johnson_cook_Sima_2010::set_norm_s_trial(double norm_s_trial) { m_norm_Strial = norm_s_trial; }
 
