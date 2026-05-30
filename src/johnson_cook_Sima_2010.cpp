@@ -132,7 +132,7 @@ johnson_cook_Sima_2010::johnson_cook_Sima_2010(physical_constants pc) {
 	m_m = pc.jc().m();
 	m_n = pc.jc().n();
 
-	m_Tref  = pc.jc().Tref();
+	m_Tref = pc.jc().Tref();
 	m_Tmelt = pc.jc().Tmelt();
 
 	m_tanh_a = pc.jc().a();
@@ -140,7 +140,7 @@ johnson_cook_Sima_2010::johnson_cook_Sima_2010(physical_constants pc) {
 	m_tanh_c = pc.jc().c();
 	m_tanh_d = pc.jc().d();
 
-	m_Sima2010_s	= pc.jc().s();
+	m_Sima2010_s = pc.jc().s();
 	m_eps_dot_ref = pc.jc().eps_ref();
 
 	m_mu = pc.G();
