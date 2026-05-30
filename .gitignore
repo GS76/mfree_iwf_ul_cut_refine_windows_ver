@@ -16,6 +16,9 @@ out/
 .vs/
 .vscode/
 .trae/
+.windsurf/
+.codex/
+.cursor/
 
 # Python
 __pycache__/
@@ -34,3 +37,14 @@ docs/*tree*.txt
 Warp_Plans/
 .vscode/settings.json
 .vscode/ipch/
+
+# Obsolete bundled dependencies (now fetched by CMake)
+deps/glm-0.9.9.8/
+
+# Old/stale build directories
+build_cmake_bench/
+build_cmake_bench2/
+
+# AI/agent scratch files
+Agent_Prompt.txt
+plan.md
