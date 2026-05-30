@@ -56,21 +56,14 @@
 #include <cstdlib>
 
 namespace {
-[[noreturn]] void fail_precomp_neighbor_state(const char *stage,
-											  unsigned int particle_index,
-											  unsigned int num_particles,
-											  unsigned int num_neighbors,
-											  unsigned int neighbor_slot,
-											  unsigned int neighbor_index,
-											  double x,
-											  double y,
-											  double h) {
+[[noreturn]] void fail_precomp_neighbor_state(const char *stage, unsigned int particle_index, unsigned int num_particles,
+											  unsigned int num_neighbors, unsigned int neighbor_slot, unsigned int neighbor_index, double x,
+											  double y, double h) {
 	const unsigned int step = simulation_time::getInstance().get_step();
-	std::fprintf(stderr,
-	             "[PRECOMP_NEIGHBOR_INVALID] step=%u stage=%s i=%u n=%u num_nbh=%u slot=%u nbh=%u MAX_NBH=%u\n",
-	             step, stage, particle_index, num_particles, num_neighbors, neighbor_slot, neighbor_index, MAX_NBH);
-	std::fprintf(stderr, "  x=%e y=%e h=%e finite_flags x=%d y=%d h=%d\n",
-	             x, y, h, std::isfinite(x) ? 1 : 0, std::isfinite(y) ? 1 : 0, std::isfinite(h) ? 1 : 0);
+	std::fprintf(stderr, "[PRECOMP_NEIGHBOR_INVALID] step=%u stage=%s i=%u n=%u num_nbh=%u slot=%u nbh=%u MAX_NBH=%u\n", step, stage,
+				 particle_index, num_particles, num_neighbors, neighbor_slot, neighbor_index, MAX_NBH);
+	std::fprintf(stderr, "  x=%e y=%e h=%e finite_flags x=%d y=%d h=%d\n", x, y, h, std::isfinite(x) ? 1 : 0, std::isfinite(y) ? 1 : 0,
+				 std::isfinite(h) ? 1 : 0);
 	std::fflush(stderr);
 	std::exit(EXIT_FAILURE);
 }
