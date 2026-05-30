@@ -52,136 +52,38 @@
 #include <cmath>
 #include "body.h"
 
-#include <array>
-#include <cmath>
-#include <cstdint>
-#include <cstdlib>
-#include <limits>
-
 static bool inside_bounding_box(glm::dvec2 xlim, glm::dvec2 ylim, glm::dvec2 pos) {
-	double xmin = xlim.x;
-	double xmax = xlim.y;
-	double ymin = ylim.x;
-	double ymax = ylim.y;
+	double xmin = xlim.x; double xmax = xlim.y;
+	double ymin = ylim.x; double ymax = ylim.y;
 	double x = pos.x;
 	double y = pos.y;
-	return (x > xmin) && (x < xmax) && (y > ymin) && (y < ymax);
+	return (x>xmin) && (x<xmax) && (y>ymin) && (y<ymax);
 }
 
-static unsigned int read_env_uint(const char *name, unsigned int fallback) {
-	const char *raw = std::getenv(name);
-	if (!raw || raw[0] == '\0')
-		return fallback;
-	char *end = nullptr;
-	unsigned long parsed = std::strtoul(raw, &end, 10);
-	if (end == raw)
-		return fallback;
-	if (parsed > static_cast<unsigned long>(std::numeric_limits<unsigned int>::max()))
-		return fallback;
-	return static_cast<unsigned int>(parsed);
+void adaptivity::set_refine_criterion(refine_criteria crit) {
+	m_refine_criteria = crit;
 }
-
-static double read_env_fraction(const char *name, double fallback) {
-	const char *raw = std::getenv(name);
-	if (!raw || raw[0] == '\0')
-		return fallback;
-	char *end = nullptr;
-	double parsed = std::strtod(raw, &end);
-	if (end == raw || !std::isfinite(parsed))
-		return fallback;
-	if (parsed < 0.)
-		return 0.;
-	if (parsed > 1.)
-		return 1.;
-	return parsed;
-}
-
-static unsigned int min_refine_diff_steps() {
-	static const unsigned int value = read_env_uint("MFREE_ADAPT_MIN_REFINE_DIFF_STEPS", MIN_REFINE_DIFF);
-	return value;
-}
-
-static double max_split_fraction_per_step() {
-	// Fraction of current particles that can be selected as split "DAD" particles
-	// in a single adaptivity step. Lower values reduce sudden particle-count jumps.
-	static const double value = read_env_fraction("MFREE_ADAPT_MAX_SPLIT_FRACTION", 0.10);
-	return value;
-}
-
-static unsigned int count_marked_for_split(const std::vector<particle> &particles) {
-	unsigned int marked = 0;
-	for (const auto &p : particles) {
-		if (p.split)
-			marked++;
-	}
-	return marked;
-}
-
-static unsigned int cap_split_candidates(body &b, unsigned int requested_dad, unsigned int num_child) {
-	if (requested_dad == 0 || num_child <= 1)
-		return requested_dad;
-
-	std::vector<particle> &particles = b.get_particles();
-	const unsigned int n_before = b.get_num_part();
-	const double frac_cap = max_split_fraction_per_step();
-
-	// Keep at most +50% particle growth in a single adaptation step.
-	const unsigned int per_dad_births = num_child - 1;
-	const unsigned int growth_cap = std::max(1u, n_before / (2u * per_dad_births));
-	const unsigned int fraction_cap = std::max(1u, static_cast<unsigned int>(std::floor(frac_cap * static_cast<double>(n_before))));
-	const unsigned int dad_cap = std::max(1u, std::min(growth_cap, fraction_cap));
-
-	if (requested_dad <= dad_cap)
-		return requested_dad;
-
-	const unsigned int marked = count_marked_for_split(particles);
-	if (marked <= dad_cap)
-		return marked;
-
-	std::uint64_t carry = 0;
-	unsigned int kept = 0;
-	for (auto &p : particles) {
-		if (!p.split)
-			continue;
-		carry += dad_cap;
-		if (carry >= marked && kept < dad_cap) {
-			carry -= marked;
-			kept++;
-			continue;
-		}
-		p.split = false;
-	}
-
-	std::printf("[adaptivity] split throttled: requested=%u capped=%u n_before=%u frac_cap=%.3f\n", marked, kept, n_before, frac_cap);
-	return kept;
-}
-
-void adaptivity::set_refine_criterion(refine_criteria crit) { m_refine_criteria = crit; }
 
 void adaptivity::set_refine_pattern(pattern patt) {
 	m_pattern = patt;
 
 	switch (m_pattern) {
 	case triangular:
-		m_num_child = (plus_one) ? 4 : 3;
+		m_num_child = (plus_one) ?  4 : 3;
 		break;
 	case cubic_basic:
 		m_num_child = 4;
 		break;
 	case cubic:
-		m_num_child = (plus_one) ? 5 : 4;
+		m_num_child = (plus_one) ?  5 : 4;
 		break;
 	case hexagonal:
-		m_num_child = (plus_one) ? 7 : 6;
+		m_num_child = (plus_one) ?  7 : 6;
 		break;
 	}
-
-	assert(m_num_child >= 2);
-	assert(m_num_child - 1 <= max_SON2D);
-	assert(m_num_child <= max_SON2D + 1);
 }
 
-void adaptivity::flag_reset(body &b) const {
+void adaptivity::flag_reset(body &b) const{
 	std::vector<particle> &particles = b.get_particles();
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		particles[i].split = false;
@@ -190,24 +92,11 @@ void adaptivity::flag_reset(body &b) const {
 }
 
 void copy_dad_to_son(const particle &dad, particle &son) {
-	son.rho = dad.rho;
-	son.T = dad.T;
-	son.T_init = dad.T_init;
-	son.T_t = dad.T_t;
-	son.vx = dad.vx;
-	son.vy = dad.vy;
-	son.p = dad.p;
-	son.Sxx = dad.Sxx;
-	son.Sxy = dad.Sxy;
-	son.Syy = dad.Syy;
-	son.Szz = dad.Szz;
-	son.eps_plxx = dad.eps_plxx;
-	son.eps_plxy = dad.eps_plxy;
-	son.eps_plyy = dad.eps_plyy;
-	son.eps_plzz = dad.eps_plzz;
-	son.eps_pl_equiv = dad.eps_pl_equiv;
-	son.fixed = dad.fixed;
-	son.refine_step = dad.refine_step;
+	son.rho     = dad.rho;
+	son.T       = dad.T;
+	son.T_init  = dad.T_init;
+	son.vx      = dad.vx;
+	son.vy      = dad.vy;
 }
 
 void adaptivity::dens_before_approx_N2(body &b) const {
@@ -223,22 +112,21 @@ void adaptivity::dens_before_approx_N2(body &b) const {
 		double rho0_i = 0.;
 
 		for (unsigned int j = 0; j < b.get_num_part(); j++) {
-			if (particles[j].refine_step != 0 && !particles[j].split)
-				continue;
+			if(particles[j].refine_step!=0 && !particles[j].split) continue;
 
 			double xj = particles[j].x;
 			double yj = particles[j].y;
-			double hj = (particles[j].split) ? (1. / m_beta) * particles[j].h : particles[j].h;
-			double mj = (particles[j].split) ? m_num_child * particles[j].m : particles[j].m;
+			double hj = (particles[j].split) ? (1./m_beta)*particles[j].h : particles[j].h;
+			double mj = (particles[j].split) ? m_num_child*particles[j].m : particles[j].m;
 
 			kernel_result w = cubic_spline(xi, yi, xj, yj, hj);
 
-			rho0_i += mj * w.w;
+			rho0_i += mj*w.w;
 		}
 
-		glm::dvec2 pos(xi, yi);
+		glm::dvec2 pos(xi,yi);
 
-		particles[i].rho_init = (!inside_bounding_box(xlim, ylim, pos)) ? rho0_i : 1.0;
+		particles[i].rho_init = (!inside_bounding_box(xlim,ylim,pos)) ? rho0_i : 1.0;
 	}
 }
 
@@ -258,9 +146,9 @@ void adaptivity::dens_after_approx_N2(body &b) const {
 			double hj = particles[j].h;
 			double mj = particles[j].m;
 
-			kernel_result w = cubic_spline(xi, yi, xj, yj, hj);
+			kernel_result w  = cubic_spline(xi, yi, xj, yj, hj);
 
-			rho_i += mj * w.w;
+			rho_i += mj*w.w;
 		}
 		particles[i].rho = rho_i;
 	}
@@ -278,7 +166,7 @@ void adaptivity::my_extrapol_SPH_values(std::vector<particle> &particles, unsign
 	double hi = particles[my_idx].h;
 
 	// all the state variables you wish to extrapolate
-	double p_i = 0.;
+	double p_i   = 0.;
 	double Sxx_i = 0.;
 	double Sxy_i = 0.;
 	double Syy_i = 0.;
@@ -302,7 +190,7 @@ void adaptivity::my_extrapol_SPH_values(std::vector<particle> &particles, unsign
 
 		denom += w.w;
 
-		double p_j = particles[jdx].p;
+		double p_j   = particles[jdx].p;
 		double Sxx_j = particles[jdx].Sxx;
 		double Sxy_j = particles[jdx].Sxy;
 		double Syy_j = particles[jdx].Syy;
@@ -313,16 +201,16 @@ void adaptivity::my_extrapol_SPH_values(std::vector<particle> &particles, unsign
 		double eps_plzz_j = particles[jdx].eps_plzz;
 		double eps_pleq_j = particles[jdx].eps_pl_equiv;
 
-		p_i += p_j * w.w;
-		Sxx_i += Sxx_j * w.w;
-		Sxy_i += Sxy_j * w.w;
-		Syy_i += Syy_j * w.w;
-		Szz_i += Szz_j * w.w;
-		eps_plxx_i += eps_plxx_j * w.w;
-		eps_plxy_i += eps_plxy_j * w.w;
-		eps_plyy_i += eps_plyy_j * w.w;
-		eps_plzz_i += eps_plzz_j * w.w;
-		eps_pleq_i += eps_pleq_j * w.w;
+		p_i   += p_j*w.w;
+		Sxx_i += Sxx_j*w.w;
+		Sxy_i += Sxy_j*w.w;
+		Syy_i += Syy_j*w.w;
+		Szz_i += Szz_j*w.w;
+		eps_plxx_i += eps_plxx_j*w.w;
+		eps_plxy_i += eps_plxy_j*w.w;
+		eps_plyy_i += eps_plyy_j*w.w;
+		eps_plzz_i += eps_plzz_j*w.w;
+		eps_pleq_i += eps_pleq_j*w.w;
 	}
 
 	// 2ND CONTRIBUTION: your DAD himself
@@ -334,7 +222,7 @@ void adaptivity::my_extrapol_SPH_values(std::vector<particle> &particles, unsign
 
 	denom += w.w;
 
-	double p_k = particles[my_dady].p;
+	double p_k   = particles[my_dady].p;
 	double Sxx_k = particles[my_dady].Sxx;
 	double Sxy_k = particles[my_dady].Sxy;
 	double Syy_k = particles[my_dady].Syy;
@@ -345,30 +233,30 @@ void adaptivity::my_extrapol_SPH_values(std::vector<particle> &particles, unsign
 	double eps_plzz_k = particles[my_dady].eps_plzz;
 	double eps_pleq_k = particles[my_dady].eps_pl_equiv;
 
-	p_i += p_k * w.w;
-	Sxx_i += Sxx_k * w.w;
-	Sxy_i += Sxy_k * w.w;
-	Syy_i += Syy_k * w.w;
-	Szz_i += Szz_k * w.w;
-	eps_plxx_i += eps_plxx_k * w.w;
-	eps_plxy_i += eps_plxy_k * w.w;
-	eps_plyy_i += eps_plyy_k * w.w;
-	eps_plzz_i += eps_plzz_k * w.w;
-	eps_pleq_i += eps_pleq_k * w.w;
+	p_i   += p_k*w.w;
+	Sxx_i += Sxx_k*w.w;
+	Sxy_i += Sxy_k*w.w;
+	Syy_i += Syy_k*w.w;
+	Szz_i += Szz_k*w.w;
+	eps_plxx_i += eps_plxx_k*w.w;
+	eps_plxy_i += eps_plxy_k*w.w;
+	eps_plyy_i += eps_plyy_k*w.w;
+	eps_plzz_i += eps_plzz_k*w.w;
+	eps_pleq_i += eps_pleq_k*w.w;
 
 	assert(denom > 1e-8);
 
 	// save
-	particles[my_idx].p = p_i / denom;
-	particles[my_idx].Sxx = Sxx_i / denom;
-	particles[my_idx].Sxy = Sxy_i / denom;
-	particles[my_idx].Syy = Syy_i / denom;
-	particles[my_idx].Szz = Szz_i / denom;
-	particles[my_idx].eps_plxx = eps_plxx_i / denom;
-	particles[my_idx].eps_plxy = eps_plxy_i / denom;
-	particles[my_idx].eps_plyy = eps_plyy_i / denom;
-	particles[my_idx].eps_plzz = eps_plzz_i / denom;
-	particles[my_idx].eps_pl_equiv = eps_pleq_i / denom;
+	particles[my_idx].p   = p_i/denom;
+	particles[my_idx].Sxx = Sxx_i/denom;
+	particles[my_idx].Sxy = Sxy_i/denom;
+	particles[my_idx].Syy = Syy_i/denom;
+	particles[my_idx].Szz = Szz_i/denom;
+	particles[my_idx].eps_plxx = eps_plxx_i/denom;
+	particles[my_idx].eps_plxy = eps_plxy_i/denom;
+	particles[my_idx].eps_plyy = eps_plyy_i/denom;
+	particles[my_idx].eps_plzz = eps_plzz_i/denom;
+	particles[my_idx].eps_pl_equiv = eps_pleq_i/denom;
 }
 
 int adaptivity::scan_mark_div_velocity_based(body &b) const {
@@ -381,9 +269,8 @@ int adaptivity::scan_mark_div_velocity_based(body &b) const {
 		double vy_y = particles[i].vy_y;
 
 		// SCAN
-		double div_vi = sqrt(vx_x * vx_x + vy_y * vy_y);
-		if (div_vi < m_div_v_threshold || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		double div_vi = sqrt(vx_x*vx_x + vy_y*vy_y);
+		if(div_vi < m_div_v_threshold || particles[i].refine_step >= MAX_REFINE_STEP) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -402,9 +289,8 @@ int adaptivity::scan_mark_velocity_based(body &b) const {
 		double vy = particles[i].vy;
 
 		// SCAN
-		double vi = sqrt(vx * vx + vy * vy);
-		if (vi < m_v_threshold || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		double vi = sqrt(vx*vx + vy*vy);
+		if(vi < m_v_threshold || particles[i].refine_step >= MAX_REFINE_STEP) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -427,11 +313,9 @@ int adaptivity::scan_mark_vonmises_based(body &b) const {
 		double syz = 0.;
 		double szz = 0.;
 
-		double svm =
-			sqrt((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy + syz * syz + sxz * sxz));
+		double svm = sqrt((sxx*sxx + syy*syy + szz*szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy*sxy + syz*syz + sxz*sxz));
 
-		if (svm < m_SvM_threshold || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		if(svm < m_SvM_threshold || particles[i].refine_step >= MAX_REFINE_STEP) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -448,12 +332,10 @@ int adaptivity::scan_mark_strain_based(body &b) const {
 
 		// SCAN
 		// calculate strain gradient
-		double normPL = particles[i].eps_plxx * particles[i].eps_plxx + 2.0 * particles[i].eps_plxy * particles[i].eps_plxy +
-						particles[i].eps_plyy * particles[i].eps_plyy;
-		double val = sqrt((2. / 3.) * normPL);
+		double normPL = particles[i].eps_plxx*particles[i].eps_plxx + 2.0*particles[i].eps_plxy*particles[i].eps_plxy + particles[i].eps_plyy*particles[i].eps_plyy;
+		double val = sqrt((2./3.)*normPL);
 
-		if (val < m_eps_threshold || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		if(val<m_eps_threshold || particles[i].refine_step>=MAX_REFINE_STEP) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -490,16 +372,14 @@ int adaptivity::scan_mark_position_based(body &b) const {
 
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 
-		if (particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		if(particles[i].refine_step>=MAX_REFINE_STEP) continue;
 
 		// SCAN
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
-		glm::dvec2 pos(xi, yi);
-		if (!inside_bounding_box(xlim, ylim, pos))
-			continue;
+		glm::dvec2 pos(xi,yi);
+		if(!inside_bounding_box(xlim,ylim,pos)) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -514,9 +394,8 @@ int adaptivity::scan_mark_moving_frame(body &b) const {
 	// find the maximum "x" of the refined-particles
 	double xm = -DBL_MAX;
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		if (particles[i].refine_step == 0)
-			continue;
-		xm = fmax(particles[i].x, xm);
+		if(particles[i].refine_step == 0) continue;
+		xm = fmax(particles[i].x,xm);
 	}
 
 	//======================================================
@@ -529,12 +408,12 @@ int adaptivity::scan_mark_moving_frame(body &b) const {
 
 	double vc_x = v_tool.x;
 	double vc_y = v_tool.y;
-	double x0 = tool_tip.x;
-	double y0 = tool_tip.y;
+	double x0   = tool_tip.x;
+	double y0   = tool_tip.y;
 
 	// compute the current location of the tool tip
-	double xtool = t * vc_x + x0;
-	double ytool = t * vc_y + y0;
+	double xtool = t*vc_x + x0;
+	double ytool = t*vc_y + y0;
 
 	double width_adapt = m_width;
 	double nudge = 1e-5;
@@ -545,18 +424,11 @@ int adaptivity::scan_mark_moving_frame(body &b) const {
 
 	unsigned int iter = 0;
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		if ((particles[i].x > m_l_eff) || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
-		// Never split particles that carry Dirichlet velocity BCs (bottom/right
-		// fixtures).  copy_dad_to_son does not propagate the fixed flag, so child
-		// particles would be unconstrained and drift away from the boundary.
-		if (particles[i].fixed)
-			continue;
+		if((particles[i].x > m_l_eff) || particles[i].refine_step>=MAX_REFINE_STEP) continue;
 
 		// SCAN
-		glm::dvec2 pos(particles[i].x, particles[i].y);
-		if (!inside_bounding_box(xlim, ylim, pos))
-			continue;
+		glm::dvec2 pos(particles[i].x,particles[i].y);
+		if(!inside_bounding_box(xlim,ylim,pos)) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -574,8 +446,7 @@ int adaptivity::scan_mark_neighbor_based(body &b) const {
 		// SCAN
 		unsigned int num_nbh = particles[i].num_nbh;
 
-		if (num_nbh < m_num_nbh_threshold || particles[i].refine_step >= MAX_REFINE_STEP)
-			continue;
+		if(num_nbh < m_num_nbh_threshold || particles[i].refine_step >= MAX_REFINE_STEP) continue;
 
 		// MARK
 		particles[i].split = true;
@@ -592,10 +463,9 @@ void adaptivity::perform_split_triangular(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 
 	// how many "SON" do you have in 2D? ---> 3
-	const unsigned int num_SON2D = m_num_child - 1;
-	assert(num_SON2D <= max_SON2D);
-	double coeff_md = (1. / (num_SON2D + 1));
-	double coeff_m0 = (1. / (num_SON2D + 1));
+	const unsigned int num_SON2D = m_num_child-1;
+	double coeff_md = (1./(num_SON2D+1));
+	double coeff_m0 = (1./(num_SON2D+1));
 
 	// 1. consider a vector of SON particles
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -611,13 +481,17 @@ void adaptivity::perform_split_triangular(body &b) const {
 		// 		B) has NOT already reached the MAX_REFINE_STEP
 		//---------------------------------------------------------
 		unsigned int delta_st = step - particles[i].last_refine_at;
-		assert(delta_st >= 0);
-		// if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
-		const unsigned int min_step_gap = min_refine_diff_steps();
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
+		assert(delta_st>=0);
+		//if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
+		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
+
+			double x_SON [num_SON2D];
+			double y_SON [num_SON2D];
+			double h_SON [num_SON2D];
+			double m_SON [num_SON2D];
 
 			// 0. call your DAD
-			double dx = sqrt(particles[i].m / particles[i].rho);
+			double dx = sqrt(particles[i].m/particles[i].rho);
 			double x_DAD = particles[i].x;
 			double y_DAD = particles[i].y;
 			double h_DAD = particles[i].h;
@@ -625,31 +499,71 @@ void adaptivity::perform_split_triangular(body &b) const {
 
 			// 1. increase the refinement step of "DAD"
 			particles[i].last_refine_at = step;
-			particles[i].refine_step++;
+			particles[i].refine_step ++;
 
-			// 2. calculate son positions
-			std::array<double, max_SON2D> x_SON{};
-			std::array<double, max_SON2D> y_SON{};
-			calculate_son_positions_triangular(x_DAD, y_DAD, dx, x_SON, y_SON);
 
-			// 3. assign son properties
-			std::array<double, max_SON2D> h_SON{};
-			std::array<double, max_SON2D> m_SON{};
-			assign_son_properties(x_SON, y_SON, h_DAD, m_DAD, h_SON, m_SON);
+			// 2. give birth to new "SON" - following the given refinement pattern
+			/*
+			 *               SON[1]
+			 *                 |
+			 *                 |
+			 *                 |
+			 * 	  		      DAD
+			 * 	            /	  \
+			 *             /       \
+			 *       SON[0]         SON[2]
+			 */
 
-			// 4. create son particles
+			// SON[0]
+			x_SON[0] = x_DAD - cos(M_PI/6.)*m_alpha*dx;
+			y_SON[0] = y_DAD - sin(M_PI/6.)*m_alpha*dx;
+			h_SON[0] = m_beta*h_DAD;
+			m_SON[0] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[1]
+			x_SON[1] = x_DAD;
+			y_SON[1] = y_DAD + m_alpha*dx;
+			h_SON[1] = m_beta*h_DAD;
+			m_SON[1] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[2]
+			x_SON[2] = x_DAD + cos(M_PI/6.)*m_alpha*dx;
+			y_SON[2] = y_DAD - sin(M_PI/6.)*m_alpha*dx;
+			h_SON[2] = m_beta*h_DAD;
+			m_SON[2] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// 3. append new "SON" to the current particle array
 			for (unsigned int ii = 0; ii < num_SON2D; ii++) {
-				particle son = create_son_particle(son_idx, x_SON[ii], y_SON[ii], m_SON[ii], h_SON[ii], step, particles[i]);
-				sons.push_back(son);
+				unsigned int id_DAD = i;
+
+				particle son_particle(son_idx);
 				son_idx++;
+
+				son_particle.x = x_SON[ii];
+				son_particle.y = y_SON[ii];
+				son_particle.X = son_particle.x;
+				son_particle.Y = son_particle.y;
+				son_particle.m = m_SON[ii];
+				son_particle.h = h_SON[ii];
+				son_particle.refine_step = 1;
+				son_particle.last_refine_at = step;
+				son_particle.split = false;
+				son_particle.merge = false;
+
+				//copy_dad_to_son(particles[id_DAD], particles[id_SON]);
+				copy_dad_to_son(particles[id_DAD], son_particle);
+				sons.push_back(son_particle);
+
+				//my_extrapol_SPH_values(b.get_particles(),id_SON,id_DAD);
 			}
 
-			// 5. modify DAD
-			particles[i].m = (plus_one) ? coeff_m0 * m_DAD : 1e-16;
-			particles[i].h = m_beta * h_DAD;
+			// 4. slight modification: DAD himself becomes a SON from now on! "+1" approach
+			particles[i].m = (plus_one) ? coeff_m0*m_DAD : 1e-16;
+			particles[i].h = m_beta*h_DAD;
 
-			// 6. validate mass conservation
-			validate_mass_conservation(m_DAD, particles[i].m, m_SON);
+			// sanity check - total mass conservation after refinement
+			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2];
+			assert(fabs(m_DAD-sum_mass) < 1e-12);
 		}
 	}
 
@@ -663,8 +577,7 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 
 	// how many "SON" do you have in 2D? ---> 3
-	const unsigned int num_SON2D = m_num_child - 1;
-	assert(num_SON2D <= max_SON2D);
+	const unsigned int num_SON2D = m_num_child-1;
 
 	std::vector<particle> sons;
 
@@ -678,29 +591,25 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 		// 		B) has NOT already reached the MAX_REFINE_STEP
 		//---------------------------------------------------------
 		unsigned int delta_st = step - particles[i].last_refine_at;
-		assert(delta_st >= 0);
+		assert(delta_st>=0);
 
-		const unsigned int min_step_gap = min_refine_diff_steps();
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
-			std::array<double, max_SON2D> x_SON{};
-			std::array<double, max_SON2D> y_SON{};
-			std::array<double, max_SON2D> h_SON{};
-			std::array<double, max_SON2D> m_SON{};
+		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
+			double x_SON [num_SON2D];
+			double y_SON [num_SON2D];
+			double h_SON [num_SON2D];
+			double m_SON [num_SON2D];
 
 			// 0. call your DAD
-			// Use the CURRENT position (x, y), not the reference/initial position
-			// (X, Y).  Using X/Y would teleport the dad back to its initial lattice
-			// site on every split, slamming it into bulk particles that have not
-			// moved, which drives local density to zero and crashes T to near-zero.
-			double dx = sqrt(particles[i].m / particles[i].rho);
-			double x_DAD = particles[i].x;
-			double y_DAD = particles[i].y;
+			double dx = sqrt(particles[i].m/particles[i].rho);
+			double x_DAD = particles[i].X; // or x if ~regular arrangement
+			double y_DAD = particles[i].Y; // or y if ~regular arrangement
 			double h_DAD = particles[i].h;
 			double m_DAD = particles[i].m;
 
 			// 1. increase the refinement step of "DAD"
 			particles[i].last_refine_at = step;
-			particles[i].refine_step++;
+			particles[i].refine_step ++;
+
 
 			// 2. give birth to new "SON" - following the given refinement pattern
 			/*
@@ -711,44 +620,44 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 			 *   SON[2] ------ SON[1]
 			 */
 
-			if (m_eccentric_cubic) {
+			if(m_eccentric_cubic) {
 				// SON[0]
-				x_SON[0] = x_DAD + m_alpha * dx;
+				x_SON[0] = x_DAD + m_alpha*dx;
 				y_SON[0] = y_DAD;
-				h_SON[0] = m_beta * h_DAD;
-				m_SON[0] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				h_SON[0] = m_beta*h_DAD;
+				m_SON[0] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 				// SON[1]
-				x_SON[1] = x_DAD + m_alpha * dx;
-				y_SON[1] = y_DAD - m_alpha * dx;
-				h_SON[1] = m_beta * h_DAD;
-				m_SON[1] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				x_SON[1] = x_DAD + m_alpha*dx;
+				y_SON[1] = y_DAD - m_alpha*dx;
+				h_SON[1] = m_beta*h_DAD;
+				m_SON[1] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 				// SON[2]
 				x_SON[2] = x_DAD;
-				y_SON[2] = y_DAD - m_alpha * dx;
-				h_SON[2] = m_beta * h_DAD;
-				m_SON[2] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				y_SON[2] = y_DAD - m_alpha*dx;
+				h_SON[2] = m_beta*h_DAD;
+				m_SON[2] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 			} else {
 
 				// SON[0]
-				x_SON[0] = x_DAD - cos(M_PI / 4.) * m_alpha * dx;
-				y_SON[0] = y_DAD - sin(M_PI / 4.) * m_alpha * dx;
-				h_SON[0] = m_beta * h_DAD;
-				m_SON[0] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				x_SON[0] = x_DAD - cos(M_PI/4.)*m_alpha*dx;
+				y_SON[0] = y_DAD - sin(M_PI/4.)*m_alpha*dx;
+				h_SON[0] = m_beta*h_DAD;
+				m_SON[0] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 				// SON[1]
-				x_SON[1] = x_DAD - cos(M_PI / 4.) * m_alpha * dx;
-				y_SON[1] = y_DAD + sin(M_PI / 4.) * m_alpha * dx;
-				h_SON[1] = m_beta * h_DAD;
-				m_SON[1] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				x_SON[1] = x_DAD - cos(M_PI/4.)*m_alpha*dx;
+				y_SON[1] = y_DAD + sin(M_PI/4.)*m_alpha*dx;
+				h_SON[1] = m_beta*h_DAD;
+				m_SON[1] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 				// SON[2]
-				x_SON[2] = x_DAD + cos(M_PI / 4.) * m_alpha * dx;
-				y_SON[2] = y_DAD + sin(M_PI / 4.) * m_alpha * dx;
-				h_SON[2] = m_beta * h_DAD;
-				m_SON[2] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+				x_SON[2] = x_DAD + cos(M_PI/4.)*m_alpha*dx;
+				y_SON[2] = y_DAD + sin(M_PI/4.)*m_alpha*dx;
+				h_SON[2] = m_beta*h_DAD;
+				m_SON[2] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 			}
 
 			// 3. append new "SON" to the current particle array
@@ -764,27 +673,27 @@ void adaptivity::perform_split_cubic_basic(body &b) const {
 				son_particle.Y = son_particle.y;
 				son_particle.m = m_SON[ii];
 				son_particle.h = h_SON[ii];
+				son_particle.refine_step = 1;
 				son_particle.last_refine_at = step;
 				son_particle.split = false;
 				son_particle.merge = false;
 
-				// copy_dad_to_son(particles[id_DAD], particles[id_SON]);
+				//copy_dad_to_son(particles[id_DAD], particles[id_SON]);
 				copy_dad_to_son(particles[id_DAD], son_particle);
 				sons.push_back(son_particle);
+
 			}
 
 			// 4. slight modification: DAD himself becomes a SON from now on! "+1" approach
-			particles[i].x = (m_eccentric_cubic) ? x_DAD : x_DAD + cos(M_PI / 4.) * m_alpha * dx;
-			particles[i].y = (m_eccentric_cubic) ? y_DAD : y_DAD - sin(M_PI / 4.) * m_alpha * dx;
+			particles[i].x = (m_eccentric_cubic) ? x_DAD : x_DAD + cos(M_PI/4.)*m_alpha*dx;
+			particles[i].y = (m_eccentric_cubic) ? y_DAD : y_DAD - sin(M_PI/4.)*m_alpha*dx;
 			particles[i].m = (plus_one) ? m_SON[0] : 1e-16;
-			particles[i].h = m_beta * h_DAD;
+			particles[i].h = m_beta*h_DAD;
 			particles[i].split = false;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m;
-			for (unsigned int ii = 0; ii < num_SON2D; ii++)
-				sum_mass += m_SON[ii];
-			assert(fabs(m_DAD - sum_mass) < 1e-12);
+			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2];
+			assert(fabs(m_DAD-sum_mass) < 1e-12);
 		}
 	}
 
@@ -798,8 +707,7 @@ void adaptivity::perform_split_cubic(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 
 	// how many "SON" do you have in 2D? ---> 4
-	const unsigned int num_SON2D = m_num_child - 1;
-	assert(num_SON2D <= max_SON2D);
+	const unsigned int num_SON2D = m_num_child-1;
 
 	// 1. consider a vector of SON particles
 	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -815,17 +723,16 @@ void adaptivity::perform_split_cubic(body &b) const {
 		// 		B) has NOT already reached the MAX_REFINE_STEP
 		//---------------------------------------------------------
 		unsigned int delta_st = step - particles[i].last_refine_at;
-		assert(delta_st >= 0);
+		assert(delta_st>=0);
 
-		const unsigned int min_step_gap = min_refine_diff_steps();
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
-			std::array<double, max_SON2D> x_SON{};
-			std::array<double, max_SON2D> y_SON{};
-			std::array<double, max_SON2D> h_SON{};
-			std::array<double, max_SON2D> m_SON{};
+		if(particles[i].split && particles[i].refine_step < MAX_REFINE_STEP) {
+			double x_SON [num_SON2D];
+			double y_SON [num_SON2D];
+			double h_SON [num_SON2D];
+			double m_SON [num_SON2D];
 
 			// 0. call your DAD
-			double dx = sqrt(particles[i].m / particles[i].rho);
+			double dx = sqrt(particles[i].m/particles[i].rho);
 			double x_DAD = particles[i].x;
 			double y_DAD = particles[i].y;
 			double h_DAD = particles[i].h;
@@ -833,7 +740,8 @@ void adaptivity::perform_split_cubic(body &b) const {
 
 			// 1. increase the refinement step of "DAD"
 			particles[i].last_refine_at = step;
-			particles[i].refine_step++;
+			particles[i].refine_step ++;
+
 
 			// 2. give birth to new "SON" - following the given refinement pattern
 			/*
@@ -845,161 +753,28 @@ void adaptivity::perform_split_cubic(body &b) const {
 			 */
 
 			// SON[0]
-			x_SON[0] = x_DAD - cos(M_PI / 4.) * m_alpha * dx;
-			y_SON[0] = y_DAD - sin(M_PI / 4.) * m_alpha * dx;
-			h_SON[0] = m_beta * h_DAD;
-			m_SON[0] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+			x_SON[0] = x_DAD - cos(M_PI/4.)*m_alpha*dx;
+			y_SON[0] = y_DAD - sin(M_PI/4.)*m_alpha*dx;
+			h_SON[0] = m_beta*h_DAD;
+			m_SON[0] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 			// SON[1]
-			x_SON[1] = x_DAD - cos(M_PI / 4.) * m_alpha * dx;
-			y_SON[1] = y_DAD + sin(M_PI / 4.) * m_alpha * dx;
-			h_SON[1] = m_beta * h_DAD;
-			m_SON[1] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+			x_SON[1] = x_DAD - cos(M_PI/4.)*m_alpha*dx;
+			y_SON[1] = y_DAD + sin(M_PI/4.)*m_alpha*dx;
+			h_SON[1] = m_beta*h_DAD;
+			m_SON[1] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 			// SON[2]
-			x_SON[2] = x_DAD + cos(M_PI / 4.) * m_alpha * dx;
-			y_SON[2] = y_DAD + sin(M_PI / 4.) * m_alpha * dx;
-			h_SON[2] = m_beta * h_DAD;
-			m_SON[2] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
+			x_SON[2] = x_DAD + cos(M_PI/4.)*m_alpha*dx;
+			y_SON[2] = y_DAD + sin(M_PI/4.)*m_alpha*dx;
+			h_SON[2] = m_beta*h_DAD;
+			m_SON[2] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 			// SON[3]
-			x_SON[3] = x_DAD + cos(M_PI / 4.) * m_alpha * dx;
-			y_SON[3] = y_DAD - sin(M_PI / 4.) * m_alpha * dx;
-			h_SON[3] = m_beta * h_DAD;
-			m_SON[3] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// 3. append new "SON" to the current particle array
-			for (unsigned int ii = 0; ii < num_SON2D; ii++) {
-				unsigned int id_DAD = i;
-
-				particle son_particle(son_idx);
-
-				son_particle.x = x_SON[ii];
-				son_particle.y = y_SON[ii];
-				son_particle.X = son_particle.x;
-				son_particle.Y = son_particle.y;
-				son_particle.m = m_SON[ii];
-				son_particle.h = h_SON[ii];
-				son_particle.last_refine_at = step;
-				son_particle.split = false;
-				son_particle.merge = false;
-
-				// copy_dad_to_son(particles[id_DAD], particles[id_SON]);
-				copy_dad_to_son(particles[id_DAD], son_particle);
-				sons.push_back(son_particle);
-			}
-
-			// 4. slight modification: DAD himself becomes a SON from now on! "+1" approach
-			particles[i].m = (plus_one) ? m_SON[0] : 1e-16;
-			particles[i].h = m_beta * h_DAD;
-
-			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m;
-			for (unsigned int ii = 0; ii < num_SON2D; ii++)
-				sum_mass += m_SON[ii];
-			assert(fabs(m_DAD - sum_mass) < 1e-12);
-
-			// 5. update locally for next SONs
-		}
-	}
-
-	b.insert_particles(sons);
-}
-
-void adaptivity::perform_split_hexagonal(body &b) const {
-	simulation_time *time = &simulation_time::getInstance();
-	unsigned int step = time->get_step();
-
-	std::vector<particle> &particles = b.get_particles();
-
-	// how many "SON" do you have in 2D? ---> 6
-	const unsigned int num_SON2D = m_num_child - 1;
-	assert(num_SON2D <= max_SON2D);
-
-	// given by J. Feldman & J. Bonet after minimizing the global density error [2006] with (alpha=60%,beta=60%)
-	double coeff_md = (1. / (num_SON2D + 1)); // 0.102181;
-	double coeff_m0 = (1. / (num_SON2D + 1)); // 0.386914;
-
-	// 1. consider a vector of SON particles
-	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	std::vector<particle> sons;
-
-	// 2. give birth to SON + assign values to SON
-	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	int son_idx = particles.size();
-	for (unsigned int i = 0; i < particles.size(); i++) {
-		// only append new "SON" particles if their "DAD" particle:
-		// 		A) has been marked as split/merge candidate
-		// 		B) has NOT already reached the MAX_REFINE_STEP
-		//---------------------------------------------------------
-		unsigned int delta_st = step - particles[i].last_refine_at;
-		assert(delta_st >= 0);
-		// if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
-		const unsigned int min_step_gap = min_refine_diff_steps();
-		if (particles[i].split && particles[i].refine_step < MAX_REFINE_STEP && delta_st >= min_step_gap) {
-
-			std::vector<double> x_SON(num_SON2D);
-			std::vector<double> y_SON(num_SON2D);
-			std::vector<double> h_SON(num_SON2D);
-			std::vector<double> m_SON(num_SON2D);
-
-			// 0. call your DAD
-			double dx = sqrt(particles[i].m / particles[i].rho);
-			double x_DAD = particles[i].x;
-			double y_DAD = particles[i].y;
-			double h_DAD = particles[i].h;
-			double m_DAD = particles[i].m;
-
-			// 1. increase the refinement step of "DAD"
-			particles[i].last_refine_at = step;
-			particles[i].refine_step++;
-
-			// 2. give birth to new "SON" - following the given refinement pattern
-			/*
-			 *        SON[2]       SON[3]
-			 *              \     /
-			 *               \   /
-			 * 	  SON[1]------DAD------SON[4]
-			 * 	             /	 \
-			 *              /     \
-			 *        SON[0]       SON[5]
-			 */
-
-			// SON[0]
-			x_SON[0] = x_DAD - cos(M_PI / 3.) * m_alpha * dx;
-			y_SON[0] = y_DAD - sin(M_PI / 3.) * m_alpha * dx;
-			h_SON[0] = m_beta * h_DAD;
-			m_SON[0] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// SON[1]
-			x_SON[1] = x_DAD - m_alpha * dx;
-			y_SON[1] = y_DAD;
-			h_SON[1] = m_beta * h_DAD;
-			m_SON[1] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// SON[2]
-			x_SON[2] = x_DAD - cos(M_PI / 3.) * m_alpha * dx;
-			y_SON[2] = y_DAD + sin(M_PI / 3.) * m_alpha * dx;
-			h_SON[2] = m_beta * h_DAD;
-			m_SON[2] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// SON[3]
-			x_SON[3] = x_DAD + cos(M_PI / 3.) * m_alpha * dx;
-			y_SON[3] = y_DAD + sin(M_PI / 3.) * m_alpha * dx;
-			h_SON[3] = m_beta * h_DAD;
-			m_SON[3] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// SON[4]
-			x_SON[4] = x_DAD + m_alpha * dx;
-			y_SON[4] = y_DAD;
-			h_SON[4] = m_beta * h_DAD;
-			m_SON[4] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
-
-			// SON[5]
-			x_SON[5] = x_DAD + cos(M_PI / 3.) * m_alpha * dx;
-			y_SON[5] = y_DAD - sin(M_PI / 3.) * m_alpha * dx;
-			h_SON[5] = m_beta * h_DAD;
-			m_SON[5] = (plus_one) ? coeff_md * m_DAD : (1. / num_SON2D) * m_DAD;
+			x_SON[3] = x_DAD + cos(M_PI/4.)*m_alpha*dx;
+			y_SON[3] = y_DAD - sin(M_PI/4.)*m_alpha*dx;
+			h_SON[3] = m_beta*h_DAD;
+			m_SON[3] = (plus_one) ? (1./(num_SON2D+1))*m_DAD : (1./num_SON2D)*m_DAD;
 
 			// 3. append new "SON" to the current particle array
 			for (unsigned int ii = 0; ii < num_SON2D; ii++) {
@@ -1018,21 +793,152 @@ void adaptivity::perform_split_hexagonal(body &b) const {
 				son_particle.split = false;
 				son_particle.merge = false;
 
-				// copy_dad_to_son(particles[id_DAD], particles[id_SON]);
+				//copy_dad_to_son(particles[id_DAD], particles[id_SON]);
 				copy_dad_to_son(particles[id_DAD], son_particle);
 				sons.push_back(son_particle);
 
-				// my_extrapol_SPH_values(b.get_particles(),id_SON,id_DAD);
 			}
 
 			// 4. slight modification: DAD himself becomes a SON from now on! "+1" approach
-			particles[i].m = (plus_one) ? coeff_m0 * m_DAD : 1e-16;
-			particles[i].h = m_beta * h_DAD;
+			particles[i].m = (plus_one) ? m_SON[0] : 1e-16;
+			particles[i].h = m_beta*h_DAD;
 
 			// sanity check - total mass conservation after refinement
-			double sum_mass = particles[i].m;
-			for (unsigned int ii = 0; ii < num_SON2D; ii++)
-				sum_mass += m_SON[ii];
+			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2] + m_SON[3];
+			assert(fabs(m_DAD-sum_mass) < 1e-12);
+
+			// 5. update locally for next SONs
+		}
+	}
+
+	b.insert_particles(sons);
+}
+
+void adaptivity::perform_split_hexagonal(body &b)  const {
+	simulation_time *time = &simulation_time::getInstance();
+	unsigned int step = time->get_step();
+
+	std::vector<particle> &particles = b.get_particles();
+
+	// how many "SON" do you have in 2D? ---> 6
+	const unsigned int num_SON2D = m_num_child-1;
+
+	// given by J. Feldman & J. Bonet after minimizing the global density error [2006] with (alpha=60%,beta=60%)
+	double coeff_md = (1./(num_SON2D+1)); //0.102181;
+	double coeff_m0 = (1./(num_SON2D+1)); //0.386914;
+
+	// 1. consider a vector of SON particles
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	std::vector<particle> sons;
+
+	// 2. give birth to SON + assign values to SON
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	int son_idx = particles.size();
+	for (unsigned int i = 0; i < particles.size(); i++) {
+		// only append new "SON" particles if their "DAD" particle:
+		// 		A) has been marked as split/merge candidate
+		// 		B) has NOT already reached the MAX_REFINE_STEP
+		//---------------------------------------------------------
+		unsigned int delta_st = step - particles[i].last_refine_at;
+		assert(delta_st>=0);
+		//if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP && delta_st>MIN_REFINE_DIFF) {
+		if(particles[i].split && particles[i].refine_step<MAX_REFINE_STEP) {
+
+			double x_SON [num_SON2D];
+			double y_SON [num_SON2D];
+			double h_SON [num_SON2D];
+			double m_SON [num_SON2D];
+
+			// 0. call your DAD
+			double dx = sqrt(particles[i].m/particles[i].rho);
+			double x_DAD = particles[i].x;
+			double y_DAD = particles[i].y;
+			double h_DAD = particles[i].h;
+			double m_DAD = particles[i].m;
+
+			// 1. increase the refinement step of "DAD"
+			particles[i].last_refine_at = step;
+			particles[i].refine_step ++;
+
+
+			// 2. give birth to new "SON" - following the given refinement pattern
+			/*
+			 *        SON[2]       SON[3]
+			 *              \     /
+			 *               \   /
+			 * 	  SON[1]------DAD------SON[4]
+			 * 	             /	 \
+			 *              /     \
+			 *        SON[0]       SON[5]
+			 */
+
+			// SON[0]
+			x_SON[0] = x_DAD - cos(M_PI/3.)*m_alpha*dx;
+			y_SON[0] = y_DAD - sin(M_PI/3.)*m_alpha*dx;
+			h_SON[0] = m_beta*h_DAD;
+			m_SON[0] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[1]
+			x_SON[1] = x_DAD - m_alpha*dx;
+			y_SON[1] = y_DAD;
+			h_SON[1] = m_beta*h_DAD;
+			m_SON[1] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[2]
+			x_SON[2] = x_DAD - cos(M_PI/3.)*m_alpha*dx;
+			y_SON[2] = y_DAD + sin(M_PI/3.)*m_alpha*dx;
+			h_SON[2] = m_beta*h_DAD;
+			m_SON[2] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[3]
+			x_SON[3] = x_DAD + cos(M_PI/3.)*m_alpha*dx;
+			y_SON[3] = y_DAD + sin(M_PI/3.)*m_alpha*dx;
+			h_SON[3] = m_beta*h_DAD;
+			m_SON[3] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[4]
+			x_SON[4] = x_DAD + m_alpha*dx;
+			y_SON[4] = y_DAD;
+			h_SON[4] = m_beta*h_DAD;
+			m_SON[4] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+			// SON[5]
+			x_SON[5] = x_DAD + cos(M_PI/3.)*m_alpha*dx;
+			y_SON[5] = y_DAD - sin(M_PI/3.)*m_alpha*dx;
+			h_SON[5] = m_beta*h_DAD;
+			m_SON[5] = (plus_one) ? coeff_md*m_DAD : (1./num_SON2D)*m_DAD;
+
+
+			// 3. append new "SON" to the current particle array
+			for (unsigned int ii = 0; ii < num_SON2D; ii++) {
+				unsigned int id_DAD = i;
+
+				particle son_particle(son_idx);
+
+				son_particle.x = x_SON[ii];
+				son_particle.y = y_SON[ii];
+				son_particle.X = son_particle.x;
+				son_particle.Y = son_particle.y;
+				son_particle.m = m_SON[ii];
+				son_particle.h = h_SON[ii];
+				son_particle.refine_step = 1;
+				son_particle.last_refine_at = step;
+				son_particle.split = false;
+				son_particle.merge = false;
+
+				//copy_dad_to_son(particles[id_DAD], particles[id_SON]);
+				copy_dad_to_son(particles[id_DAD], son_particle);
+				sons.push_back(son_particle);
+
+				//my_extrapol_SPH_values(b.get_particles(),id_SON,id_DAD);
+			}
+
+			// 4. slight modification: DAD himself becomes a SON from now on! "+1" approach
+			particles[i].m = (plus_one) ? coeff_m0*m_DAD : 1e-16;
+			particles[i].h = m_beta*h_DAD;
+
+			// sanity check - total mass conservation after refinement
+			double sum_mass = particles[i].m + m_SON[0] + m_SON[1] + m_SON[2] + m_SON[3] + m_SON[4] + m_SON[5];
 			assert(fabs(m_DAD - sum_mass) < 1e-10);
 		}
 	}
@@ -1068,7 +974,7 @@ int adaptivity::evaluate_refinement(body &b) const {
 		break;
 	}
 
-	// not reachable
+	//not reachable
 	return -1;
 }
 
@@ -1095,71 +1001,21 @@ void adaptivity::adapt_resolution(body &b) const {
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	flag_reset(b);
 	int num_dad = evaluate_refinement(b);
-	if (num_dad > 0)
-		num_dad = static_cast<int>(cap_split_candidates(b, static_cast<unsigned int>(num_dad), m_num_child));
 
-	if (num_dad == 0)
-		return;
+	if (num_dad == 0) return;
 
 	do_split(b);
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	unsigned int n_after = b.get_num_part();
 
-	if (n_after - n_before > (n_before / 2))
+	if(n_after-n_before > (n_before/2))
 		printf("WARNING!!! --- too many sons were born, beware the proliferation. \n");
 }
 
-void adaptivity::calculate_son_positions_triangular(double x_DAD, double y_DAD, double dx, std::array<double, max_SON2D> &x_SON,
-													std::array<double, max_SON2D> &y_SON) const {
-	// SON[0]
-	x_SON[0] = x_DAD - cos(M_PI / 6.) * m_alpha * dx;
-	y_SON[0] = y_DAD - sin(M_PI / 6.) * m_alpha * dx;
-
-	// SON[1]
-	x_SON[1] = x_DAD;
-	y_SON[1] = y_DAD + m_alpha * dx;
-
-	// SON[2]
-	x_SON[2] = x_DAD + cos(M_PI / 6.) * m_alpha * dx;
-	y_SON[2] = y_DAD - sin(M_PI / 6.) * m_alpha * dx;
-}
-
-void adaptivity::assign_son_properties(const std::array<double, max_SON2D> &x_SON, const std::array<double, max_SON2D> &y_SON, double h_DAD,
-									   double m_DAD, std::array<double, max_SON2D> &h_SON, std::array<double, max_SON2D> &m_SON) const {
-	const unsigned int num_SON2D = m_num_child - 1;
-	for (unsigned int ii = 0; ii < num_SON2D; ii++) {
-		h_SON[ii] = m_beta * h_DAD;
-		m_SON[ii] = (plus_one) ? (1. / (num_SON2D + 1)) * m_DAD : (1. / num_SON2D) * m_DAD;
-	}
-}
-
-void adaptivity::validate_mass_conservation(double m_DAD, double dad_new_mass, const std::array<double, max_SON2D> &m_SON) const {
-	const unsigned int num_SON2D = m_num_child - 1;
-	double sum_mass = dad_new_mass;
-	for (unsigned int ii = 0; ii < num_SON2D; ii++)
-		sum_mass += m_SON[ii];
-	assert(fabs(m_DAD - sum_mass) < 1e-12);
-}
-
-particle adaptivity::create_son_particle(unsigned int son_idx, double x, double y, double m, double h, unsigned int step,
-										 const particle &dad) const {
-	particle son(son_idx);
-	son.x = x;
-	son.y = y;
-	son.X = x;
-	son.Y = y;
-	son.m = m;
-	son.h = h;
-	son.last_refine_at = step;
-	son.split = false;
-	son.merge = false;
-	copy_dad_to_son(dad, son);
-	return son;
-}
-
-adaptivity::adaptivity(double alpha_dx, double beta_h, double v, double div_v, double SvM, double epsPl, double T, glm::dvec2 xy_min,
-					   glm::dvec2 xy_max, double frm_width, double frm_height, unsigned int num_nbh, double l_eff, bool eccentric) {
+adaptivity::adaptivity(double alpha_dx, double beta_h, double v, double div_v, double SvM, double epsPl,
+			   double T, glm::dvec2 xy_min, glm::dvec2 xy_max,
+			   double frm_width, double frm_height, unsigned int num_nbh, double l_eff, bool eccentric) {
 
 	m_alpha = alpha_dx;
 	m_beta = beta_h;
@@ -1170,7 +1026,7 @@ adaptivity::adaptivity(double alpha_dx, double beta_h, double v, double div_v, d
 	m_T_threshold = T;
 	m_xy_min = xy_min;
 	m_xy_max = xy_max;
-	m_width = frm_width;
+	m_width  = frm_width;
 	m_height = frm_height;
 	m_num_nbh_threshold = num_nbh;
 	m_l_eff = l_eff;

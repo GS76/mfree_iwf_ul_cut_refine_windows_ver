@@ -53,7 +53,7 @@
 
 static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
 	// friction force according to
-	// "3D adaptive RKPM method for contact problems with elastic–plastic dynamic
+	// "3D adaptive RKPM method for contact problems with elastic???plastic dynamic
 	// large deformation" - Nianfei, Guangyao, Shuyao
 
 	const glm::dvec2 n = surf_norm;

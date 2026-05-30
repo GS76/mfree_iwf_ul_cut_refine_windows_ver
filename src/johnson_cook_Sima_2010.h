@@ -71,8 +71,8 @@
 	Please consider the original publication:
 	------------------------------------------------------------------------------
 	"Modified material constitutive models for serrated chip formation simulations
-	 and experimental validation in machining of titanium alloy ti–6al–4v"
-						     By: M. Sima, T. Özel
+	 and experimental validation in machining of titanium alloy ti???6al???4v"
+						     By: M. Sima, T. ??zel
 		Int. J. of Machine Tools & Manufacture, 50 (11) (2010), pp. 943-960
 */
 
@@ -108,7 +108,6 @@ public:
 	void set_norm_s_trial(double norm_s_trial);
 	void set_eps_init(double eps_init);
 	void set_temp(double theta);
-	void set_shear_modulus(double mu);
 
 	double sigma_yield(double eps_pl, double eps_dot_pl) const;
 	double sigma_yield(double eps_pl, double eps_dot_pl, double theta) const;

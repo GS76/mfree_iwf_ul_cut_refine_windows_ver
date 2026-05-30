@@ -51,17 +51,22 @@
 #include "particle.h"
 
 particle::particle() {
+//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
+//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 };
 
 particle::particle(unsigned int idx) {
 	this->idx = idx;
+
+//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
+//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 }
 
 particle::~particle() {};
 
 void particle::reset() {
-	x_t = 0.;
-	y_t = 0.;
+	x_t  = 0.;
+	y_t  = 0.;
 	rho_t = 0.;
 	h_t = 0.;
 	vx_t = 0.;
@@ -73,9 +78,83 @@ void particle::reset() {
 	T_t = 0.;
 }
 
-particle::particle(const particle &other) = default;
+particle::particle(const particle &other) {
+	idx = other.idx;
+	hash = other.hash;
 
-particle &particle::operator=(const particle &other) = default;
+	m = other.m;
+	rho = other.rho;
+	rho_init = other.rho_init;
+	h = other.h;
+
+	x = other.x;
+	y = other.y;
+
+	X = other.X;
+	Y = other.Y;
+
+	vx = other.vx;
+	vy = other.vy;
+
+	Sxx = other.Sxx;
+	Sxy = other.Sxy;
+	Syy = other.Syy;
+	Szz = other.Szz;
+
+	eps_pl_equiv     = other.eps_pl_equiv;
+	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
+
+	T = other.T;
+
+	last_refine_at = other.last_refine_at;
+	refine_step = other.refine_step;
+	split = other.split;
+	merge = other.merge;
+
+	fixed = other.fixed;
+}
+
+particle &particle::operator=(const particle &other) {
+	if (this == &other)
+		return *this;
+
+	idx = other.idx;
+	hash = other.hash;
+
+	m = other.m;
+	rho = other.rho;
+	rho_init = other.rho_init;
+	h = other.h;
+
+	x = other.x;
+	y = other.y;
+
+	X = other.X;
+	Y = other.Y;
+
+	vx = other.vx;
+	vy = other.vy;
+
+	Sxx = other.Sxx;
+	Sxy = other.Sxy;
+	Syy = other.Syy;
+	Szz = other.Szz;
+
+	eps_pl_equiv     = other.eps_pl_equiv;
+	eps_pl_equiv_dot = other.eps_pl_equiv_dot;
+
+	T = other.T;
+
+	last_refine_at = other.last_refine_at;
+	refine_step = other.refine_step;
+	split = other.split;
+	merge = other.merge;
+
+	fixed = other.fixed;
+
+	return *this;
+
+}
 
 void particle::copy_into(particle &p) const {
 	p.idx = idx;
@@ -113,9 +192,6 @@ void particle::copy_into(particle &p) const {
 
 	p.fcx = fcx;
 	p.fcy = fcy;
-	p.ftx = ftx;
-	p.fty = fty;
-	p.contact_lambda_n = contact_lambda_n;
 
 	p.fixed = fixed;
 
@@ -126,6 +202,6 @@ void particle::copy_into(particle &p) const {
 
 	p.num_nbh = num_nbh;
 
-	memcpy(p.nbh, nbh, sizeof(unsigned int) * num_nbh);
-	memcpy(p.w, w, sizeof(kernel_result) * num_nbh);
+	memcpy(p.nbh, nbh, sizeof(unsigned int)*num_nbh);
+	memcpy(p.w,   w,   sizeof(kernel_result)*num_nbh);
 }

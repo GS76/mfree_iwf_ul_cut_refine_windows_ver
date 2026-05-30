@@ -49,28 +49,24 @@
  */
 
 #include "test_density.h"
-#include <new>
 
 static body *test_bench_setup_refine_density(unsigned int nbox) {
 	// material constants
 	double rho0 = 1.0;
 
-	// problem dimensions
+	//problem dimensions
 	double L = 1.0;
-	double dx = L / (nbox - 1);
+	double dx = L/(nbox-1);
 	double hdx = 1.;
 	double dt = 0.;
 
-	particle *particles = new (std::nothrow) particle[nbox*nbox];
-	if (!particles) {
-		return nullptr;
-	}
+	particle *particles = new particle[nbox*nbox];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
 		for (unsigned int j = 0; j < nbox; j++) {
-			double px = i * dx;
-			double py = j * dx;
+			double px = i*dx;
+			double py = j*dx;
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = px;
 			particles[part_iter].y = py;
@@ -84,28 +80,28 @@ static body *test_bench_setup_refine_density(unsigned int nbox) {
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx * dx;
-		particles[i].m = dx * dx * rho0;
+		particles[i].h = hdx*dx;
+		particles[i].m = dx*dx*rho0;
 		particles[i].refine_step = 0;
 		particles[i].split = false;
 		particles[i].merge = false;
 	}
 
-	// correction constants (monaghan & gray)
+	//correction constants (monaghan & gray)
 	double alpha = 1.;
-	double beta = 1.;
-	double eta = 0.1;
+	double beta  = 1.;
+	double eta   = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
 	physical_constants physical_constants(0, 1, rho0);
 
-	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps, hdx),
-											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
+			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
 
@@ -138,13 +134,14 @@ void run_test_density_refinement_error(unsigned int nbox, adaptivity::pattern pa
 	double T_cr = 700.;
 	glm::dvec2 xy_min = {0.25, 0.25};
 	glm::dvec2 xy_max = {0.75, 0.75};
-	double frame_width = 0.000350;
+	double frame_width =  0.000350;
 	double frame_height = 0.000060;
 	unsigned int n_nbh = 10;
 	double l_eff = +DBL_MAX;
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
-	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr, T_cr, xy_min, xy_max, frame_width, frame_height,
+	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr,
+									   T_cr, xy_min, xy_max, frame_width, frame_height,
 									   n_nbh, l_eff, false);
 
 	adapt->set_refine_criterion(adaptivity::refine_criteria::position);

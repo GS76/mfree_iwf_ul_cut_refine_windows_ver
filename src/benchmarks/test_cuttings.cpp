@@ -126,7 +126,7 @@
 	simulation_data sim_data(physical_constants, correction_constants);
 
 	// plasticity model
-	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(physical_constants)); // JC-tanh Sima / Özel 2010
+	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(physical_constants)); // JC-tanh Sima / ??zel 2010
 	plast->set_tolerance(1e-6);
 	plast->set_dissipation_considered(true);
 
@@ -250,7 +250,7 @@
 	simulation_data sim_data(pc, cs);
 
 	// plasticity model
-	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / Özel 2010
+	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / ??zel 2010
 	plast->set_tolerance(1e-6);
 	plast->set_dissipation_considered(true);
 
@@ -463,7 +463,7 @@
 	simulation_data sim_data(pc, cs);
 
 	// plasticity model
-	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / Özel 2010
+	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / ??zel 2010
 	plast->set_tolerance(1e-6);
 	plast->set_dissipation_considered(true);
 
@@ -673,7 +673,7 @@
 	simulation_data sim_data(pc, cs);
 
 	// plasticity model
-	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / Özel 2010
+	plasticity *plast = new plasticity(new johnson_cook_Sima_2010(pc)); // JC-tanh Sima / ??zel 2010
 	plast->set_tolerance(1e-6);
 	plast->set_dissipation_considered(true);
 

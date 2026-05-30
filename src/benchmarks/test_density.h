@@ -52,7 +52,7 @@
 #define BENCHMARKS_TEST_DENSITY_H_
 
 #include "../logger.h"
-#include "../fe_tool.h"
+#include "../tool.h"
 #include "../body.h"
 #include "../johnson_cook_Sima_2010.h"
 #include "../plasticity.h"

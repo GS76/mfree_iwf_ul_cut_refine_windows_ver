@@ -53,7 +53,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include "glm/glm.hpp"
+#include <glm/glm.hpp>
 #include <type_traits>
 
 #include "kernel.h"

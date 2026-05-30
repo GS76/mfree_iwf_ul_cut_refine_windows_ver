@@ -65,30 +65,26 @@
 
 #include "adaptivity.h"
 
-class fe_tool;
-
 class body {
 
-  private:
+private:
 	/*
 	 "BODY" is comprised of the following encapsulated items:
 	*/
 
-	grid m_grid;			 // spatial hashing
-	plasticity *m_plast = 0; // plasticity algorithm (if any)
-	thermal *m_thermal = 0;	 // thermal algorithm (if any)
-	adaptivity *m_adapt = 0; // adaptivity algorithm (if any)
-	fe_tool *m_fe_tool = 0;
-	std::vector<particle> m_particles;													// workpiece particles
-	simulation_data m_simulation_data;													// all physical constants
+	grid m_grid;             			// spatial hashing
+	plasticity *m_plast = 0; 			// plasticity algorithm (if any)
+	thermal *m_thermal = 0;  			// thermal algorithm (if any)
+	adaptivity *m_adapt = 0;  			// adaptivity algorithm (if any)
+	tool *m_tool = 0;					// tool (potentially) in contact with this body (if any)
+	std::vector<particle> m_particles;  // workpiece particles
+	simulation_data m_simulation_data;  // all physical constants
 	void (*m_basis_fun)(std::vector<particle> &particles, unsigned int) = &precomp_sph; // basis function chosen SPH
-	double m_step_plastic_dissipation = 0.;												// Taylor-Quinney energy deposited this step (J)
-	void apply_radiation();
 
-  public:
+public:
 	void set_plasticity(plasticity *plasticity);
 	void set_thermal(thermal *thermal);
-	void set_fe_tool(fe_tool *tool);
+	void set_tool(tool *tool);
 	void set_adaptivity(adaptivity *adaptivity);
 	thermal* get_thermal();
 	tool* get_tool();
@@ -96,38 +92,29 @@ class body {
 	void apply_plasticity();
 	void apply_thermal_conduction();
 	void apply_contact();
-	void advance_fe_tool_thermal();
-	void advance_fe_tool_mechanics_explicit();
 	void move_tool();
 	void apply_adaptivity();
 
 	glm::dvec2 speed_tool();
 	glm::dvec2 edge_tool();
-	const fe_tool *get_fe_tool() const;
-	fe_tool *get_fe_tool();
-
-	// Returns the total Taylor-Quinney plastic dissipation energy deposited
-	// to SPH particles during the most recently completed apply_plasticity() call.
-	double get_step_plastic_dissipation() const;
 
 	void construct_verlet_lists();
 	void restore_order();
 
 	void set_basis_fun(void (*m_basis_fun)(std::vector<particle> &particles, unsigned int));
 
-	simulation_data get_sim_data() const;
+	simulation_data get_sim_data()  const;
 	std::vector<particle> &get_particles();
 	const std::vector<particle> &get_particles() const;
 	unsigned int get_num_part() const;
 
-	void insert_particles(const std::vector<particle> &additional_particles);
-	body(std::vector<particle> &&particles, simulation_data data);
+	void insert_particles(const std::vector<particle>& additional_particles);
 
-	body(particle *particles, unsigned int n, simulation_data data);
+	body(particle* particles, unsigned int n, simulation_data data);
 
 	// do not allow copying a body
 	body(const body &copy) = delete;
-	body &operator=(const body &fraction) = delete;
+	body& operator= (const body &fraction) = delete;
 
 	body();
 };

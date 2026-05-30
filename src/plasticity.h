@@ -61,28 +61,26 @@
 #include "particle.h"
 
 /*
-	 The purpose of this implementation:
-	   - specification of plastic state by radial return algorithm.
-	   - "SECANT" scheme is used for root finding procedure of radial return
-	   - This choice is made motivated by the performance of "SECANT" (faster & safer)
+ 	 The purpose of this implementation:
+ 	   - specification of plastic state by radial return algorithm.
+ 	   - "SECANT" scheme is used for root finding procedure of radial return
+ 	   - This choice is made motivated by the performance of "SECANT" (faster & safer)
 */
 
 class body;
 
 class plasticity {
 
-  private:
+private:
 	double m_tol = 1e-6;
 	johnson_cook_Sima_2010 *m_plasticity_model = 0;
 	bool m_consider_dissipation = true;
 	bool m_solver_failed = false;
 	void print_debug(const std::vector<particle> &particles, unsigned int num_part, unsigned int fail_idx);
-	double do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
+	void do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
 
-  public:
-	// Returns the total Taylor-Quinney plastic dissipation energy deposited
-	// to all particles this step (J, SI or model units).
-	double plastic_state_by_radial_return(body &b);
+public:
+	void plastic_state_by_radial_return(body &b);
 	void set_tolerance(double tol);
 	void set_dissipation_considered(bool consider);
 	plasticity(johnson_cook_Sima_2010 *plasticity_model);

@@ -49,46 +49,17 @@
  */
 
 #include "precomp_shape_functions.h"
-#include "simulation_time.h"
-
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-
-namespace {
-[[noreturn]] void fail_precomp_neighbor_state(const char *stage, unsigned int particle_index, unsigned int num_particles,
-											  unsigned int num_neighbors, unsigned int neighbor_slot, unsigned int neighbor_index, double x,
-											  double y, double h) {
-	const unsigned int step = simulation_time::getInstance().get_step();
-	std::fprintf(stderr, "[PRECOMP_NEIGHBOR_INVALID] step=%u stage=%s i=%u n=%u num_nbh=%u slot=%u nbh=%u MAX_NBH=%u\n", step, stage,
-				 particle_index, num_particles, num_neighbors, neighbor_slot, neighbor_index, MAX_NBH);
-	std::fprintf(stderr, "  x=%e y=%e h=%e finite_flags x=%d y=%d h=%d\n", x, y, h, std::isfinite(x) ? 1 : 0, std::isfinite(y) ? 1 : 0,
-				 std::isfinite(h) ? 1 : 0);
-	std::fflush(stderr);
-	std::exit(EXIT_FAILURE);
-}
-} // namespace
 
 void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
+	for (unsigned int i = 0; i < n; i++) {
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
 		double hi = particles[i].h;
-		if (particles[i].num_nbh > MAX_NBH) {
-			fail_precomp_neighbor_state("precomp_sph.num_nbh_oob", i, n, particles[i].num_nbh, 0, 0, xi, yi, hi);
-		}
 
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
-			if (jdx >= n) {
-				fail_precomp_neighbor_state("precomp_sph.nbh_index_oob", i, n, particles[i].num_nbh, j, jdx, xi, yi, hi);
-			}
 
 			double xj = particles[jdx].x;
 			double yj = particles[jdx].y;
@@ -100,37 +71,27 @@ void precomp_sph(std::vector<particle> &particles, unsigned int n) {
 
 void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
+	for (unsigned int i = 0; i < n; i++) {
 		double xi = particles[i].x;
 		double yi = particles[i].y;
 
 		double hi = particles[i].h;
-		if (particles[i].num_nbh > MAX_NBH) {
-			fail_precomp_neighbor_state("precomp_cspm.num_nbh_oob", i, n, particles[i].num_nbh, 0, 0, xi, yi, hi);
-		}
 		glm::dmat2x2 B(0.); // This is in fact the symbol "A_i" in Eq. (29) of the paper
 
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
-			if (jdx >= n) {
-				fail_precomp_neighbor_state("precomp_cspm.nbh_index_oob", i, n, particles[i].num_nbh, j, jdx, xi, yi, hi);
-			}
 
 			double xj = particles[jdx].x;
 			double yj = particles[jdx].y;
 
-			double volj = particles[jdx].m / particles[jdx].rho;
+			double volj = particles[jdx].m/particles[jdx].rho;
 
 			kernel_result w = cubic_spline(xi, yi, xj, yj, hi);
 
-			B[0][0] += (xj - xi) * w.w_x * volj;
-			B[1][0] += (xj - xi) * w.w_y * volj;
-			B[0][1] += (yj - yi) * w.w_x * volj;
-			B[1][1] += (yj - yi) * w.w_y * volj;
+			B[0][0] += (xj - xi)*w.w_x*volj;
+			B[1][0] += (xj - xi)*w.w_y*volj;
+			B[0][1] += (yj - yi)*w.w_x*volj;
+			B[1][1] += (yj - yi)*w.w_y*volj;
 		}
 
 		glm::dmat2x2 invB = glm::inverse(B);
@@ -144,8 +105,8 @@ void precomp_cspm(std::vector<particle> &particles, unsigned int n) {
 			kernel_result w = cubic_spline(xi, yi, xj, yj, hi);
 
 			particles[i].w[j].w = w.w;
-			particles[i].w[j].w_x = (w.w_x * invB[0][0] + w.w_y * invB[1][0]);
-			particles[i].w[j].w_y = (w.w_x * invB[0][1] + w.w_y * invB[1][1]);
+			particles[i].w[j].w_x = (w.w_x*invB[0][0] + w.w_y*invB[1][0]);
+			particles[i].w[j].w_y = (w.w_x*invB[0][1] + w.w_y*invB[1][1]);
 		}
 	}
 }
