@@ -49,14 +49,37 @@
  */
 
 #include "cont_mech.h"
+#include <cstdlib>
 #include <cmath>
+
+namespace {
+double density_floor_for_guards(double rho0) {
+	double rho_floor = 1e-12;
+	if (!std::isfinite(rho0) || rho0 <= 0.)
+		return rho_floor;
+
+	double frac = 0.0;
+	if (const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC")) {
+		char *end = nullptr;
+		double parsed = std::strtod(s, &end);
+		if (end != s && std::isfinite(parsed) && parsed > 0.)
+			frac = parsed;
+	}
+	if (frac > 0.) {
+		double configured_floor = frac * rho0;
+		if (std::isfinite(configured_floor) && configured_floor > rho_floor)
+			rho_floor = configured_floor;
+	}
+	return rho_floor;
+}
+} // namespace
 
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
 	const unsigned int n = b.get_num_part();
 	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
+	const double rho_min = density_floor_for_guards(rho0);
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -77,7 +100,7 @@ void contmech_momentum(body &b) {
 
 	const unsigned int n = b.get_num_part();
 	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 1e-12;
+	const double rho_min = density_floor_for_guards(rho0);
 	const double m_min = 1e-18;
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)

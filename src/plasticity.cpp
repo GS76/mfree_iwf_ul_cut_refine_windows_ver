@@ -98,6 +98,26 @@ static double workpiece_mu_at(double T, double mu0, double nu0) {
 		mu = mu0;
 	return mu;
 }
+
+double density_floor_for_guards(double rho0) {
+	double rho_floor = 1e-12;
+	if (!std::isfinite(rho0) || rho0 <= 0.)
+		return rho_floor;
+
+	double frac = 0.0;
+	if (const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC")) {
+		char *end = nullptr;
+		double parsed = std::strtod(s, &end);
+		if (end != s && std::isfinite(parsed) && parsed > 0.)
+			frac = parsed;
+	}
+	if (frac > 0.) {
+		double configured_floor = frac * rho0;
+		if (std::isfinite(configured_floor) && configured_floor > rho_floor)
+			rho_floor = configured_floor;
+	}
+	return rho_floor;
+}
 } // namespace
 
 double plasticity::plastic_state_by_radial_return(body &b) {
@@ -135,14 +155,14 @@ double plasticity::do_radial_return(std::vector<particle> &particles, unsigned i
 	double step_plastic_dissipation = 0.;
 
 	double rho0 = data.get_physical_constants().rho0();
-	double rho_min = (std::isfinite(rho0) && rho0 > 0.) ? rho0 : 0.;
+	double rho_min = density_floor_for_guards(rho0);
 
 	for (unsigned int i = 0; i < num_part; i++) {
 		double mu = workpiece_mu_at(particles[i].T, mu0, nu0);
 		double cp = workpiece_cp_at(particles[i].T, cp0);
 		m_plasticity_model->set_shear_modulus(mu);
 		// Skip plasticity entirely for density-floored particles: their stress state is artificial
-		if (rho_min > 0. && std::isfinite(particles[i].rho) && particles[i].rho < rho_min) {
+		if (rho_min > 0. && std::isfinite(particles[i].rho) && particles[i].rho <= 1.01 * rho_min) {
 			// Zero the stress state for particles that hit the density floor.
 			// Without this, old trial stresses (computed with pre-floor density)
 			// can become NaN/Inf when later combined with the floored density.

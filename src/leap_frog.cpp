@@ -54,12 +54,32 @@
 #include <cstdio>
 #include <cmath>
 
+static double density_floor_fraction() {
+	static const double frac = []() {
+		const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC");
+		if (!s || s[0] == '\0')
+			return 0.0;
+		char *end = nullptr;
+		const double parsed = std::strtod(s, &end);
+		if (end == s || !std::isfinite(parsed) || parsed < 0.)
+			return 0.0;
+		return parsed;
+	}();
+	return frac;
+}
+
 // Returns the density floor (kg/m³) for a given material.
-// The floor is tied to each material's reference density rho0.
+// MFREE_DENSITY_FLOOR_FRAC controls the floor as a fraction of rho0.
 static double density_floor(double rho0) {
 	if (!std::isfinite(rho0) || rho0 <= 0.)
 		return 1e-12;
-	return rho0;
+	const double frac = density_floor_fraction();
+	if (!std::isfinite(frac) || frac <= 0.)
+		return 1e-12;
+	const double floor = frac * rho0;
+	if (!std::isfinite(floor) || floor <= 0.)
+		return 1e-12;
+	return floor;
 }
 
 static void zero_stress_state(particle &p, bool zero_rates) {
