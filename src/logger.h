@@ -73,12 +73,12 @@ class logger {
 	bool m_log_forces = true;
 	bool m_emit_vtk = true;
 
-	fe_tool *m_t = 0;
-	FILE *m_fp_forces = 0;
-	FILE *m_fp_trace = 0;
-	FILE *m_fp_thermal = 0;
-	FILE *m_fp_metrics = 0;
-	FILE *m_fp_energy = 0;
+	fe_tool *m_t = nullptr;
+	FILE *m_fp_forces = nullptr;
+	FILE *m_fp_trace = nullptr;
+	FILE *m_fp_thermal = nullptr;
+	FILE *m_fp_metrics = nullptr;
+	FILE *m_fp_energy = nullptr;
 	// Reference temperature for above-ref energy computations (K).
 	// Read once from MFREE_THERMAL_T_REF; default 298.15 K (25 degC).
 	double m_T_ref = 298.15;

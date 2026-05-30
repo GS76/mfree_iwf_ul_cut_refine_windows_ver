@@ -49,6 +49,7 @@
  */
 
 #include "test_density.h"
+#include <new>
 
 static body *test_bench_setup_refine_density(unsigned int nbox) {
 	// material constants
@@ -60,7 +61,10 @@ static body *test_bench_setup_refine_density(unsigned int nbox) {
 	double hdx = 1.;
 	double dt = 0.;
 
-	particle *particles = new particle[nbox * nbox];
+	particle *particles = new (std::nothrow) particle[nbox*nbox];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {

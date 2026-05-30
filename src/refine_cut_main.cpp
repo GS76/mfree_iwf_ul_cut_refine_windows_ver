@@ -81,7 +81,7 @@
 #include "logger.h"
 #include "body.h"
 
-logger *global_logger;
+logger *global_logger = nullptr;
 
 #ifdef __FAST_MATH__
 #error "Do NOT compile using -ffast-math"

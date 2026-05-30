@@ -50,6 +50,7 @@
 
 #include "test_cuttings.h"
 #include "../env_table.h"
+#include <new>
 
 #include <algorithm>
 #include <limits>
@@ -700,7 +701,10 @@ body *cutting_ref_mr(unsigned int ny) {
 
 	printf("using timestep %e with %d particles\n", dt, nx * ny);
 
-	particle *particles = new particle[nx * ny];
+	particle *particles = new (std::nothrow) particle[nx * ny];
+	if (!particles) {
+		return nullptr;
+	}
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
@@ -887,7 +891,10 @@ body *cutting_ref_single_resol(unsigned int nbox) {
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles = new particle[nx * ny];
+	particle *particles  = new (std::nothrow) particle[nx * ny];
+	if (!particles) {
+		return nullptr;
+	}
 
 	srand(0);
 	unsigned int part_iter = 0;

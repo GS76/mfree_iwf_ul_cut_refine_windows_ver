@@ -6,6 +6,7 @@ Release/
 out/
 Meshing/out/
 Meshing/gmsh-*/
+.trae/
 .vs/
 .idea/
 .vscode/ipch/

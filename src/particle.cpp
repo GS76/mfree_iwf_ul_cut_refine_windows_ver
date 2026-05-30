@@ -51,15 +51,10 @@
 #include "particle.h"
 
 particle::particle() {
-	//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
-	//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 };
 
 particle::particle(unsigned int idx) {
 	this->idx = idx;
-
-	//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
-	//	memset(w,   0, sizeof(kernel_result)*MAX_NBH);
 }
 
 particle::~particle() {};

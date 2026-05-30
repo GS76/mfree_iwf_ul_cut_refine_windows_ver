@@ -139,3 +139,12 @@
       - Option A: treat as vendored and exclude from formatting enforcement
       - Option B: run a one-time “format-the-world” PR and then enable full-repo enforcement
     - Tighten `.gitignore` policy for generated artifacts and add a pre-commit guard to block accidental commits of excluded paths; validate using `git check-ignore -v` and a staged-file guard test.
+
+- 2026-04-21: docs/session summary + repo hygiene: add a reusable session summary template and ensure Trae IDE metadata stays local
+  - Completed
+    - Added `docs/session_summary_template.md` to standardize capturing objectives, decisions, action items, and validation evidence.
+    - Extended the template with a repository snapshot section (status/untracked/ignored counts), version-control updates, and incident/debug artifacts.
+    - Updated `.gitignore` to exclude `.trae/` IDE metadata from version control.
+  - Validation performed
+    - `python scripts/check_editorconfig_basic.py` passed.
+    - `git status --porcelain=v1 --branch` clean after staging/commit.
