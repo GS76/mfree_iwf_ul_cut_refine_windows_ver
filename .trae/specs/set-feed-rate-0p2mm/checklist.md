@@ -1,0 +1,5 @@
+- [x] Model 1/4 benchmark uses `target_feed = 2e-4` meters (0.2 mm).
+- [x] Multi-resolution benchmarks (models 2/3) use `target_feed = 2e-4` meters (0.2 mm).
+- [x] `mfree_iwf` builds successfully after the change.
+- [x] `ctest --test-dir build -R smoke_model_1` passes.
+- [x] Startup log prints `feed:` approximately `0.000200`.

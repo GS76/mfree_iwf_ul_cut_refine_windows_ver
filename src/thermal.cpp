@@ -49,69 +49,43 @@
  */
 
 #include "thermal.h"
-#include "env_table.h"
-
+#include <cmath>
 #include "body.h"
-#include <cstdlib>
-#include <vector>
+#include <omp.h>
 
-namespace {
-struct wp_thermal_tables {
-	std::vector<double> k_T;
-	std::vector<double> k_v;
-	std::vector<double> cp_T;
-	std::vector<double> cp_v;
-	bool parsed = false;
-};
-
-
-static const wp_thermal_tables &get_wp_thermal_tables() {
-	static wp_thermal_tables tbl;
-	if (!tbl.parsed) {
-		env_table::parse_from_env_any({"MFREE_WP_K_TABLE", "MFREE_WORKPIECE_K_TABLE"}, tbl.k_T, tbl.k_v);
-		env_table::parse_from_env_any({"MFREE_WP_CP_TABLE", "MFREE_WORKPIECE_CP_TABLE"}, tbl.cp_T, tbl.cp_v);
-		tbl.parsed = true;
-	}
-	return tbl;
+void thermal::set_convection(double h_W_m2K, double T_ambient_K) {
+	m_h_W_m2K = h_W_m2K;
+	m_T_ambient_K = T_ambient_K;
 }
 
-static double workpiece_alpha_at(double T, double rho0, double k0, double cp0) {
-	const wp_thermal_tables &tbl = get_wp_thermal_tables();
-	double k = env_table::eval_linear_clamped(T, tbl.k_T, tbl.k_v, k0);
-	double cp = env_table::eval_linear_clamped(T, tbl.cp_T, tbl.cp_v, cp0);
-	if (!std::isfinite(k) || k < 0.)
-		k = k0;
-	if (!std::isfinite(cp) || cp <= 0.)
-		cp = cp0;
-	if (!std::isfinite(rho0) || rho0 <= 0.)
-		return 0.;
-	return k / (rho0 * cp);
+void thermal::set_convection_enabled(bool enabled) {
+	m_convection_enabled = enabled;
 }
-} // namespace
+
+void thermal::set_max_cooling_rate(double max_rate_K_per_s) {
+	m_max_rate_K_per_s = max_rate_K_per_s;
+}
+
+double thermal::last_max_abs_rate_K_per_s() const {
+	return m_last_max_abs_rate_K_per_s;
+}
+
+double thermal::last_convection_ramp() const {
+	return m_last_convection_ramp;
+}
 
 void thermal::heat_conduction_pse(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
-	// Explicit stability for the heat equation requires V_j = m_j/rho_j to stay
-	// bounded.  Cap V_j at the volume corresponding to 5% of rho0 (20x natural),
-	// which keeps the stability ratio well below 1 for any realistic dt.
-	// This only affects severely-expanded / failed particles; normal particles
-	// (rho close to rho0) are completely unaffected.
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_pse_floor = 0.05 * rho0;
-
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
-		if (particles[i].rho < 0.5 * rho0)
-			continue;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
 		const double Ti = particles[i].T;
 		const double xi = particles[i].x;
 		const double yi = particles[i].y;
 		const double hi = particles[i].h;
+		const double hi2 = hi*hi;
 
 		double T_lapl = 0.;
 
@@ -122,46 +96,33 @@ void thermal::heat_conduction_pse(body &b) const {
 			const double xj = particles[jdx].x;
 			const double yj = particles[jdx].y;
 			const double mj = particles[jdx].m;
-			// Use rho_pse_floor so that a low-density particle cannot inflate
-			// V_j=m/rho beyond 20×V_natural and break stability.
-			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
-			const double hj = particles[jdx].h;
+			const double rhoj = particles[jdx].rho;
 
-			const double xij = xi - xj;
-			const double yij = yi - yj;
+			const double xij = xi-xj;
+			const double yij = yi-yj;
 
-			// Symmetric smoothing length: averages hi and hj so that the PSE
-			// kernel is the same when evaluated from either side of a
-			// refinement interface (hi != hj).  For same-resolution pairs
-			// (hi == hj) h_sym == hi and the formula is unchanged.
-			const double h_sym = 0.5 * (hi + hj);
-			const double h_sym2 = h_sym * h_sym;
-
-			const double r = sqrt(xij * xij + yij * yij);
-			const double w_pse = 4.0 / (h_sym2 * M_PI) * exp(-r * r / h_sym2);
-			T_lapl += (Tj - Ti) * w_pse * mj / rhoj / h_sym2;
+			const double r = sqrt(xij*xij + yij*yij);
+			const double w_pse = 4.0/(hi2*M_PI)*exp(-r*r/(hi2));
+			T_lapl += (Tj-Ti)*w_pse*mj/rhoj/(hi2);
 		}
 
-		const auto pc = b.get_sim_data().get_physical_constants();
-		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
-		particles[i].T_t += alpha_i * T_lapl;
+		double denominator = phys_const.rho0(Ti) * phys_const.tc().cp(Ti);
+		if (denominator < 1e-12) {
+			particles[i].T_t = 0;
+			continue;
+		}
+		double alpha = phys_const.tc().k(Ti) / denominator;
+		particles[i].T_t += alpha*T_lapl;
 	}
 }
 
 void thermal::heat_conduction_brookshaw(body &b) const {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
 
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_pse_floor = 0.05 * rho0;
-
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(num_part); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
-		if (particles[i].rho < 0.5 * rho0)
-			continue;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
 		double Ti = particles[i].T;
 		double xi = particles[i].x;
 		double yi = particles[i].y;
@@ -180,30 +141,107 @@ void thermal::heat_conduction_brookshaw(body &b) const {
 			double xj = particles[jdx].x;
 			double yj = particles[jdx].y;
 			double mj = particles[jdx].m;
-			const double rhoj = std::max(particles[jdx].rho, rho_pse_floor);
+			double rhoj = particles[jdx].rho;
 
-			double xij = xi - xj;
-			double yij = yi - yj;
+			double xij = xi-xj;
+			double yij = yi-yj;
 
-			double rij = sqrt(xij * xij + yij * yij);
-			double eijx = xij / rij;
-			double eijy = yij / rij;
+			double rij = sqrt(xij*xij + yij*yij);
+			double eijx = xij/rij;
+			double eijy = yij/rij;
 
-			if (rij < 1e-12)
-				continue;
+			if (rij < 1e-12) continue;
 
-			double rij1 = 1. / rij;
+			double rij1 = 1./rij;
 
-			T_lapl += 2.0 * (mj / rhoj) * (Ti - Tj) * rij1 * (eijx * w.w_x + eijy * w.w_y);
+			T_lapl += 2.0*(mj/rhoj)*(Ti-Tj)*rij1*(eijx*w.w_x + eijy*w.w_y);
 		}
 
-		const auto pc = b.get_sim_data().get_physical_constants();
-		const double alpha_i = workpiece_alpha_at(Ti, pc.rho0(), pc.tc().k(), pc.tc().cp());
-		particles[i].T_t += alpha_i * T_lapl;
+		double alpha = phys_const.tc().k(Ti) / (phys_const.rho0(Ti) * phys_const.tc().cp(Ti));
+		particles[i].T_t += alpha*T_lapl;
 	}
 }
 
-void thermal::set_method(thermal_solver solver) { m_thermal_solver = solver; }
+void thermal::apply_convection(body &b) const {
+	if (!m_convection_enabled) return;
+	if (m_h_W_m2K <= 0.0) return;
+
+	std::vector<particle> &particles = b.get_particles();
+	unsigned int num_part = b.get_num_part();
+	const auto& phys_const = b.get_sim_data().get_physical_constants();
+
+	double max_abs_rate = 0.0;
+	#pragma omp parallel for reduction(max:max_abs_rate)
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double Ti = particles[i].T;
+		const double rho0 = phys_const.rho0(Ti);
+		const double cp = phys_const.tc().cp(Ti);
+		const double denom = rho0 * cp;
+		if (denom <= 1e-12) continue;
+
+		const double dV = particles[i].m / rho0;
+		if (dV <= 1e-18) continue;
+
+		const double A_over_V = 4.0 / std::sqrt(dV);
+		const double beta = m_h_W_m2K * A_over_V / denom;
+		const double rate = std::abs(beta * (Ti - m_T_ambient_K));
+		if (rate > max_abs_rate) max_abs_rate = rate;
+	}
+
+	double ramp = 1.0;
+	if (m_max_rate_K_per_s > 0.0 && max_abs_rate > m_max_rate_K_per_s) {
+		ramp = m_max_rate_K_per_s / max_abs_rate;
+	}
+
+	m_last_convection_ramp = ramp;
+
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double Ti = particles[i].T;
+		const double rho0 = phys_const.rho0(Ti);
+		const double cp = phys_const.tc().cp(Ti);
+		const double denom = rho0 * cp;
+		if (denom <= 1e-12) continue;
+
+		const double dV = particles[i].m / rho0;
+		if (dV <= 1e-18) continue;
+
+		const double A_over_V = 4.0 / std::sqrt(dV);
+		const double beta = m_h_W_m2K * A_over_V / denom;
+		particles[i].T_t += -ramp * beta * (Ti - m_T_ambient_K);
+	}
+}
+
+void thermal::enforce_rate_limit(body &b) const {
+	if (m_max_rate_K_per_s <= 0.0) return;
+
+	std::vector<particle> &particles = b.get_particles();
+	unsigned int num_part = b.get_num_part();
+
+	double max_abs_rate = 0.0;
+	#pragma omp parallel for reduction(max:max_abs_rate)
+	for (unsigned int i = 0; i < num_part; i++) {
+		const double rate = std::abs(particles[i].T_t);
+		if (rate > max_abs_rate) max_abs_rate = rate;
+	}
+
+	m_last_max_abs_rate_K_per_s = max_abs_rate;
+
+	if (max_abs_rate <= m_max_rate_K_per_s) return;
+
+	const double scale = m_max_rate_K_per_s / max_abs_rate;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < num_part; i++) {
+		particles[i].T_t *= scale;
+	}
+
+	m_last_max_abs_rate_K_per_s = m_max_rate_K_per_s;
+}
+
+
+void thermal::set_method(thermal_solver solver) {
+	m_thermal_solver = solver;
+}
 
 void thermal::conduction(body &body) const {
 
@@ -215,9 +253,11 @@ void thermal::conduction(body &body) const {
 		heat_conduction_brookshaw(body);
 		break;
 	}
+
+	apply_convection(body);
+	enforce_rate_limit(body);
 }
 
 thermal::thermal(physical_constants pc) {
 	assert(pc.tc().k() != 0.);
-	m_alpha = pc.tc().k() / (pc.rho0() * pc.tc().cp());
 }

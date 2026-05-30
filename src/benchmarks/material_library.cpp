@@ -272,7 +272,14 @@ physical_constants matlib_tial6v4_Sima_tanh2010_SI() {	// JC-tanh-Model, Modifik
 
 	johnson_cook_constants jc(JC_A, JC_B, JC_C, JC_m, JC_n, JC_tanh_a, JC_tanh_b, JC_tanh_c, JC_tanh_d, JC_tanh_Sima2010_s, Tmelt, Tref, eps_dot_ref);
 	thermal_constants tc(cp, tq, k);
-	return physical_constants(nu, E, rho0, jc, tc);
+	physical_constants pc(nu, E, rho0, jc, tc);
+	pc.set_rho0_linear(-0.1401, 4464.74, true, 1.0, false, 0.0);
+	pc.set_alpha_linear(1.08e-05, -3.41e-03, false, 0.0, false, 0.0);
+	pc.set_k_linear(0.0178, 0.394, true, 1e-12, false, 0.0);
+	pc.set_E_linear(-5.36e+07, 1.32e+11, true, 1e6, false, 0.0);
+	pc.set_nu_linear(4.15e-05, 0.3053, true, 0.0, true, 0.499);
+	pc.set_cp_linear(0.2273, 491.62, true, 1.0, false, 0.0);
+	return pc;
 }
 
 physical_constants matlib_tial6v4_Sima_tanh2010_cm_musec_g() {	// JC-tanh-Model, Modifikation nach Sima/Özel 2010

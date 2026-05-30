@@ -49,6 +49,7 @@
  */
 
 #include "adaptivity.h"
+#include <cmath>
 #include "body.h"
 
 #include <array>

@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/mfree_iwf_ul_cut_refine_windows_ver/build_cmake_bench/cmake_install.cmake",
+		"D:/mfree_iwf_ul_cut_refine_windows_ver/build_cmake_bench/_deps/glm-build/cmake_install.cmake",
+		"D:/mfree_iwf_ul_cut_refine_windows_ver/build_cmake_bench/_deps/glm-build/glm/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mfree_iwf Tool/Workpiece 2D Viewer</title>
+  <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    #root { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
+    #panel { padding: 12px; border-right: 1px solid #ddd; overflow: auto; }
+    #canvasWrap { position: relative; background: #0f1220; }
+    canvas { width: 100%; height: 100%; display: block; }
+    h1 { font-size: 16px; margin: 0 0 10px 0; }
+    .group { border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fff; }
+    .row { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; margin: 6px 0; }
+    .row label { font-size: 13px; }
+    .row input[type="range"] { width: 100%; }
+    .row input[type="number"] { width: 100%; box-sizing: border-box; }
+    .kv { font-size: 12px; color: #333; margin-top: 8px; line-height: 1.35; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .ok { background: #e6ffed; color: #0b5; border: 1px solid #b7f5c6; }
+    .bad { background: #ffe8e8; color: #b00; border: 1px solid #ffbcbc; }
+    .hint { font-size: 12px; color: #555; margin-top: 6px; }
+    .btnRow { display: flex; gap: 8px; margin-top: 8px; }
+    button { cursor: pointer; border: 1px solid #ccc; background: #f7f7f7; padding: 6px 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="panel">
+      <h1>Tool / Workpiece Viewer (Model 1 Defaults)</h1>
+
+      <div class="group">
+        <div class="row">
+          <label>Rake angle (deg)</label>
+          <input id="rake" type="number" step="0.1" />
+        </div>
+        <div class="row">
+          <label>Clearance angle (deg)</label>
+          <input id="clearance" type="number" step="0.1" />
+        </div>
+        <div class="row">
+          <label>Fillet radius (m)</label>
+          <input id="fillet" type="number" step="1e-6" />
+        </div>
+        <div class="row">
+          <label>Extra X offset left (m)</label>
+          <input id="xoff" type="number" step="1e-6" />
+        </div>
+        <div class="row">
+          <label>Target feed (m)</label>
+          <input id="feed" type="number" step="1e-6" />
+        </div>
+        <div class="row">
+          <label>Auto-position Y to feed</label>
+          <input id="autofeed" type="checkbox" />
+        </div>
+        <div class="btnRow">
+          <button id="resetView">Reset view</button>
+          <button id="resetParams">Reset params</button>
+        </div>
+        <div class="hint">Pan: drag. Zoom: mouse wheel. Units: meters, degrees.</div>
+      </div>
+
+      <div class="group">
+        <div id="status"></div>
+        <div class="kv" id="readout"></div>
+      </div>
+
+      <div class="group">
+        <div class="kv">
+          Workpiece bounds (Model 1, SI):
+          <div>lo_x=0.00000, hi_x=0.00200</div>
+          <div>lo_y=0.00030, hi_y=0.00060</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvasWrap">
+      <canvas id="c"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const defaults = {
+      rakeDeg: -5.0,
+      clearanceDeg: 5.0,
+      filletR: 5e-5,
+      xOffsetLeft: 0.0,
+      targetFeed: 2e-4,
+      autoFeed: true
+    }
+
+    const model1 = {
+      lo_x: 0.0,
+      hi_x: 0.00200,
+      lo_y: 0.00030,
+      hi_y: 0.00080,
+      nbox: 31,
+      base_height_y: 0.00030,
+      tl_y: 0.000986074,
+      length_tool: 0.0020,
+      height_tool: 0.0015,
+      nudgeEnabled: true,
+      tool_right_clearance: 0.0,
+      tool_x_shift: 1.25e-4
+    }
+
+    function clamp(x, a, b) { return Math.max(a, Math.min(b, x)) }
+    function rad(deg) { return deg * Math.PI / 180.0 }
+    function v(x, y) { return { x, y } }
+    function add(a, b) { return v(a.x + b.x, a.y + b.y) }
+    function sub(a, b) { return v(a.x - b.x, a.y - b.y) }
+    function mul(a, s) { return v(a.x * s, a.y * s) }
+    function len(a) { return Math.hypot(a.x, a.y) }
+    function norm(a) { const l = len(a); return l > 0 ? v(a.x / l, a.y / l) : v(0, 0) }
+
+    function myatan2(y, x) {
+      const t = Math.atan2(y, x)
+      return t >= 0 ? t : (t + 2 * Math.PI)
+    }
+
+    function solveQuad(a, b, c) {
+      const disc = b * b - 4 * a * c
+      if (!(disc >= 0)) return [NaN, NaN]
+      const s = Math.sqrt(disc)
+      return [(-b + s) / (2 * a), (-b - s) / (2 * a)]
+    }
+
+    function lineFrom(p1, p2) {
+      const detM = p1.x * 1.0 - 1.0 * p2.x
+      if (Math.abs(detM) < 1e-12) {
+        return { vertical: true, a: Number.POSITIVE_INFINITY, b: p1.x }
+      }
+      const a = (p1.y * 1.0 - 1.0 * p2.y) / detM
+      const b = (p2.y * p1.x - p2.x * p1.y) / detM
+      return { vertical: false, a, b }
+    }
+
+    function lineIntersect(l1, l2) {
+      if (l1.vertical && l2.vertical) return v(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)
+      if (!l1.vertical && !l2.vertical && Math.abs(l1.a - l2.a) < 1e-12) return v(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)
+      if (l1.vertical) {
+        const x = l1.b
+        const y = l2.a * x + l2.b
+        return v(x, y)
+      }
+      if (l2.vertical) {
+        const x = l2.b
+        const y = l1.a * x + l1.b
+        return v(x, y)
+      }
+      const x = (l2.b - l1.b) / (l1.a - l2.a)
+      const y = l1.a * x + l1.b
+      return v(x, y)
+    }
+
+    function closestPointOnLine(l, xq) {
+      if (l.vertical) return v(l.b, xq.y)
+      const bb = -1.0
+      const cc = l.b
+      const aa = l.a
+      const px = (bb * (bb * xq.x - aa * xq.y) - aa * cc) / (aa * aa + bb * bb)
+      const py = (aa * (-bb * xq.x + aa * xq.y) - bb * cc) / (aa * aa + bb * bb)
+      return v(px, py)
+    }
+
+    function fitFillet(r, lm, l1) {
+      if (lm.vertical) return v(Number.NaN, Number.NaN)
+      const A0 = lm.a
+      const B0 = lm.b
+      const a = l1.a
+      const b = l1.b
+      const A = a - A0
+      const B = b - B0
+      const C = r * Math.sqrt(a * a + 1.0)
+      const [x1, x2] = solveQuad(A * A, 2 * A * B, B * B - C * C)
+      const xm = Math.min(x1, x2)
+      const ym = lm.a * xm + lm.b
+      return v(xm, ym)
+    }
+
+    function computeTool(params) {
+      const dy = model1.base_height_y / (model1.nbox - 1)
+      const dx = dy
+      const nudge = model1.nudgeEnabled ? (-dx) : 0.0
+
+      const tl = v(model1.lo_x - model1.length_tool - model1.tool_right_clearance + nudge + model1.tool_x_shift - params.xOffsetLeft, model1.tl_y)
+      const tr = v(tl.x + model1.length_tool, tl.y)
+      const bl = v(tl.x, tl.y - model1.height_tool)
+
+      const alpha_rake = rad(params.rakeDeg)
+      const alpha_free = rad(90.0 - params.clearanceDeg)
+      const dir_rake = v(-Math.sin(alpha_rake), -Math.cos(alpha_rake))
+      const dir_free = v(-Math.sin(alpha_free), -Math.cos(alpha_free))
+
+      const trc_dir = add(tr, dir_rake)
+      const blc_dir = add(bl, dir_free)
+      const l1 = lineFrom(tr, trc_dir)
+      const l2 = lineFrom(bl, blc_dir)
+      const br = lineIntersect(l1, l2)
+
+      const filletR = Math.max(0.0, params.filletR)
+      if (!(filletR > 0)) {
+        const pts = [tl, tr, br, bl]
+        return { pts, fillet: null, tl, tr, br, bl }
+      }
+
+      const nt = norm(sub(tr, br))
+      const nl = norm(sub(bl, br))
+      const nm = norm(mul(add(nt, nl), 0.5))
+      const pm = br
+      const lm = lineFrom(pm, add(pm, nm))
+
+      const center = fitFillet(filletR, lm, l1)
+      const trc = closestPointOnLine(l1, center)
+      const blc = closestPointOnLine(l2, center)
+      const t1 = myatan2(center.y - trc.y, center.x - trc.x)
+      const t2 = myatan2(center.y - blc.y, center.x - blc.x)
+
+      let start = t1
+      let end = t2
+      if (end < start) end += 2 * Math.PI
+
+      let startAlt = t2
+      let endAlt = t1
+      if (endAlt < startAlt) endAlt += 2 * Math.PI
+
+      const mid = start + 0.5 * (end - start)
+      const midAlt = startAlt + 0.5 * (endAlt - startAlt)
+
+      const pm = v(center.x - filletR * Math.cos(mid), center.y - filletR * Math.sin(mid))
+      const pmAlt = v(center.x - filletR * Math.cos(midAlt), center.y - filletR * Math.sin(midAlt))
+
+      if (len(sub(pmAlt, br)) < len(sub(pm, br))) {
+        start = startAlt
+        end = endAlt
+      }
+      const steps = 32
+      const arc = []
+      for (let i = 0; i <= steps; i++) {
+        const t = start + (end - start) * (i / steps)
+        arc.push(v(center.x - filletR * Math.cos(t), center.y - filletR * Math.sin(t)))
+      }
+
+      const pts = [tl, tr, trc, ...arc, blc, bl]
+      return { pts, fillet: { center, r: filletR, t1, t2, trc, blc }, tl, tr, br, bl }
+    }
+
+    function toolLow(toolGeom) {
+      if (toolGeom.fillet) return toolGeom.fillet.center.y - toolGeom.fillet.r
+      let y = Number.POSITIVE_INFINITY
+      for (const p of toolGeom.pts) y = Math.min(y, p.y)
+      return y
+    }
+
+    function translateTool(toolGeom, dx, dy) {
+      const pts = toolGeom.pts.map(p => v(p.x + dx, p.y + dy))
+      let fillet = null
+      if (toolGeom.fillet) {
+        const f = toolGeom.fillet
+        fillet = {
+          center: v(f.center.x + dx, f.center.y + dy),
+          r: f.r,
+          t1: f.t1,
+          t2: f.t2,
+          trc: v(f.trc.x + dx, f.trc.y + dy),
+          blc: v(f.blc.x + dx, f.blc.y + dy)
+        }
+      }
+      return { ...toolGeom, pts, fillet,
+        tl: v(toolGeom.tl.x + dx, toolGeom.tl.y + dy),
+        tr: v(toolGeom.tr.x + dx, toolGeom.tr.y + dy),
+        br: v(toolGeom.br.x + dx, toolGeom.br.y + dy),
+        bl: v(toolGeom.bl.x + dx, toolGeom.bl.y + dy)
+      }
+    }
+
+    function rectOverlap(a, b) {
+      return !(a.xmax < b.xmin || a.xmin > b.xmax || a.ymax < b.ymin || a.ymin > b.ymax)
+    }
+
+    function bboxOf(points) {
+      let xmin = Number.POSITIVE_INFINITY, xmax = Number.NEGATIVE_INFINITY
+      let ymin = Number.POSITIVE_INFINITY, ymax = Number.NEGATIVE_INFINITY
+      for (const p of points) {
+        xmin = Math.min(xmin, p.x)
+        xmax = Math.max(xmax, p.x)
+        ymin = Math.min(ymin, p.y)
+        ymax = Math.max(ymax, p.y)
+      }
+      return { xmin, xmax, ymin, ymax }
+    }
+
+    const canvas = document.getElementById("c")
+    const ctx = canvas.getContext("2d")
+
+    function resizeCanvas() {
+      const r = canvas.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.max(1, Math.floor(r.width * dpr))
+      canvas.height = Math.max(1, Math.floor(r.height * dpr))
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+
+    let view = { sx: 220000, sy: -220000, tx: 450, ty: 520 }
+    let dragging = false
+    let last = null
+
+    function worldToScreen(p) {
+      return v(p.x * view.sx + view.tx, p.y * view.sy + view.ty)
+    }
+    function screenToWorld(p) {
+      return v((p.x - view.tx) / view.sx, (p.y - view.ty) / view.sy)
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+      dragging = true
+      last = v(e.clientX, e.clientY)
+    })
+    window.addEventListener("mouseup", () => { dragging = false; last = null })
+    window.addEventListener("mousemove", (e) => {
+      if (!dragging) return
+      const cur = v(e.clientX, e.clientY)
+      const dx = cur.x - last.x
+      const dy = cur.y - last.y
+      view.tx += dx
+      view.ty += dy
+      last = cur
+      draw()
+    })
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const before = screenToWorld(v(mx, my))
+      const z = Math.exp(-e.deltaY * 0.001)
+      view.sx *= z
+      view.sy *= z
+      const after = screenToWorld(v(mx, my))
+      view.tx += (after.x - before.x) * view.sx
+      view.ty += (after.y - before.y) * view.sy
+      draw()
+    }, { passive: false })
+
+    const elRake = document.getElementById("rake")
+    const elClear = document.getElementById("clearance")
+    const elFillet = document.getElementById("fillet")
+    const elXoff = document.getElementById("xoff")
+    const elFeed = document.getElementById("feed")
+    const elAuto = document.getElementById("autofeed")
+    const elStatus = document.getElementById("status")
+    const elReadout = document.getElementById("readout")
+    const btnResetView = document.getElementById("resetView")
+    const btnResetParams = document.getElementById("resetParams")
+
+    function setParams(p) {
+      elRake.value = String(p.rakeDeg)
+      elClear.value = String(p.clearanceDeg)
+      elFillet.value = String(p.filletR)
+      elXoff.value = String(p.xOffsetLeft)
+      elFeed.value = String(p.targetFeed)
+      elAuto.checked = !!p.autoFeed
+    }
+
+    function getParams() {
+      return {
+        rakeDeg: Number(elRake.value),
+        clearanceDeg: Number(elClear.value),
+        filletR: Number(elFillet.value),
+        xOffsetLeft: Number(elXoff.value),
+        targetFeed: Number(elFeed.value),
+        autoFeed: !!elAuto.checked
+      }
+    }
+
+    function resetView() {
+      view = { sx: 220000, sy: -220000, tx: 450, ty: 520 }
+      draw()
+    }
+
+    btnResetView.addEventListener("click", resetView)
+    btnResetParams.addEventListener("click", () => { setParams(defaults); draw() })
+    for (const el of [elRake, elClear, elFillet, elXoff, elFeed, elAuto]) {
+      el.addEventListener("input", () => draw())
+      el.addEventListener("change", () => draw())
+    }
+
+    function drawGrid() {
+      ctx.save()
+      ctx.lineWidth = 1
+      ctx.strokeStyle = "rgba(255,255,255,0.06)"
+      const w = canvas.getBoundingClientRect().width
+      const h = canvas.getBoundingClientRect().height
+      const origin = worldToScreen(v(0, 0))
+      const stepWorld = 1e-4
+      const stepX = Math.abs(stepWorld * view.sx)
+      const stepY = Math.abs(stepWorld * view.sy)
+      if (stepX > 8) {
+        for (let x = origin.x % stepX; x < w; x += stepX) {
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, h)
+          ctx.stroke()
+        }
+      }
+      if (stepY > 8) {
+        for (let y = origin.y % stepY; y < h; y += stepY) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(w, y)
+          ctx.stroke()
+        }
+      }
+      ctx.restore()
+    }
+
+    function drawRectWorld(xmin, ymin, xmax, ymax, stroke, fill) {
+      const p0 = worldToScreen(v(xmin, ymin))
+      const p1 = worldToScreen(v(xmax, ymin))
+      const p2 = worldToScreen(v(xmax, ymax))
+      const p3 = worldToScreen(v(xmin, ymax))
+      ctx.beginPath()
+      ctx.moveTo(p0.x, p0.y)
+      ctx.lineTo(p1.x, p1.y)
+      ctx.lineTo(p2.x, p2.y)
+      ctx.lineTo(p3.x, p3.y)
+      ctx.closePath()
+      if (fill) { ctx.fillStyle = fill; ctx.fill() }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke() }
+    }
+
+    function drawPolylineWorld(points, stroke, fill) {
+      if (points.length < 2) return
+      const p0 = worldToScreen(points[0])
+      ctx.beginPath()
+      ctx.moveTo(p0.x, p0.y)
+      for (let i = 1; i < points.length; i++) {
+        const pi = worldToScreen(points[i])
+        ctx.lineTo(pi.x, pi.y)
+      }
+      ctx.closePath()
+      if (fill) { ctx.fillStyle = fill; ctx.fill() }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke() }
+    }
+
+    function drawPointWorld(p, color, rpx) {
+      const s = worldToScreen(p)
+      ctx.beginPath()
+      ctx.arc(s.x, s.y, rpx, 0, 2 * Math.PI)
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+
+    function draw() {
+      resizeCanvas()
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      drawGrid()
+
+      const params = getParams()
+      let toolGeom = computeTool(params)
+      if (params.autoFeed) {
+        const low = toolLow(toolGeom)
+        const currentFeed = model1.hi_y - low
+        const dy = currentFeed - params.targetFeed
+        toolGeom = translateTool(toolGeom, 0.0, dy)
+      }
+
+      const workRect = { xmin: model1.lo_x, xmax: model1.hi_x, ymin: model1.lo_y, ymax: model1.hi_y }
+      const toolBox = bboxOf(toolGeom.pts)
+      const overlap = rectOverlap(toolBox, workRect)
+
+      drawRectWorld(workRect.xmin, workRect.ymin, workRect.xmax, workRect.ymax, "rgba(90,190,255,0.9)", "rgba(90,190,255,0.08)")
+      drawPolylineWorld(toolGeom.pts, overlap ? "rgba(255,80,80,0.95)" : "rgba(180,255,120,0.95)", overlap ? "rgba(255,80,80,0.12)" : "rgba(180,255,120,0.12)")
+
+      drawPointWorld(toolGeom.tl, "rgba(255,255,255,0.9)", 3)
+      drawPointWorld(toolGeom.tr, "rgba(255,255,255,0.9)", 3)
+      drawPointWorld(toolGeom.bl, "rgba(255,255,255,0.9)", 3)
+
+      const low = toolLow(toolGeom)
+      const currentFeed = model1.hi_y - low
+
+      const ok = !overlap
+      elStatus.innerHTML = `<span class="pill ${ok ? "ok" : "bad"}">${ok ? "No overlap (bbox check)" : "Overlap detected (bbox check)"}</span>`
+
+      elReadout.textContent =
+        `tool_bbox: [${toolBox.xmin.toExponential(6)}, ${toolBox.xmax.toExponential(6)}] x [${toolBox.ymin.toExponential(6)}, ${toolBox.ymax.toExponential(6)}]\n` +
+        `tool_low_y: ${low.toExponential(6)}\n` +
+        `feed (hi_y - tool_low): ${currentFeed.toExponential(6)}\n` +
+        `tl: (${toolGeom.tl.x.toExponential(6)}, ${toolGeom.tl.y.toExponential(6)})`
+    }
+
+    setParams(defaults)
+    window.addEventListener("resize", () => draw())
+    resetView()
+    draw()
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,5 @@
+#ifndef MFREE_STUB_SEC_API_SYS_TIMEB_S_H_
+#define MFREE_STUB_SEC_API_SYS_TIMEB_S_H_
+
+#endif
+

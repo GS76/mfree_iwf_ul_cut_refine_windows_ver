@@ -524,6 +524,14 @@ void body::apply_adaptivity() {
 
 void body::set_fe_tool(fe_tool *tool) { m_fe_tool = tool; }
 
+thermal* body::get_thermal() {
+	return m_thermal;
+}
+
+tool* body::get_tool() {
+	return m_tool;
+}
+
 void body::move_tool() {
 	simulation_time *time = &simulation_time::getInstance();
 	double dt = time->get_dt();

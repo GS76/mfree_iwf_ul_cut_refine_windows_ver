@@ -1,0 +1,227 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstdefinestyle{cpp}{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  stringstyle=\color{teal},
+  commentstyle=\color{gray},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2
+}
+
+\title{Workpiece Convection Boundary Conditions (Thermal Model)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Scope}
+
+This document analyzes and documents all heat transfer \emph{convection} properties currently applied to the \emph{workpiece} in the solver's thermal model.
+
+The implementation is not a face-based ``convection boundary condition'' in the classical FEM sense (top/bottom/left/right). Instead, convection is implemented as a \emph{global particle-wise sink term} applied to \emph{all particles} when enabled.
+
+\section{Summary}
+
+\begin{itemize}
+  \item Number of convection definitions: 1 (global).
+  \item When it is active: cooldown stage only (enabled at the end of cutting if cooldown mode is selected).
+  \item Convection coefficient: default $h = 25.0\ \mathrm{W/m^2/K}$ (CLI override).
+  \item Ambient fluid temperature: $T_\infty = 295.15\ \mathrm{K}$ (hardcoded as $22^\circ\mathrm{C}$).
+  \item Surface assignment: no explicit surface selection; applied to the entire workpiece body (all particles).
+  \item Stabilization: global ramp factor to cap maximum predicted cooling rate.
+\end{itemize}
+
+\section{Implementation}
+
+\subsection{Where convection is computed}
+
+Convection is computed in the thermal module and applied as part of the thermal RHS assembly:
+
+\begin{itemize}
+  \item Convection term: \texttt{src/thermal.cpp} (function \texttt{thermal::apply\_convection}).
+  \item Called from: \texttt{thermal::conduction} after conduction discretization.
+\end{itemize}
+
+\subsection{Activation and configuration}
+
+Convection is enabled at the start of the cooldown phase in the main program (\texttt{src/refine\_cut\_main.cpp}). Relevant CLI inputs:
+
+\begin{itemize}
+  \item \texttt{--cooldown} (enables cooldown stage)
+  \item \texttt{--cooldown-hconv <W/m\^{}2/K>} (sets the convection coefficient; also enables cooldown)
+\end{itemize}
+
+\section{Parameters}
+
+\subsection{Convection parameters}
+
+\begin{itemize}
+  \item Heat transfer coefficient: $h$ in $\mathrm{W/m^2/K}$.
+  \item Ambient fluid temperature: $T_\infty$ in $\mathrm{K}$.
+  \item Optional rate cap: $\mathrm{max\_rate}$ in $\mathrm{K/s}$.
+\end{itemize}
+
+Defaults currently in the program logic:
+
+\begin{itemize}
+  \item $h = 25.0\ \mathrm{W/m^2/K}$ (default; CLI override available).
+  \item $T_\infty = 273.15 + 22.0 = 295.15\ \mathrm{K}$ (hardcoded).
+  \item $\mathrm{max\_rate} = 5.0/60.0\ \mathrm{K/s}$ (cooling-rate cap; hardcoded).
+\end{itemize}
+
+\subsection{Particle geometry proxy used for convection}
+
+The code does not compute actual exposed surface area for the workpiece. It computes an \emph{effective} area-to-volume ratio per particle using:
+
+\begin{equation}
+dV_i = \frac{m_i}{\rho_0(T_i)}
+\end{equation}
+
+\begin{equation}
+\left(\frac{A}{V}\right)_i = \frac{4}{\sqrt{dV_i}}
+\end{equation}
+
+\section{Applied Convection Properties}
+
+\subsection{BC \#1 --- Cooldown convection (global / particle-wise)}
+
+\subsubsection{Identification}
+
+\begin{itemize}
+  \item Name: Cooldown convection (global)
+  \item Enabled by: cooldown stage only
+  \item Implementation: \texttt{thermal::apply\_convection}
+\end{itemize}
+
+\subsubsection{Mathematical form (as coded)}
+
+For each particle $i$:
+
+\begin{equation}
+\beta_i = \frac{h\,(A/V)_i}{\rho_0(T_i)\,c_p(T_i)}
+\end{equation}
+
+\begin{equation}
+\dot{T}_i \mathrel{+}= -r \,\beta_i \,(T_i - T_\infty)
+\end{equation}
+
+where:
+
+\begin{itemize}
+  \item $h$ is the convection coefficient.
+  \item $T_\infty$ is ambient fluid temperature.
+  \item $c_p(T)$ is the material heat capacity.
+  \item $r$ is a global ramp factor applied when a cooling-rate cap is active.
+\end{itemize}
+
+\subsubsection{Cooling-rate ramp (stabilization)}
+
+The solver estimates the maximum predicted convection rate across all particles,
+
+\begin{equation}
+\max_i \left|\beta_i (T_i - T_\infty)\right|
+\end{equation}
+
+and applies:
+
+\begin{equation}
+r=
+\begin{cases}
+1, & \text{if }\mathrm{max\_rate} \le 0 \text{ or } \max_i|\beta_i (T_i - T_\infty)| \le \mathrm{max\_rate}, \\
+\frac{\mathrm{max\_rate}}{\max_i|\beta_i (T_i - T_\infty)|}, & \text{otherwise}.
+\end{cases}
+\end{equation}
+
+\subsubsection{Surface designation and affected area}
+
+\begin{itemize}
+  \item Surface designation: none (no ``top/bottom/side'' mapping).
+  \item Affected region: all workpiece particles (including interior).
+  \item Area model: implicit per particle via $(A/V)_i = 4/\sqrt{dV_i}$.
+\end{itemize}
+
+\subsubsection{Coefficient and ambient temperature}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Property & Value & Source \\
+\midrule
+Convection coefficient $h$ & $25.0\ \mathrm{W/m^2\cdot K}$ (default) & \texttt{refine\_cut\_main.cpp} \\
+Ambient temperature $T_\infty$ & $295.15\ \mathrm{K}$ ($22^\circ\mathrm{C}$) & \texttt{refine\_cut\_main.cpp} \\
+Cooling cap $\mathrm{max\_rate}$ & $0.08333\ \mathrm{K/s}$ ($5^\circ\mathrm{C/min}$) & \texttt{refine\_cut\_main.cpp} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Flow characteristics (velocity/turbulence)}
+
+Not modeled. The code uses a single scalar $h$ without dependence on flow velocity, Reynolds number, turbulence model, or orientation.
+
+\section{Verification Checks}
+
+\subsection{Correct assignment to workpiece surfaces}
+
+The current implementation does not provide surface-based assignment. It applies convection to \emph{all} particles. If the intended operating condition is ``convection only on exposed external boundaries,'' then the current implementation does not match that intent.
+
+\subsection{Missing convection definitions}
+
+\begin{itemize}
+  \item No per-surface convection definitions exist (e.g., separate $h$ for top surface vs sides).
+  \item No mechanism exists to exclude tool-contact regions or fixed boundaries from convection.
+\end{itemize}
+
+\subsection{Duplicate convection definitions}
+
+No duplicates are present. There is a single convection implementation and a single runtime configuration point.
+
+\subsection{Parameter consistency with operating conditions}
+
+\begin{itemize}
+  \item Default $h=25\ \mathrm{W/m^2/K}$ is within typical natural convection orders of magnitude for air, but may be inappropriate for forced convection or coolant flows.
+  \item $T_\infty$ is hardcoded ($22^\circ\mathrm{C}$), which may not match the intended environment without modifying the source.
+\end{itemize}
+
+\section{Findings and Gaps}
+
+\begin{itemize}
+  \item The solver's ``convection'' behaves as a global particle-wise Newton cooling sink.
+  \item There is no explicit surface selection; ``surface area'' is approximated through a per-particle $(A/V)_i$ proxy.
+  \item Convection is not configurable through JSON config; it is enabled and parameterized during cooldown via CLI flags and hardcoded constants.
+\end{itemize}
+
+\subsection{Code snippets (for context)}
+
+\begin{lstlisting}[style=cpp]
+// src/thermal.cpp (apply_convection)
+const double dV = particles[i].m / rho0;
+const double A_over_V = 4.0 / std::sqrt(dV);
+const double beta = m_h_W_m2K * A_over_V / (rho0 * cp);
+particles[i].T_t += -ramp * beta * (Ti - m_T_ambient_K);
+\end{lstlisting}
+
+\begin{lstlisting}[style=cpp]
+// src/refine_cut_main.cpp (cooldown start)
+trml->set_convection(cooldown_hconv_W_m2K, ambient_T_K);
+trml->set_max_cooling_rate(max_rate_K_per_s);
+trml->set_convection_enabled(true);
+\end{lstlisting}
+
+\end{document}
+

@@ -49,97 +49,44 @@
  */
 
 #include "cont_mech.h"
-#include <cstdlib>
-#include <cmath>
-
-namespace {
-double density_floor_for_guards(double rho0) {
-	double rho_floor = 1e-12;
-	if (!std::isfinite(rho0) || rho0 <= 0.)
-		return rho_floor;
-
-	double frac = 0.0;
-	if (const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC")) {
-		char *end = nullptr;
-		double parsed = std::strtod(s, &end);
-		if (end != s && std::isfinite(parsed) && parsed > 0.)
-			frac = parsed;
-	}
-	if (frac > 0.) {
-		double configured_floor = frac * rho0;
-		if (std::isfinite(configured_floor) && configured_floor > rho_floor)
-			rho_floor = configured_floor;
-	}
-	return rho_floor;
-}
-} // namespace
+#include <omp.h>
 
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	const unsigned int n = b.get_num_part();
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = density_floor_for_guards(rho0);
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
-		const double rho = particles[i].rho;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+		const double rho  = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
-		if (!std::isfinite(rho) || rho < rho_min || !std::isfinite(vx_x) || !std::isfinite(vy_y))
-			continue;
 
-		particles[i].rho_t -= rho * (vx_x + vy_y);
+		particles[i].rho_t -= rho*(vx_x + vy_y);
 	}
 }
+
 
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	const unsigned int n = b.get_num_part();
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = density_floor_for_guards(rho0);
-	const double m_min = 1e-18;
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		const double Sxx_x = particles[i].Sxx_x;
 		const double Sxy_y = particles[i].Sxy_y;
 		const double Sxy_x = particles[i].Sxy_x;
 		const double Syy_y = particles[i].Syy_y;
 
 		const double rho = particles[i].rho;
-		const double m = particles[i].m;
-		if (!std::isfinite(Sxx_x) || !std::isfinite(Sxy_y) || !std::isfinite(Sxy_x) || !std::isfinite(Syy_y))
-			continue;
-		if (!std::isfinite(rho) || rho < rho_min || !std::isfinite(m) || m <= m_min)
-			continue;
-		if (!std::isfinite(particles[i].fcx) || !std::isfinite(particles[i].fcy) || !std::isfinite(particles[i].ftx) ||
-			!std::isfinite(particles[i].fty))
-			continue;
 
-		const double inv_rho = 1. / rho;
-		const double inv_m = 1. / m;
-		particles[i].vx_t += inv_rho * (Sxx_x + Sxy_y) + (particles[i].fcx + particles[i].ftx) * inv_m;
-		particles[i].vy_t += inv_rho * (Sxy_x + Syy_y) + (particles[i].fcy + particles[i].fty) * inv_m;
+		particles[i].vx_t += 1./rho*(Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
+		particles[i].vy_t += 1./rho*(Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
 	}
 }
 
 void contmech_advection(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	const unsigned int n = b.get_num_part();
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
-		if (!std::isfinite(particles[i].vx) || !std::isfinite(particles[i].vy))
-			continue;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
 	}
@@ -151,29 +98,17 @@ void do_boundary_conditions(body &b) {
 	// this enforces the fixed boundary conditions
 	// demonstrated in Fig. 10 of the manuscript
 
-	const unsigned int n = b.get_num_part();
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
-		if (particles[i].fixed) {
-			particles[i].x = particles[i].X;
-			particles[i].y = particles[i].Y;
-			particles[i].x_t = 0.;
-			particles[i].y_t = 0.;
-			particles[i].vx = 0.;
-			particles[i].vy = 0.;
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < b.get_num_part(); i++) {
+		if(particles[i].fixed) {
+			particles[i].x    = particles[i].X;
+			particles[i].y    = particles[i].Y;
+			particles[i].x_t  = 0.;
+			particles[i].y_t  = 0.;
+			particles[i].vx   = 0.;
+			particles[i].vy   = 0.;
 			particles[i].vx_t = 0.;
 			particles[i].vy_t = 0.;
-			// Dirichlet thermal BC: fixed boundary particles (bottom row, right column)
-			// represent far-field bulk material and must remain at ambient temperature.
-			// Without this, the PSE heat equation freely advances T each step and the
-			// boundary acts as an insulating wall, creating spurious thermal pockets.
-			// T_init holds the initial/ambient temperature (300 K) set at particle
-			// creation and propagated to refined child particles by copy_dad_to_son.
-			particles[i].T = particles[i].T_init; // hold at ambient temperature
-			particles[i].T_t = 0.;				  // zero rate so next predict step is clean
 		}
 	}
 }

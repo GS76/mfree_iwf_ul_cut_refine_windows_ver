@@ -1,0 +1,5 @@
+- [ ] A CTest test exists that fails if a linear-fit property does not vary with temperature.
+- [ ] Clamp behavior is covered by tests (min/max clamps) and validated at in-range and out-of-range temperatures.
+- [ ] Benchmark material preset is verified: `ρ(T), α(T), k(T), E(T), ν(T), Cp(T)` are spot-checked at multiple temperatures.
+- [ ] Test expectations use explicit temperature units (Kelvin) and tolerances suitable for double precision.
+- [ ] Optional: A CLI mode exists to dump a CSV property table vs. temperature for manual inspection.

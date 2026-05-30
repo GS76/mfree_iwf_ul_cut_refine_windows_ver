@@ -53,14 +53,12 @@
 
 #include "../particle.h"
 #include "../body.h"
-#include "../fe_tool.h"
-#include "../fe_tool.h"
+#include "../tool.h"
 #include "../correctors.h"
 #include "../cont_mech.h"
 #include "../material.h"
 #include "../derivatives.h"
 #include "../plasticity.h"
-#include "../timestep_estimator.h"
 #include "../johnson_cook_Sima_2010.h"
 #include "../logger.h"
 #include "../leap_frog.h"
@@ -69,20 +67,13 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fenv.h>
-#include <chrono>
-#include <filesystem>
-#include <string>
-
-#ifdef _OPENMP
 #include <omp.h>
-#endif
 
 extern logger *global_logger;
 
-body *cutting_ref_mr(unsigned int nbox);
-body *cutting_ref_single_resol(unsigned int nbox);
-body *cutting_ref_multi_resol_apriori(unsigned int nbox);
-body *cutting_ref_multi_resol_dynamic(unsigned int nbox);
-body *cutting_ref_model5_fe_only(unsigned int nbox);
+body* cutting_ref_mr(unsigned int nbox);
+body* cutting_ref_single_resol(unsigned int nbox);
+body* cutting_ref_multi_resol_apriori(unsigned int nbox);
+body* cutting_ref_multi_resol_dynamic(unsigned int nbox);
 
 #endif /* BENCHMARKS_TEST_CUTTINGS_H_ */

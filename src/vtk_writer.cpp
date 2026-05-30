@@ -49,36 +49,56 @@
  */
 
 #include "vtk_writer.h"
+#include "simulation_time.h"
+#include <cstring>
 
-#include "fe_tool.h"
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder) {
+	vtk_writer_write(particles, step, folder, nullptr, nullptr);
+}
 
-#include <cmath>
-#include <cstdio>
+static int vtk_stage_id(const char *stage_label) {
+	if (!stage_label) return 0;
+	if (std::strcmp(stage_label, "cooldown") == 0) return 1;
+	if (std::strcmp(stage_label, "residual-stress-ready") == 0) return 2;
+	return 0;
+}
 
-void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_active_particles, unsigned int step, const char *folder) {
-	char buf[1024];
-	std::snprintf(buf, sizeof(buf), "%s/out_%06d.vtk", folder, step);
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
+	char buf[256];
+	if (frame_label && frame_label[0] != '\0') {
+		sprintf(buf, "%s/%s_%06d.vtk", folder, frame_label, step);
+	} else if (stage_label && stage_label[0] != '\0') {
+		sprintf(buf, "%s/%s_%06d.vtk", folder, stage_label, step);
+	} else {
+		sprintf(buf, "%s/out_%06d.vtk", folder, step);
+	}
 	FILE *fp = fopen(buf, "w+");
-	if (!fp)
-		return;
 
-	unsigned int np = num_active_particles;
-	if (np > particles.size())
-		np = static_cast<unsigned int>(particles.size());
+	unsigned int np = particles.size();
+
+	simulation_time *time = &simulation_time::getInstance();
+	const double t = time->get_time();
+	const int stage = vtk_stage_id(stage_label ? stage_label : frame_label);
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
-	fprintf(fp, "mfree iwf\n");
+	if (frame_label && frame_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", frame_label);
+	} else if (stage_label && stage_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", stage_label);
+	} else {
+		fprintf(fp, "mfree iwf\n");
+	}
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n"); // Particle positions
+	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");		// Particle positions
 	fprintf(fp, "POINTS %d float\n", np);
 	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e %e %e\n", particles[i].x, particles[i].y, 0.);
+		fprintf(fp, "%f %f %f\n", particles[i].x, particles[i].y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "CELLS %d %d\n", np, 2 * np);
+	fprintf(fp, "CELLS %d %d\n", np, 2*np);
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%d %d\n", 1, i);
 	}
@@ -92,21 +112,42 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_a
 
 	fprintf(fp, "POINT_DATA %d\n", np);
 
-	fprintf(fp, "SCALARS density float 1\n"); // Current particle density
+	fprintf(fp, "SCALARS time double 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%e\n", t);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS stage int 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%d\n", stage);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS density float 1\n");		// Current particle density
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].rho);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS temperature float 1\n"); // Particle temperature
+	fprintf(fp, "SCALARS temperature float 1\n");    // Particle temperature
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].T);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS Svm float 1\n"); // Particle Von Mises stress
+	fprintf(fp, "SCALARS pressure float 1\n");
+	fprintf(fp, "LOOKUP_TABLE default\n");
+	for (unsigned int i = 0; i < np; i++) {
+		fprintf(fp, "%f\n", particles[i].p);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS Svm float 1\n");        // Particle Von Mises stress
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		double sxx = particles[i].Sxx - particles[i].p;
@@ -114,62 +155,46 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_a
 		double syy = particles[i].Syy - particles[i].p;
 		double szz = particles[i].Szz - particles[i].p;
 
-		double svm = sqrt(fabs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
+		double svm = sqrt(fabs((sxx*sxx + syy*syy + szz*szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy*sxy)));
 		fprintf(fp, "%f\n", svm);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n"); // Current particle's equivalent plastic strain
+	fprintf(fp, "TENSORS stress float\n");
+	for (unsigned int i = 0; i < np; i++) {
+		const double sxx = particles[i].Sxx - particles[i].p;
+		const double sxy = particles[i].Sxy;
+		const double syy = particles[i].Syy - particles[i].p;
+		const double szz = particles[i].Szz - particles[i].p;
+		fprintf(fp, "%f %f %f\n", sxx, sxy, 0.0);
+		fprintf(fp, "%f %f %f\n", sxy, syy, 0.0);
+		fprintf(fp, "%f %f %f\n", 0.0, 0.0, szz);
+	}
+	fprintf(fp, "\n");
+
+	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n");		// Current particle's equivalent plastic strain
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].eps_pl_equiv);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "VECTORS velocity float\n"); // Particle velocities
+	fprintf(fp, "VECTORS velocity float\n");		// Particle velocities
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].vx, particles[i].vy, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "VECTORS contact_force_n float\n");
+	fprintf(fp, "VECTORS displacement float\n");
 	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e %e %e\n", particles[i].fcx, particles[i].fcy, 0.);
+		fprintf(fp, "%f %f %f\n", particles[i].x - particles[i].X, particles[i].y - particles[i].Y, 0.0);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "VECTORS contact_force_t float\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e %e %e\n", particles[i].ftx, particles[i].fty, 0.);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS contact_pressure float 1\n");
+	fprintf(fp, "SCALARS glob_density_err double 1\n");  // global density error acc. to Feldman 2006
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
-		double Fn = std::sqrt(particles[i].fcx * particles[i].fcx + particles[i].fcy * particles[i].fcy);
-		double p = 0.0;
-		if (Fn > 0.0 && particles[i].m > 0.0 && particles[i].rho > 0.0) {
-			p = Fn * particles[i].rho / particles[i].m;
-		}
-		fprintf(fp, "%e\n", p);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS displacement float 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		double dx = particles[i].x - particles[i].X;
-		double dy = particles[i].y - particles[i].Y;
-		double u = std::sqrt(dx * dx + dy * dy);
-		fprintf(fp, "%e\n", u);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS glob_density_err double 1\n"); // global density error acc. to Feldman 2006
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init) * (particles[i].rho - particles[i].rho_init));
+		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init)*(particles[i].rho - particles[i].rho_init));
 	}
 	fprintf(fp, "\n");
 
@@ -180,151 +205,108 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_a
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS fixed int 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%d\n", particles[i].fixed ? 1 : 0);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS num_neighbors int 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%u\n", particles[i].num_nbh);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS refine_step int 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%u\n", particles[i].refine_step);
-	}
-	fprintf(fp, "\n");
-
-	// Initial (reference-frame) particle positions and temperature.
-	// Written as double to preserve precision for post-processing.
-	// initial_y is the canonical source for chip-classification thresholds;
-	// initial_temperature enables per-particle delta-E without a global T_ref.
-	fprintf(fp, "SCALARS initial_x double 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", particles[i].X);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS initial_y double 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", particles[i].Y);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS initial_temperature double 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", particles[i].T_init);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS T_t float 1\n"); // Temperature rate dT/dt
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%f\n", particles[i].T_t);
-	}
-	fprintf(fp, "\n");
-
 	fclose(fp);
 }
 
-void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder) { vtk_writer_write(tool, step, folder, "fe_tool"); }
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
+	vtk_writer_write(tool, step, folder, nullptr, nullptr);
+}
 
-void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder, const char *filename_prefix) {
-	if (!tool)
-		return;
-	const auto &nodes_tool = tool->nodes_tool_frame();
-	const auto &tris = tool->triangles();
-	if (nodes_tool.empty() || tris.empty())
-		return;
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
+	auto segments = tool->get_segments();
+	if (segments.size() == 0) return;
 
-	char buf[1024];
-	const char *effective_prefix = filename_prefix;
-	if (!effective_prefix || effective_prefix[0] == '\0')
-		effective_prefix = "fe_tool";
-	std::snprintf(buf, sizeof(buf), "%s/%s_%06d.vtk", folder, effective_prefix, step);
+	assert(segments.size() == 4 || segments.size() == 5);
+
+	std::vector<glm::dvec2> outline;
+	if (segments.size() == 4) {
+		outline.push_back(segments[0].left);
+		outline.push_back(segments[0].right);
+		outline.push_back(segments[1].right);
+		outline.push_back(segments[2].right);
+	} else if (segments.size() == 5) {
+		outline.push_back(segments[0].left);
+		outline.push_back(segments[0].right);
+		outline.push_back(segments[1].right);
+
+		if (tool->get_fillet() != 0) {
+			const int num_discr = 20;
+			auto fillet = tool->get_fillet();
+			const double r = fillet->r;
+			const glm::dvec2 c = glm::dvec2(fillet->p.x, fillet->p.y);
+
+			const glm::dvec2 br = segments[1].l.intersect(segments[3].l);
+			const bool br_valid = std::isfinite(br.x) && std::isfinite(br.y);
+
+			double start = fillet->t1;
+			double end = fillet->t2;
+			if (end < start) end += 2.0 * M_PI;
+
+			if (br_valid) {
+				double start_alt = fillet->t2;
+				double end_alt = fillet->t1;
+				if (end_alt < start_alt) end_alt += 2.0 * M_PI;
+
+				const double mid = start + 0.5 * (end - start);
+				const double mid_alt = start_alt + 0.5 * (end_alt - start_alt);
+
+				const glm::dvec2 pm = glm::dvec2(c.x - r * cos(mid), c.y - r * sin(mid));
+				const glm::dvec2 pm_alt = glm::dvec2(c.x - r * cos(mid_alt), c.y - r * sin(mid_alt));
+
+				const double d = glm::length(pm - br);
+				const double d_alt = glm::length(pm_alt - br);
+				if (d_alt < d) {
+					start = start_alt;
+					end = end_alt;
+				}
+			}
+
+			const double d_angle = (end - start) / (num_discr - 1);
+			for (int i = 1; i < num_discr - 1; i++) {
+				const double a = start + i * d_angle;
+				outline.push_back(glm::dvec2(c.x - r * cos(a), c.y - r * sin(a)));
+			}
+		}
+
+		outline.push_back(segments[2].right);
+		outline.push_back(segments[3].right);
+	}
+	if (outline.size() < 3) return;
+
+	char buf[256];
+	if (frame_label && frame_label[0] != '\0') {
+		sprintf(buf, "%s/%s_tool_%06d.vtk", folder, frame_label, step);
+	} else if (stage_label && stage_label[0] != '\0') {
+		sprintf(buf, "%s/%s_tool_%06d.vtk", folder, stage_label, step);
+	} else {
+		sprintf(buf, "%s/tool_%06d.vtk", folder, step);
+	}
 	FILE *fp = fopen(buf, "w+");
-	if (!fp)
-		return;
 
 	fprintf(fp, "# vtk DataFile Version 2.0\n");
-	fprintf(fp, "mfree iwf\n");
+	if (frame_label && frame_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", frame_label);
+	} else if (stage_label && stage_label[0] != '\0') {
+		fprintf(fp, "mfree iwf stage=%s\n", stage_label);
+	} else {
+		fprintf(fp, "mfree iwf\n");
+	}
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");
-
-	fprintf(fp, "POINTS %d float\n", static_cast<int>(nodes_tool.size()));
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		glm::dvec2 pw = tool->node_world(static_cast<unsigned int>(i));
-		if (!std::isfinite(pw.x) || !std::isfinite(pw.y))
-			pw = glm::dvec2(0.);
-		fprintf(fp, "%e %e %e\n", pw.x, pw.y, 0.);
+	fprintf(fp, "DATASET POLYDATA\n");
+	fprintf(fp, "POINTS %d float\n", (int) outline.size());
+	for (const auto& p : outline) {
+		fprintf(fp, "%f %f %f\n", p.x, p.y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "CELLS %d %d\n", static_cast<int>(tris.size()), static_cast<int>(4 * tris.size()));
-	for (std::size_t i = 0; i < tris.size(); i++) {
-		fprintf(fp, "3 %u %u %u\n", tris[i][0], tris[i][1], tris[i][2]);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "CELL_TYPES %d\n", static_cast<int>(tris.size()));
-	for (std::size_t i = 0; i < tris.size(); i++)
-		fprintf(fp, "5\n");
-	fprintf(fp, "\n");
-
-	fprintf(fp, "POINT_DATA %d\n", static_cast<int>(nodes_tool.size()));
-	fprintf(fp, "SCALARS temperature double 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		fprintf(fp, "%e\n", tool->temperature_at_node(static_cast<unsigned int>(i)));
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS power double 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		fprintf(fp, "%e\n", tool->nodal_power(static_cast<unsigned int>(i)));
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "VECTORS nodal_force double\n");
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		glm::dvec2 f = tool->nodal_force(static_cast<unsigned int>(i));
-		fprintf(fp, "%e %e %e\n", f.x, f.y, 0.);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "VECTORS pose_velocity double\n");
-	{
-		glm::dvec2 v = tool->get_vel();
-		for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-			fprintf(fp, "%e %e %e\n", v.x, v.y, 0.);
-		}
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS fixed_ux int 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		fprintf(fp, "%d\n", tool->is_mechanics_fixed_x(static_cast<unsigned int>(i)) ? 1 : 0);
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "SCALARS fixed_uy int 1\n");
-	fprintf(fp, "LOOKUP_TABLE default\n");
-	for (std::size_t i = 0; i < nodes_tool.size(); i++) {
-		fprintf(fp, "%d\n", tool->is_mechanics_fixed_y(static_cast<unsigned int>(i)) ? 1 : 0);
+	fprintf(fp, "POLYGONS 1 %d\n", (int) outline.size() + 1);
+	fprintf(fp, "%d", (int) outline.size());
+	for (int i = 0; i < (int) outline.size(); i++) {
+		fprintf(fp, " %d", i);
 	}
 	fprintf(fp, "\n");
 
 	fclose(fp);
+
 }

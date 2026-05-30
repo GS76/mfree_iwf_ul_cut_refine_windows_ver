@@ -1,0 +1,26 @@
+To-Do List
+
+Test that OpenMPI is implemented correctly to take advantage of all the cores of the processors?
+
+Implement the density, poisson's ratio, specific heat capacity, heat conductivity, modulus of elasticity as  well as linear coefficient of thermal expansion versus temperature, during the coupled simulation.
+
+Implement multiple material models that can be selected at run-time?
+
+Alter the tool insert geometry as required.
+
+Can the structural and thermal properties for the tool be modelled.
+
+How can heat transfer into the tool be modelled?
+
+How can dry air and coolant conditions be modelled, is it via convection?
+
+Can heat transfer via radiation be modelled?
+
+Is the solution being solved as explicit?
+
+Implement a text file type input of all the required input parameters, to eliminate the risk of hard-coding the parameters.
+
+Can tool wear be implemented, would this require the tool to be modelled with SPH as opposed to rigid bodies for the tool?
+
+Can this code be transferred to an Nvidia Cuda GPU implementation?
+

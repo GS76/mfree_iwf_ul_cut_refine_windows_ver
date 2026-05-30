@@ -1,0 +1,7 @@
+- [x] Linear-fit properties evaluate as `m*T + b` and preserve existing modes.
+- [x] Property evaluation clamps to configured physical bounds (no negative `ρ`, `k`, `Cp`, or `E`).
+- [x] `α(T)` is available through physical constants and configurable from the material library.
+- [x] Material library configures `ρ(T)`, `α(T)`, `k(T)`, `E(T)`, `ν(T)`, `Cp(T)` with the provided equations.
+- [x] Thermal conduction uses `ρ(T)`, `k(T)`, `Cp(T)` at current particle temperature.
+- [x] Structural update uses `E(T)` and `ν(T)` at current particle temperature.
+- [x] Tests added/updated and passing for the new behavior.

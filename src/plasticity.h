@@ -75,6 +75,7 @@ class plasticity {
 	double m_tol = 1e-6;
 	johnson_cook_Sima_2010 *m_plasticity_model = 0;
 	bool m_consider_dissipation = true;
+	bool m_solver_failed = false;
 	void print_debug(const std::vector<particle> &particles, unsigned int num_part, unsigned int fail_idx);
 	double do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
 
@@ -86,6 +87,7 @@ class plasticity {
 	void set_dissipation_considered(bool consider);
 	plasticity(johnson_cook_Sima_2010 *plasticity_model);
 	plasticity();
+	bool solver_failed() const { return m_solver_failed; }
 };
 
 #endif /* PLASTICITY_H_ */

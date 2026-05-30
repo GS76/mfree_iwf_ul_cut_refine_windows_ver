@@ -52,20 +52,19 @@
 #define VTK_WRITER_H_
 
 #include "particle.h"
-#include "fe_tool.h"
+#include "tool.h"
 
 #include <stdio.h>
 #include <math.h>
 #include <vector>
 
-class fe_tool;
-
 // output to vtk legacy format
 // please see: https://www.google.com/search?q=paraview
 
-void vtk_writer_write(const std::vector<particle> &particles, unsigned int num_active_particles, unsigned int step,
-					  const char *folder = "results");
-void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder);
-void vtk_writer_write(const fe_tool *tool, unsigned int step, const char *folder, const char *filename_prefix);
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder = "results");
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label, const char *frame_label);
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder);
+void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label);
 
 #endif /* VTK_WRITER_H_ */
+

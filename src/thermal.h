@@ -53,7 +53,7 @@
 
 #include <math.h>
 #include <assert.h>
-#include "glm/glm.hpp"
+#include <glm/glm.hpp>
 
 #include "grid.h"
 #include "kernel.h"
@@ -62,28 +62,29 @@
 
 /*
  This implements heat conduction using either of the desired methods:
-	 1- the particle strength exchange (PSE) method.
-	 2- the Brookshaw-SPH method.
+ 	 1- the particle strength exchange (PSE) method.
+ 	 2- the Brookshaw-SPH method.
 
-	 > both schemes discretize the heat equation in a Finite-Difference like approach.
-	 > both schemes are energy conservative. (anti-symmetric form)
-	 > both schemes are numerically efficient and capable of handling adiabatic boundary condition without dummy particles.
+ 	 > both schemes discretize the heat equation in a Finite-Difference like approach.
+ 	 > both schemes are energy conservative. (anti-symmetric form)
+ 	 > both schemes are numerically efficient and capable of handling adiabatic boundary condition without dummy particles.
 
-	 For further details, please refer to the following publications:
+ 	 For further details, please refer to the following publications:
 
-	 1- "A general deterministic treatment of derivatives in particle methods."
-			By: J. Eldredge et al.
-			Journal of Computational Physics 180.2 (2002): 686-709.
+ 	 1- "A general deterministic treatment of derivatives in particle methods."
+ 	    	By: J. Eldredge et al.
+ 	    	Journal of Computational Physics 180.2 (2002): 686-709.
 
-	 2- "A method of calculating radiative heat diffusion in particle simulations”
-			 By: L. Brookshaw
-			 Proceedings of the Astronomical Society of Australia, vol. 6, pp. 207–210, 1985"
+ 	 2- "A method of calculating radiative heat diffusion in particle simulations”
+ 	 	 	 By: L. Brookshaw
+ 	 	     Proceedings of the Astronomical Society of Australia, vol. 6, pp. 207–210, 1985"
 */
+
 
 class body;
 
 class thermal {
-  public:
+public:
 	enum thermal_solver {
 		thermal_pse,
 		thermal_brookshaw,
@@ -91,14 +92,26 @@ class thermal {
 
 	void set_method(thermal_solver solver);
 	void conduction(body &body) const;
+	void set_convection(double h_W_m2K, double T_ambient_K);
+	void set_convection_enabled(bool enabled);
+	void set_max_cooling_rate(double max_rate_K_per_s);
+	double last_max_abs_rate_K_per_s() const;
+	double last_convection_ramp() const;
 	thermal(physical_constants pc);
 
-  private:
-	double m_alpha = 0.;
+private:
 	thermal_solver m_thermal_solver = thermal_pse;
+	double m_h_W_m2K = 0.0;
+	double m_T_ambient_K = 295.15;
+	double m_max_rate_K_per_s = 0.0;
+	bool m_convection_enabled = false;
+	mutable double m_last_max_abs_rate_K_per_s = 0.0;
+	mutable double m_last_convection_ramp = 1.0;
 
 	void heat_conduction_pse(body &b) const;
 	void heat_conduction_brookshaw(body &b) const;
+	void apply_convection(body &b) const;
+	void enforce_rate_limit(body &b) const;
 };
 
 #endif /* THERMAL_H_ */

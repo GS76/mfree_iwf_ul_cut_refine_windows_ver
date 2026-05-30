@@ -49,76 +49,16 @@
  */
 
 #include "derivatives.h"
-
-#include <algorithm>
-#include <cstdlib>
-#include <cmath>
-
-namespace {
-double mixed_level_artificial_stress_scale() {
-	static const double scale = []() {
-		double value = 0.20;
-		if (const char *env = std::getenv("MFREE_ART_STRESS_MIXED_LEVEL_SCALE")) {
-			char *end = nullptr;
-			double parsed = std::strtod(env, &end);
-			if (end != env && std::isfinite(parsed))
-				value = parsed;
-		}
-		return std::max(0., std::min(1., value));
-	}();
-	return scale;
-}
-
-double monaghan_reference_kernel(double h, double hdx, double fallback) {
-	if (!(hdx > 0.) || !std::isfinite(h) || h <= 0.)
-		return fallback;
-	const kernel_result w_ref = cubic_spline(0., 0., h / hdx, 0., h);
-	if (!std::isfinite(w_ref.w) || w_ref.w <= 0.)
-		return fallback;
-	return w_ref.w;
-}
-
-double density_floor_for_guards(double rho0) {
-	double rho_floor = 1e-12;
-	if (!std::isfinite(rho0) || rho0 <= 0.)
-		return rho_floor;
-
-	double frac = 0.0;
-	if (const char *s = std::getenv("MFREE_DENSITY_FLOOR_FRAC")) {
-		char *end = nullptr;
-		double parsed = std::strtod(s, &end);
-		if (end != s && std::isfinite(parsed) && parsed > 0.)
-			frac = parsed;
-	}
-	if (frac > 0.) {
-		double configured_floor = frac * rho0;
-		if (std::isfinite(configured_floor) && configured_floor > rho_floor)
-			rho_floor = configured_floor;
-	}
-	return rho_floor;
-}
-} // namespace
+#include <omp.h>
 
 void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = density_floor_for_guards(rho0);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < n; i++) {
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
-		if (!std::isfinite(vxi) || !std::isfinite(vyi)) {
-			particles[i].vx_x = 0.;
-			particles[i].vx_y = 0.;
-			particles[i].vy_x = 0.;
-			particles[i].vy_y = 0.;
-			continue;
-		}
 
 		double vx_x = 0.;
 		double vx_y = 0.;
@@ -128,26 +68,16 @@ void derive_velocity(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
-			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
-				continue;
 
 			double vxj = particles[jdx].vx;
 			double vyj = particles[jdx].vy;
-			if (!std::isfinite(vxj) || !std::isfinite(vyj))
-				continue;
 
-			const double mj = particles[jdx].m;
-			const double rhoj = particles[jdx].rho;
-			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
-				continue;
-			double quad_weight = mj / rhoj;
-			if (!std::isfinite(quad_weight))
-				continue;
+			double quad_weight = particles[jdx].m/particles[jdx].rho;
 
-			vx_x += (vxj - vxi) * w.w_x * quad_weight;
-			vx_y += (vxj - vxi) * w.w_y * quad_weight;
-			vy_x += (vyj - vyi) * w.w_x * quad_weight;
-			vy_y += (vyj - vyi) * w.w_y * quad_weight;
+			vx_x += (vxj-vxi)*w.w_x*quad_weight;
+			vx_y += (vxj-vxi)*w.w_y*quad_weight;
+			vy_x += (vyj-vyi)*w.w_x*quad_weight;
+			vy_y += (vyj-vyi)*w.w_y*quad_weight;
 		}
 
 		particles[i].vx_x = vx_x;
@@ -158,21 +88,14 @@ void derive_velocity(body &b) {
 }
 
 void derive_stress_monaghan(body &b) {
-	const double wdeltap_global = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
-	const double hdx = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_hdx();
+	const double wdeltap  = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
 	const unsigned int corr_exp = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_corr_exp();
-	const double mixed_level_scale = mixed_level_artificial_stress_scale();
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
-	const double rho0 = b.get_sim_data().get_physical_constants().rho0();
-	const double rho_min = density_floor_for_guards(rho0);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-	for (int ii = 0; ii < static_cast<int>(n); ii++) {
-		const unsigned int i = static_cast<unsigned int>(ii);
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < n; i++) {
 		double Sxxi = particles[i].Sxx - particles[i].p;
 		double Sxyi = particles[i].Sxy;
 		double Syyi = particles[i].Syy - particles[i].p;
@@ -182,19 +105,7 @@ void derive_stress_monaghan(body &b) {
 		double Ryyi = particles[i].Ryy;
 
 		double rhoi = particles[i].rho;
-		if (!std::isfinite(Sxxi) || !std::isfinite(Sxyi) || !std::isfinite(Syyi) || !std::isfinite(Rxxi) || !std::isfinite(Rxyi) ||
-			!std::isfinite(Ryyi) || !std::isfinite(rhoi) || rhoi < rho_min || !std::isfinite(particles[i].h) || particles[i].h <= 0.) {
-			particles[i].Sxx_x = 0.;
-			particles[i].Sxy_y = 0.;
-			particles[i].Sxy_x = 0.;
-			particles[i].Syy_y = 0.;
-			continue;
-		}
-		double rhoi21 = 1. / (rhoi * rhoi);
-
-		// Per-particle reference kernel value: W(h_i / hdx, h_i). This keeps the Monaghan artificial-stress
-		// correction normalized at each particle's own equilibrium spacing.
-		const double wdeltap_i = monaghan_reference_kernel(particles[i].h, hdx, wdeltap_global);
+		double rhoi21 = 1./(rhoi*rhoi);
 
 		double Sxx_x = 0.;
 		double Sxy_y = 0.;
@@ -204,83 +115,45 @@ void derive_stress_monaghan(body &b) {
 		for (unsigned int j = 0; j < particles[i].num_nbh; j++) {
 			unsigned int jdx = particles[i].nbh[j];
 			kernel_result w = particles[i].w[j];
-			if (!std::isfinite(w.w) || !std::isfinite(w.w_x) || !std::isfinite(w.w_y))
-				continue;
 
 			double Sxxj = particles[jdx].Sxx - particles[jdx].p;
 			double Sxyj = particles[jdx].Sxy;
 			double Syyj = particles[jdx].Syy - particles[jdx].p;
-			if (!std::isfinite(Sxxj) || !std::isfinite(Sxyj) || !std::isfinite(Syyj))
-				continue;
 
 			double Rxxj = particles[jdx].Rxx;
 			double Rxyj = particles[jdx].Rxy;
 			double Ryyj = particles[jdx].Ryy;
-			if (!std::isfinite(Rxxj) || !std::isfinite(Rxyj) || !std::isfinite(Ryyj))
-				continue;
 
-			double mj = particles[jdx].m;
-			double rhoj = particles[jdx].rho;
-			if (!std::isfinite(mj) || !std::isfinite(rhoj) || rhoj < rho_min)
-				continue;
-			double rhoj21 = 1. / (rhoj * rhoj);
-			if (!std::isfinite(rhoj21))
-				continue;
+			double mj     = particles[jdx].m;
+			double rhoj21 = 1./(particles[jdx].rho*particles[jdx].rho);
 
 			double Rxx = 0;
 			double Rxy = 0.;
 			double Ryy = 0.;
 
-			// Same-resolution pairs retain full tensile-instability protection. Mixed
-			// refined<->coarse pairs use a symmetric kernel-ratio blend so interface
-			// stabilization is present on both sides rather than being dominated by the
-			// observer particle's smoothing length.
-			const bool same_level = particles[i].refine_step == particles[jdx].refine_step;
-			if (wdeltap_i > 0. && particles[i].idx != particles[jdx].idx && (same_level || mixed_level_scale > 0.)) {
-				double fab_i = w.w / wdeltap_i;
-				if (!std::isfinite(fab_i) || fab_i <= 0.)
-					continue;
-
-				double fab = fab_i;
-				if (!same_level) {
-					const double hj = particles[jdx].h;
-					const double wdeltap_j = monaghan_reference_kernel(hj, hdx, wdeltap_global);
-					if (wdeltap_j <= 0.)
-						continue;
-
-					const kernel_result wji = cubic_spline(particles[jdx].x, particles[jdx].y, particles[i].x, particles[i].y, hj);
-					const double fab_j = wji.w / wdeltap_j;
-					if (!std::isfinite(fab_j) || fab_j <= 0.)
-						continue;
-
-					// Symmetric mixed-level normalization damps directional bias at the
-					// coarse/fine interface and reduces visible interface cracking.
-					fab = 0.5 * (fab_i + fab_j);
-				}
-
-				//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
+			if (wdeltap > 0 && particles[i].idx != particles[jdx].idx) {
+				double fab = w.w/wdeltap;
+//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
 				for (unsigned int powi = 0; powi < corr_exp; powi++) {
-					t = t * fab;
+					t = t*fab;
 				}
 				fab = t;
-				if (!same_level)
-					fab *= mixed_level_scale;
 
-				Rxx = fab * (Rxxi + Rxxj);
-				Rxy = fab * (Rxyi + Rxyj);
-				Ryy = fab * (Ryyi + Ryyj);
+				Rxx = fab*(Rxxi + Rxxj);
+				Rxy = fab*(Rxyi + Rxyj);
+				Ryy = fab*(Ryyi + Ryyj);
 			}
 
-			Sxx_x += mj * (Sxxi * rhoi21 + Sxxj * rhoj21 + Rxx) * w.w_x;
-			Sxy_y += mj * (Sxyi * rhoi21 + Sxyj * rhoj21 + Rxy) * w.w_y;
-			Sxy_x += mj * (Sxyi * rhoi21 + Sxyj * rhoj21 + Rxy) * w.w_x;
-			Syy_y += mj * (Syyi * rhoi21 + Syyj * rhoj21 + Ryy) * w.w_y;
+			Sxx_x += mj*(Sxxi*rhoi21 + Sxxj*rhoj21 + Rxx)*w.w_x;
+			Sxy_y += mj*(Sxyi*rhoi21 + Sxyj*rhoj21 + Rxy)*w.w_y;
+			Sxy_x += mj*(Sxyi*rhoi21 + Sxyj*rhoj21 + Rxy)*w.w_x;
+			Syy_y += mj*(Syyi*rhoi21 + Syyj*rhoj21 + Ryy)*w.w_y;
 		}
 
-		particles[i].Sxx_x = Sxx_x * rhoi;
-		particles[i].Sxy_y = Sxy_y * rhoi;
-		particles[i].Sxy_x = Sxy_x * rhoi;
-		particles[i].Syy_y = Syy_y * rhoi;
+		particles[i].Sxx_x = Sxx_x*rhoi;
+		particles[i].Sxy_y = Sxy_y*rhoi;
+		particles[i].Sxy_x = Sxy_x*rhoi;
+		particles[i].Syy_y = Syy_y*rhoi;
 	}
 }

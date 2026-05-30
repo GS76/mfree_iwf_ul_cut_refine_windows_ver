@@ -52,7 +52,7 @@
 #define TEST_BENCHES_H_
 
 #include "../logger.h"
-#include "../fe_tool.h"
+#include "../tool.h"
 #include "../body.h"
 #include "../johnson_cook_Sima_2010.h"
 #include "../plasticity.h"
@@ -62,13 +62,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <fenv.h>
-#include <chrono>
-#include <filesystem>
-#include <string>
-
-#ifdef _OPENMP
 #include <omp.h>
-#endif
 
 extern logger *global_logger;
 class body;
