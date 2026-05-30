@@ -51,12 +51,14 @@
 #include "fe_tool.h"
 #include "contact.h"
 #include "simulation_time.h"
+#include "body.h"
 
 #include "benchmarks/material_library.h"
 
 #include "cmath"
 #include "cstdlib"
 #include "cstdio"
+#include "cassert"
 #include "vector"
 #include "particle.h"
 #include "adaptivity.h"
@@ -121,6 +123,47 @@ static fe_tool make_rect_tool_mesh(double L, double H, unsigned int nx, unsigned
 	return ft;
 }
 
+// Barycentric interpolation of temperature at point (x,y) in tool frame
+static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
+	const auto &nodes = ft.nodes_tool_frame();
+	const auto &tris = ft.triangles();
+
+	for (const auto &tri : tris) {
+		unsigned int i0 = tri[0], i1 = tri[1], i2 = tri[2];
+		if (i0 >= nodes.size() || i1 >= nodes.size() || i2 >= nodes.size()) continue;
+
+		const glm::dvec2 &a = nodes[i0];
+		const glm::dvec2 &b = nodes[i1];
+		const glm::dvec2 &c = nodes[i2];
+
+		// Compute barycentric coordinates
+		double denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+		if (denom == 0.0) continue;
+
+		double w0 = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
+		double w1 = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
+		double w2 = 1.0 - w0 - w1;
+
+		// Check if point is inside or on triangle
+		if (w0 >= -1e-12 && w1 >= -1e-12 && w2 >= -1e-12) {
+			return w0 * ft.temperature_at_node(i0) +
+			       w1 * ft.temperature_at_node(i1) +
+			       w2 * ft.temperature_at_node(i2);
+		}
+	}
+	// Fallback: return temperature of nearest node
+	unsigned int best = 0;
+	double best_d2 = 1e300;
+	for (unsigned int i = 0; i < nodes.size(); i++) {
+		double d2 = glm::dot(nodes[i] - p, nodes[i] - p);
+		if (d2 < best_d2) {
+			best_d2 = d2;
+			best = i;
+		}
+	}
+	return ft.temperature_at_node(best);
+}
+
 static double analytic_dirichlet_neumann(double x, double t, double L, double alpha, double Ts) {
 	double sum = 0.;
 	for (int n = 0; n < 200; n++) {
@@ -144,32 +187,20 @@ static bool test_tool_1d_conduction() {
 	ft.set_pose(glm::dvec2(0.), glm::dvec2(0.));
 	ft.set_initial_temperature(0.0);
 
-	fe_tool::convection_bc left;
-	left.h = 0.0;
-	left.T_inf = 100.0;
-	ft.set_dirichlet_on_physical(1, left.T_inf);
+	ft.set_dirichlet_on_physical(1, 100.0);
 
 	const double alpha = mat.k / (mat.rho * mat.cp);
 	const double t_final = 0.002;
 	const double dt = 1.0e-7;
+	double dt_crit = ft.thermal_dt_crit();
+	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
 	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
 
-	unsigned int best = 0;
-	double best_d2 = 1e300;
+	// Sample temperature at center point using barycentric interpolation
 	glm::dvec2 target(0.005, 0.0005);
-	const auto &nodes = ft.nodes_tool_frame();
-	for (unsigned int i = 0; i < nodes.size(); i++) {
-		glm::dvec2 d = nodes[i] - target;
-		double d2 = glm::dot(d, d);
-		if (d2 < best_d2) {
-			best_d2 = d2;
-			best = i;
-		}
-	}
-
-	double T_num = ft.temperature_at_node(best);
-	double T_ref = analytic_dirichlet_neumann(nodes[best].x, t_final, L, alpha, left.T_inf);
+	double T_num = interpolate_temperature_at(ft, target);
+	double T_ref = analytic_dirichlet_neumann(target.x, t_final, L, alpha, 100.0);
 	double rel = std::abs(T_num - T_ref) / std::max(1e-12, std::abs(T_ref));
 	std::printf("tool_1d rel=%e T_num=%g T_ref=%g\n", rel, T_num, T_ref);
 	return rel <= 0.05;
@@ -190,7 +221,7 @@ static bool test_frictional_heating_partition() {
 	p.T = 300.0;
 
 	body b(&p, 1, sim_data);
-	particle &pp = b.get_particles()[0];
+	particle *pp = &b.get_particles()[0];
 
 	fe_tool ft = make_rect_tool_mesh(1.0, 1.0, 3, 3, 1, 2, 3);
 	fe_tool::thermal_material mat;
@@ -207,12 +238,12 @@ static bool test_frictional_heating_partition() {
 	time->set_dt(1.0e-3);
 	time->set_t_final(1.0e-3);
 
-	pp.T_t = 0.;
+	pp->T_t = 0.;
 	b.apply_contact();
-	std::printf("inside=%g\n", ft.inside(glm::dvec2(pp.x, pp.y)));
+	std::printf("inside=%g\n", ft.inside(glm::dvec2(pp->x, pp->y)));
 
-	glm::dvec2 F_t(pp.ftx, pp.fty);
-	glm::dvec2 F_n(pp.fcx, pp.fcy);
+	glm::dvec2 F_t(pp->ftx, pp->fty);
+	glm::dvec2 F_n(pp->fcx, pp->fcy);
 	double Fn = glm::length(F_n);
 	if (Fn <= 0.) {
 		std::printf("friction Fn=%g\n", Fn);
@@ -220,14 +251,23 @@ static bool test_frictional_heating_partition() {
 	}
 
 	glm::dvec2 n = glm::normalize(F_n);
-	glm::dvec2 v_rel(pp.vx, pp.vy);
+	glm::dvec2 v_rel(pp->vx, pp->vy);
 	glm::dvec2 vt = v_rel - glm::dot(v_rel, n) * n;
 	double slip = glm::length(vt);
 	double P_fric = glm::length(F_t) * slip;
+	if (P_fric <= 0.0) {
+		std::printf("friction P_fric=%g (no slip or no friction force)\n", P_fric);
+		return false;
+	}
 
-	double dE_p = pp.m * pc.tc().cp() * (time->get_dt() * pp.T_t);
-	double ratio = dE_p / (0.8 * P_fric * time->get_dt());
-	std::printf("friction ratio=%g P_fric=%g dE_p=%g\n", ratio, P_fric, dE_p);
+	double dE_p = pp->m * pc.tc().cp() * (time->get_dt() * pp->T_t);
+	double frac_wp = ft.get_contact_energy_balance().frac_workpiece;
+	if (frac_wp <= 0.0) {
+		std::printf("friction frac_workpiece=%g (no heat partition to workpiece)\n", frac_wp);
+		return false;
+	}
+	double ratio = dE_p / (frac_wp * P_fric * time->get_dt());
+	std::printf("friction ratio=%g P_fric=%g dE_p=%g frac_wp=%g\n", ratio, P_fric, dE_p, frac_wp);
 	return std::abs(ratio - 1.0) <= 0.1;
 }
 
@@ -257,6 +297,8 @@ static bool test_convection_lumped() {
 
 	double t_final = 0.05;
 	double dt = 1.0e-4;
+	double dt_crit = ft.thermal_dt_crit();
+	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
 	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
 
