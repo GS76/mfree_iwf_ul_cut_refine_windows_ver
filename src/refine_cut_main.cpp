@@ -185,7 +185,7 @@ int main(int argc, char *argv[]) {
 	int nx = 31;
 	if (!use_config) {
 		assert(model >= 1);
-		assert(model <= 4);
+		assert(model <= 5);
 	}
 
 	/*
@@ -212,11 +212,15 @@ int main(int argc, char *argv[]) {
 			nx = 61;
 			b = cutting_ref_multi_resol_dynamic(nx);
 			break;
-		case 4:
-			nx = 61;
-			b = cutting_ref_single_resol(nx);
-			break;
-		}
+	case 4:
+		nx = 61;
+		b = cutting_ref_single_resol(nx);
+		break;
+	case 5:
+		nx = 61;
+		b = cutting_ref_multi_resol_dynamic(nx);
+		break;
+	}
 	}
 
 	/*

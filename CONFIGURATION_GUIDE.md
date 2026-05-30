@@ -19,6 +19,7 @@ The simulation executable accepts a single argument to select the benchmark mode
     *   `2`: Dynamic multi-resolution (Adaptive).
     *   `3`: A-priori multi-resolution (Static refinement).
     *   `4`: Same as 1.
+    *   `5`: Dynamic multi-resolution with deformable FE tool.
 *   **Default**: `1`
 *   **Example**: `.\build\Release\mfree_iwf.exe -m 2`
 
