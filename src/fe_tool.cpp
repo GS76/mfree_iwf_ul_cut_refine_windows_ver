@@ -61,8 +61,6 @@
 #include <limits>
 #include <sstream>
 
-static bool starts_with(const std::string &s, const char *prefix) { return s.rfind(prefix, 0) == 0; }
-
 static double tri_area2(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dvec2 &c) {
 	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 }
