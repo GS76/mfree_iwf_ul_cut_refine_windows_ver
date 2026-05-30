@@ -76,13 +76,13 @@
 
 class leap_frog {
 
-private:
+  private:
 	std::vector<particle> m_init;
 	void init(body &b);
 	void predict(body &b) const;
 	void correct(body &b) const;
 
-public:
+  public:
 	void step(body &b);
 	leap_frog(unsigned int num_part);
 };

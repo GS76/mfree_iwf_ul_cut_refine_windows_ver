@@ -51,7 +51,8 @@
 #include "contact.h"
 #include <omp.h>
 
-static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms, double dt) {
+static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_depth, glm::dvec2 surf_norm, double alpha, double ms,
+												double dt) {
 	// friction force according to
 	// "3D adaptive RKPM method for contact problems with elastic???plastic dynamic
 	// large deformation" - Nianfei, Guangyao, Shuyao
@@ -59,25 +60,27 @@ static glm::dvec2 compute_contact_force_nianfei(const tool *master, double pen_d
 	const glm::dvec2 n = surf_norm;
 	const double gN = pen_depth;
 
-	double dt2 = dt*dt;
-	glm::dvec2 fN = -ms*gN*n/dt2*alpha;
+	double dt2 = dt * dt;
+	glm::dvec2 fN = -ms * gN * n / dt2 * alpha;
 
 	return fN;
 }
 
-static glm::dvec2 compute_friction_ldyna(const tool *master, glm::dvec2 fN, glm::dvec2 n, glm::dvec2 vs, glm::dvec2 fricold, double alpha, double ms, double dt, double mu) {
-	if (mu == 0.) return glm::dvec2(0.);
+static glm::dvec2 compute_friction_ldyna(const tool *master, glm::dvec2 fN, glm::dvec2 n, glm::dvec2 vs, glm::dvec2 fricold, double alpha,
+										 double ms, double dt, double mu) {
+	if (mu == 0.)
+		return glm::dvec2(0.);
 
 	glm::dvec2 vm = master->get_vel();
-	glm::dvec2 v = vs-vm;
-	glm::dvec2 vr = v - v*n;
+	glm::dvec2 v = vs - vm;
+	glm::dvec2 vr = v - v * n;
 
-	glm::dvec2 kdeltae = alpha*ms*vr/dt;
-	double fy = mu*glm::length(fN);
+	glm::dvec2 kdeltae = alpha * ms * vr / dt;
+	double fy = mu * glm::length(fN);
 	glm::dvec2 fstar = fricold - kdeltae;
 
 	if (glm::length(fstar) > fy) {
-		return fy*fstar/glm::length(fstar);
+		return fy * fstar / glm::length(fstar);
 	} else {
 		return fstar;
 	}
@@ -91,7 +94,7 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
 
 	const double alpha = 0.1;
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < slave.get_num_part(); i++) {
 
 		double qx = particles[i].x;
@@ -117,10 +120,10 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
 			continue;
 		}
 
-		double pen_depth = glm::dot((xslave-xcntct), surf_norm);
+		double pen_depth = glm::dot((xslave - xcntct), surf_norm);
 		glm::dvec2 fricold(particles[i].ftx, particles[i].fty);
 
-		double ms   = particles[i].m;
+		double ms = particles[i].m;
 
 		glm::dvec2 vs(particles[i].vx, particles[i].vy);
 
@@ -134,5 +137,4 @@ void contact_apply_tool_to_body_2d(const tool *master, body &slave) {
 		particles[i].ftx = fric.x;
 		particles[i].fty = fric.y;
 	}
-
 }

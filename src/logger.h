@@ -61,7 +61,7 @@
   Logging for visualization purposes
   ------------------------------------------------
   The logger file supports:
-    1. simple text representation of tool
+	1. simple text representation of tool
 	2. forces on tool
 	3. textual "vtk" files for particle attributes
   ------------------------------------------------
@@ -69,9 +69,9 @@
 
 class logger {
 
-private:
-	bool m_log_forces  = true;
-	bool m_emit_vtk    = true;
+  private:
+	bool m_log_forces = true;
+	bool m_emit_vtk = true;
 
 	tool *m_t = 0;
 	FILE *m_fp_forces = 0;
@@ -81,7 +81,7 @@ private:
 	char m_case_name[256] = "case";
 	char m_stage[64] = "";
 
-public:
+  public:
 	logger(const char *case_name, const char *foldername = "results");
 	void close();
 
@@ -89,8 +89,8 @@ public:
 	void set_log_forces(bool log_forces);
 	void set_log_vtk(bool log_vtk);
 	void add_tracer_particle(unsigned int tracer_idx);
-	void set_folder(const char* folder);
-	void set_stage(const char* stage);
+	void set_folder(const char *folder);
+	void set_stage(const char *stage);
 
 	void log(const body &body, unsigned int step);
 };

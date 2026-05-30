@@ -50,36 +50,39 @@
 
 #include "test_cuttings.h"
 
- body *cutting_ref_mr(unsigned int ny) {
+body *cutting_ref_mr(unsigned int ny) {
 	physical_constants physical_constants = matlib_tial6v4_Sima_tanh2010_cm_musec_g();
 
-	double speed = 83.333328*1e-5;
+	double speed = 83.333328 * 1e-5;
 	double mu_fric = 0.35;
 
-	double hi_x = 0.100; double hi_y =  0.060;
-	double lo_x = 0.000; double lo_y =  0.030;
+	double hi_x = 0.100;
+	double hi_y = 0.060;
+	double lo_x = 0.000;
+	double lo_y = 0.030;
 
-	double dy = (hi_y-lo_y)/(ny-1);
+	double dy = (hi_y - lo_y) / (ny - 1);
 	double dx = dy;
-	unsigned int nx = (hi_x-lo_x)/dx;
+	unsigned int nx = (hi_x - lo_x) / dx;
 	double hdx = 1.5;
 
 	double c0 = physical_constants.c0();
-	double dt = 0.1*dx*hdx/(speed + c0);
-	double t_final =  0.1/speed*0.5; // 1mm of cut
+	double dt = 0.1 * dx * hdx / (speed + c0);
+	double t_final = 0.1 / speed * 0.5; // 1mm of cut
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	printf("using timestep %e with %d particles\n", dt, nx*ny);
+	printf("using timestep %e with %d particles\n", dt, nx * ny);
 
-	particle *particles = new particle[nx*ny];
+	particle *particles = new particle[nx * ny];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
 		for (unsigned int j = 0; j < ny; j++) {
-			double px = i*dx; double py = j*dx;
+			double px = i * dx;
+			double py = j * dx;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = px + lo_x;
@@ -95,32 +98,32 @@
 	double rho0 = physical_constants.rho0();
 	double T0 = physical_constants.jc().Tref();
 
-	unsigned int n = nx*ny;
+	unsigned int n = nx * ny;
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].T = T0;
 		particles[i].T_init = T0;
 
 		// fix bottom
-		particles[i].fixed = (particles[i].y < lo_y + 0.5*dy) ? true : false;
+		particles[i].fixed = (particles[i].y < lo_y + 0.5 * dy) ? true : false;
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(physical_constants, correction_constants);
@@ -136,14 +139,14 @@
 
 	double nudge = -0.001;
 
-	glm::dvec2 tl(-0.05      + nudge, 0.0986074);
+	glm::dvec2 tl(-0.05 + nudge, 0.0986074);
 	glm::dvec2 tr(-0.0086824 + nudge, 0.0986074);
-	glm::dvec2 br(-0.0000    + nudge, 0.0486);
-	glm::dvec2 bl(-0.05      + nudge, 0.0555074);
+	glm::dvec2 br(-0.0000 + nudge, 0.0486);
+	glm::dvec2 bl(-0.05 + nudge, 0.0555074);
 
-	tool *t = new tool(tl, tr, br, bl, 20e-6*100, mu_fric);
+	tool *t = new tool(tl, tr, br, bl, 20e-6 * 100, mu_fric);
 	b->set_tool(t);
-	t->set_vel(glm::dvec2(speed,0.));
+	t->set_vel(glm::dvec2(speed, 0.));
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
@@ -152,7 +155,7 @@
 	return b;
 }
 
- body *cutting_ref_single_resol(unsigned int nbox) {
+body *cutting_ref_single_resol(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -170,42 +173,45 @@
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	// workpiece dimensions SI
-	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00080;
+	double lo_x = 0.00000;
+	double lo_y = 0.00030;
+	double hi_x = 0.00200;
+	double hi_y = 0.00080;
 
 	const double base_height_y = 0.00030;
 	const double dy_base = base_height_y / (nbox - 1);
 	double dx = dy_base;
 	double dy = dy_base;
 	unsigned int ny = (hi_y - lo_y) / dy + 1;
-	unsigned int nx = (hi_x-lo_x)/dx + 1;
-	double vc = 100./60.;		// m/min -> m/s
+	unsigned int nx = (hi_x - lo_x) / dx + 1;
+	double vc = 100. / 60.; // m/min -> m/s
 	double nudge = -dx;
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double mech_CFL = 0.5 * hdx * dx / (pc.c0() + vc);
+	double heat_CFL = 0.4 * dx * dx / (thermal_diffusivity);
+	double dt_mech = fmin(dt_empirical, 0.50 * mech_CFL);
+	double dt_heat = fmin(dt_empirical, 0.50 * heat_CFL);
+	double dt = fmin(dt_mech, dt_heat);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nx*ny];
+	particle *particles = new particle[nx * ny];
 
 	srand(0);
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nx; i++) {
 		for (unsigned int j = 0; j < ny; j++) {
-			double px = i*dx; double py = j*dx;
+			double px = i * dx;
+			double py = j * dx;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = px + lo_x;
@@ -218,33 +224,33 @@
 		}
 	}
 
-	unsigned int n = nx*ny;
+	unsigned int n = nx * ny;
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].T = T0;
 		particles[i].T_init = T0;
 
 		// fixtures
-		particles[i].fixed = (particles[i].y < lo_y + 0.5*dy) ? true : false;
-		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dx);
+		particles[i].fixed = (particles[i].y < lo_y + 0.5 * dy) ? true : false;
+		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dx);
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -259,7 +265,7 @@
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// tool settings
 	float_t rake = -5.;
@@ -274,31 +280,32 @@
 	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 2e-4;	// 0.2 mm
+	double target_feed = 2e-4; // 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
 	double sign = (current_feed > target_feed) ? 1 : -1.;
-	t->set_vel(glm::dvec2(0.,vc));
-	t->update_tool(correction_time*sign);
+	t->set_vel(glm::dvec2(0., vc));
+	t->update_tool(correction_time * sign);
 	t->set_vel(glm::dvec2(vc, 0.)); // set actual velocity
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	b->set_tool(t);
 
 	global_logger = new logger("cutting");
 	global_logger->set_tool(t);
 	global_logger->set_log_vtk(true);
 
-	printf("feed: %f, dt %e, num_part %d\n", hi_y - t->low(), dt, nx*ny);
+	printf("feed: %f, dt %e, num_part %d\n", hi_y - t->low(), dt, nx * ny);
 	printf("<<< single-resolution simulation >>>\n");
 
 	return b;
 }
 
- body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
+body *cutting_ref_multi_resol_apriori(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -316,11 +323,13 @@
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	// workpiece dimensions SI
-	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00080;
+	double lo_x = 0.00000;
+	double lo_y = 0.00030;
+	double hi_x = 0.00200;
+	double hi_y = 0.00080;
 	double lx = hi_x - lo_x;
 	double ly = hi_y - lo_y;
 
@@ -329,39 +338,39 @@
 	double dx = dy_base;
 	double dy = dy_base;
 	unsigned int ny = (hi_y - lo_y) / dy + 1;
-	unsigned int nx = lx/dx + 1;
-	double vc = 100./60.;		// m/min -> m/s
+	unsigned int nx = lx / dx + 1;
+	double vc = 100. / 60.; // m/min -> m/s
 	double nudge = -dx;
 
 	// multi-resolution setup
 	double resol_ratio = 2.0;
-	double py_split = 0.5*ly + lo_y;
+	double py_split = 0.5 * ly + lo_y;
 	double dxh = dx;
 	double dxl = dxh * resol_ratio;
 	unsigned int nxh = nx;
 	unsigned int nyh = ny;
-	unsigned int nxl = lx/dxl + 1;
-	unsigned int nyl = ly/dxl + 1;
-	double dVl = dxl *dxl;
-	double dVh = dxh *dxh;
+	unsigned int nxl = lx / dxl + 1;
+	unsigned int nyl = ly / dxl + 1;
+	double dVl = dxl * dxl;
+	double dVh = dxh * dxh;
 	double h0l = hdx * dxl;
 	double h0h = hdx * dxh;
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double mech_CFL = 0.5 * hdx * dx / (pc.c0() + vc);
+	double heat_CFL = 0.4 * dx * dx / (thermal_diffusivity);
+	double dt_mech = fmin(dt_empirical, 0.50 * mech_CFL);
+	double dt_heat = fmin(dt_empirical, 0.50 * heat_CFL);
+	double dt = fmin(dt_mech, dt_heat);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nxh*nyh];
+	particle *particles = new particle[nxh * nyh];
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -369,10 +378,11 @@
 	// 1. create the high resolution region
 	for (unsigned int i = 0; i < nxh; i++) {
 		for (unsigned int j = 0; j < nyh; j++) {
-			double pxh = i*dxh;
-			double pyh = j*dxh;
+			double pxh = i * dxh;
+			double pyh = j * dxh;
 
-			if ((pyh+lo_y)<(py_split-1.1*dxh)) continue;
+			if ((pyh + lo_y) < (py_split - 1.1 * dxh))
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxh + lo_x;
@@ -398,10 +408,11 @@
 	// 2. create the low resolution region
 	for (unsigned int i = 0; i < nxl; i++) {
 		for (unsigned int j = 0; j < nyl; j++) {
-			double pxl = i*dxl;
-			double pyl = j*dxl;
+			double pxl = i * dxl;
+			double pyl = j * dxl;
 
-			if ((pyl+lo_y)>=py_split) continue;
+			if ((pyl + lo_y) >= py_split)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxl + lo_x;
@@ -428,36 +439,36 @@
 	// total #particles
 	unsigned int n = part_iter;
 
-	printf("n_single_resolution=%d   n_multi_resolution=%d   \n",nxh*nyh,n);
+	printf("n_single_resolution=%d   n_multi_resolution=%d   \n", nxh * nyh, n);
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
 		particles[i].T = T0;
 		particles[i].T_init = T0;
-		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
-		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
+		particles[i].h = (particles[i].refine_step != 0) ? h0h : h0l;
+		particles[i].m = (particles[i].refine_step != 0) ? dVh * rho0 : dVl * rho0;
 		particles[i].split = false;
 		particles[i].merge = false;
 
 		// fixtures
-		particles[i].fixed = (particles[i].y < lo_y + 0.5*dxl) ? true : false;
-		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dxh);
+		particles[i].fixed = (particles[i].y < lo_y + 0.5 * dxl) ? true : false;
+		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dxh);
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -472,7 +483,7 @@
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// tool settings
 	float_t rake = -5.;
@@ -487,18 +498,19 @@
 	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 2e-4;	// 0.2 mm
+	double target_feed = 2e-4; // 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
 	double sign = (current_feed > target_feed) ? 1 : -1.;
-	t->set_vel(glm::dvec2(0.,vc));
-	t->update_tool(correction_time*sign);
+	t->set_vel(glm::dvec2(0., vc));
+	t->update_tool(correction_time * sign);
 	t->set_vel(glm::dvec2(vc, 0.)); // set actual velocity
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	b->set_tool(t);
 
 	global_logger = new logger("cutting");
@@ -511,7 +523,7 @@
 	return b;
 }
 
- body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
+body *cutting_ref_multi_resol_dynamic(unsigned int nbox) {
 	/*
 	 * ===========================================================
 	 * according to (6.3) simulation by Sima & Ozel 2010 -> p. 955
@@ -529,11 +541,13 @@
 	double hdx = 1.5;
 	double rho0 = pc.rho0();
 	double T0 = 300.0;
-	double thermal_diffusivity = pc.tc().k()/(rho0*pc.tc().cp());
+	double thermal_diffusivity = pc.tc().k() / (rho0 * pc.tc().cp());
 
 	// workpiece dimensions SI
-	double lo_x = 0.00000; double lo_y = 0.00030;
-	double hi_x = 0.00200; double hi_y = 0.00080;
+	double lo_x = 0.00000;
+	double lo_y = 0.00030;
+	double hi_x = 0.00200;
+	double hi_y = 0.00080;
 	double lx = hi_x - lo_x;
 	double ly = hi_y - lo_y;
 
@@ -542,39 +556,39 @@
 	double dx = dy_base;
 	double dy = dy_base;
 	unsigned int ny = (hi_y - lo_y) / dy + 1;
-	unsigned int nx = lx/dx + 1;
-	double vc = 100./60.;		// m/min -> m/s
+	unsigned int nx = lx / dx + 1;
+	double vc = 100. / 60.; // m/min -> m/s
 	double nudge = -dx;
 
 	// multi-resolution setup
 	double resol_ratio = 2.0;
-	double py_split = 0.5*ly + lo_y;
+	double py_split = 0.5 * ly + lo_y;
 	double dxh = dx;
 	double dxl = dxh * resol_ratio;
 	unsigned int nxh = nx;
 	unsigned int nyh = ny;
-	unsigned int nxl = lx/dxl + 1;
-	unsigned int nyl = ly/dxl + 1;
-	double dVl = dxl *dxl;
-	double dVh = dxh *dxh;
+	unsigned int nxl = lx / dxl + 1;
+	unsigned int nyl = ly / dxl + 1;
+	double dVl = dxl * dxl;
+	double dVh = dxh * dxh;
 	double h0l = hdx * dxl;
 	double h0h = hdx * dxh;
 
 	// time settings
 	double lc = 1e-3; // 1mm of cut
-	double t_final =  lc/vc;
+	double t_final = lc / vc;
 	double dt_empirical = (nbox < 35) ? 1.0e-9 : 5.0e-10;
-	double mech_CFL = 0.5*hdx*dx/(pc.c0() + vc);
-	double heat_CFL = 0.4*dx*dx/(thermal_diffusivity);
-	double dt_mech = fmin(dt_empirical, 0.50*mech_CFL);
-	double dt_heat = fmin(dt_empirical, 0.50*heat_CFL);
-	double dt = fmin(dt_mech,dt_heat);
+	double mech_CFL = 0.5 * hdx * dx / (pc.c0() + vc);
+	double heat_CFL = 0.4 * dx * dx / (thermal_diffusivity);
+	double dt_mech = fmin(dt_empirical, 0.50 * mech_CFL);
+	double dt_heat = fmin(dt_empirical, 0.50 * heat_CFL);
+	double dt = fmin(dt_mech, dt_heat);
 
 	simulation_time *time = &simulation_time::getInstance();
 	time->set_t_final(t_final);
 	time->set_dt(dt);
 
-	particle *particles  = new particle[nxh*nyh];
+	particle *particles = new particle[nxh * nyh];
 
 	srand(0);
 	unsigned int part_iter = 0;
@@ -582,10 +596,11 @@
 	// 1. create the high resolution region
 	for (unsigned int i = 0; i < nxh; i++) {
 		for (unsigned int j = 0; j < nyh; j++) {
-			double pxh = i*dxh;
-			double pyh = j*dxh;
+			double pxh = i * dxh;
+			double pyh = j * dxh;
 
-			if ((pyh+lo_y)<(py_split-1.9*dxh) || pxh>0.000117) continue;
+			if ((pyh + lo_y) < (py_split - 1.9 * dxh) || pxh > 0.000117)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxh + lo_x;
@@ -613,10 +628,11 @@
 	// 2. create the low resolution region
 	for (unsigned int i = 0; i < nxl; i++) {
 		for (unsigned int j = 0; j < nyl; j++) {
-			double pxl = i*dxl;
-			double pyl = j*dxl;
+			double pxl = i * dxl;
+			double pyl = j * dxl;
 
-			if ((pyl+lo_y)>=(py_split-1.9*dxh) && pxl<=0.000117) continue;
+			if ((pyl + lo_y) >= (py_split - 1.9 * dxh) && pxl <= 0.000117)
+				continue;
 
 			particles[part_iter] = particle(part_iter);
 			particles[part_iter].x = pxl + lo_x;
@@ -634,40 +650,40 @@
 	unsigned int n = part_iter;
 
 	// slight modification for reserved CHILD particles!
-	for (unsigned int i = n; i < nxh*nyh; i++) {
+	for (unsigned int i = n; i < nxh * nyh; i++) {
 		particles[part_iter] = particle(part_iter);
 	}
 
-	printf("n_single_resolution=%d   n_current=%d  \n",nxh*nyh,n);
+	printf("n_single_resolution=%d   n_current=%d  \n", nxh * nyh, n);
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
 		particles[i].T = T0;
 		particles[i].T_init = T0;
-		particles[i].h = (particles[i].refine_step!=0) ? h0h : h0l;
-		particles[i].m = (particles[i].refine_step!=0) ? dVh*rho0 : dVl*rho0;
+		particles[i].h = (particles[i].refine_step != 0) ? h0h : h0l;
+		particles[i].m = (particles[i].refine_step != 0) ? dVh * rho0 : dVl * rho0;
 		particles[i].split = false;
 		particles[i].merge = false;
 
 		// fixtures
-		particles[i].fixed = (particles[i].y < lo_y + 0.5*dxl) ? true : false;
-		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5*dxh);
+		particles[i].fixed = (particles[i].y < lo_y + 0.5 * dxl) ? true : false;
+		particles[i].fixed = particles[i].fixed || (particles[i].x > hi_x - 0.5 * dxh);
 	}
 
 	// correction constants
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 
 	double xsph_eps = 0.5;
 
-	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+	correction_constants cs(constants_monaghan(wdeltap, stress_exponent, art_stress_eps), constants_artificial_viscosity(alpha, beta, eta),
+							xsph_eps);
 
 	// set simulation data
 	simulation_data sim_data(pc, cs);
@@ -682,7 +698,7 @@
 
 	// save thermal setting to body
 	thermal *trml = new thermal(pc);
-	trml->set_method(thermal::thermal_solver::thermal_pse);  // optional: thermal_brookshaw
+	trml->set_method(thermal::thermal_solver::thermal_pse); // optional: thermal_brookshaw
 
 	// adaptivity settings
 
@@ -696,14 +712,13 @@
 	double T_cr = 700.;
 	glm::dvec2 xy_min = {0.25, 0.25};
 	glm::dvec2 xy_max = {0.75, 0.75};
-	double frame_width =  0.000350;
+	double frame_width = 0.000350;
 	double frame_height = 0.000060;
 	unsigned int n_nbh = 10;
-	double l_eff = lc + 0.1*lx;
+	double l_eff = lc + 0.1 * lx;
 	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
-	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr,
-									   T_cr, xy_min, xy_max, frame_width, frame_height,
+	adaptivity *adapt = new adaptivity(alpha_dx, beta_h, v_cr, div_v_cr, SvM_cr, eps_cr, T_cr, xy_min, xy_max, frame_width, frame_height,
 									   n_nbh, l_eff, true);
 
 	adapt->set_refine_criterion(adaptivity::refine_criteria::moving_frame);
@@ -722,19 +737,20 @@
 	double fillet_radius = 5e-5;
 	tool *t = new tool(tl, length_tool, height_tool, rake, clear, fillet_radius, mu_friction);
 
-	double target_feed = 2e-4;	// 0.2 mm
+	double target_feed = 2e-4; // 0.2 mm
 	double current_feed = hi_y - t->low();
 	double dist_to_target_feed = fabs(current_feed - target_feed);
 	double correction_time = dist_to_target_feed / vc;
 	double sign = (current_feed > target_feed) ? 1 : -1.;
-	t->set_vel(glm::dvec2(0.,vc));
-	t->update_tool(correction_time*sign);
-	t->set_vel(glm::dvec2(vc, 0.)); // set actual velocity
+	t->set_vel(glm::dvec2(0., vc));
+	t->update_tool(correction_time * sign);
+	t->set_vel(glm::dvec2(vc, 0.));						   // set actual velocity
 	t->set_edge_coord(glm::dvec2(0., hi_y - target_feed)); // set coord edge
 
 	// save settings to body
 	b->set_plasticity(plast);
-	if (thermal_conduction) b->set_thermal(trml);
+	if (thermal_conduction)
+		b->set_thermal(trml);
 	b->set_tool(t);
 	b->set_adaptivity(adapt);
 

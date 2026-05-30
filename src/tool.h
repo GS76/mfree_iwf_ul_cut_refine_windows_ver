@@ -63,24 +63,24 @@
  Please take into consideration Fig. (1), Fig. (9), and Fig. (12) of the paper.
 
  This file shall include/support:
- 	 - how tool is parametrized using 4 line segments and possibly a fillet between rake face and clearance.
- 	 - construction either by 4 points or top left point + 2 angles + length and height
- 	 - queries if a point is inside and contact query (additionally returns penetration depth and direction to closest point on tool)
- 	 - the rigid body translation of the tool given the cutting speed
+	 - how tool is parametrized using 4 line segments and possibly a fillet between rake face and clearance.
+	 - construction either by 4 points or top left point + 2 angles + length and height
+	 - queries if a point is inside and contact query (additionally returns penetration depth and direction to closest point on tool)
+	 - the rigid body translation of the tool given the cutting speed
 */
 
 class tool {
 
-private:
+  private:
 	struct line {
 		double a = 0.;
 		double b = 0.;
 		bool vertical = false;
 
-		//return points closest to xq on this line
+		// return points closest to xq on this line
 		glm::dvec2 closest_point(glm::dvec2 xq) const;
 
-		//return intersection point
+		// return intersection point
 		glm::dvec2 intersect(line l) const;
 
 		line(double a, double b, bool vertical);
@@ -90,10 +90,10 @@ private:
 	};
 
 	struct segment {
-		glm::dvec2 left;		// left end
-		glm::dvec2 right;		// right end
-		tool::line l;			// line representation
-		glm::dvec2 n;			// normal
+		glm::dvec2 left;  // left end
+		glm::dvec2 right; // right end
+		tool::line l;	  // line representation
+		glm::dvec2 n;	  // normal
 
 		segment(glm::dvec2 left, glm::dvec2 right);
 		segment();
@@ -101,10 +101,10 @@ private:
 	};
 
 	struct circle_segment {
-		double r  = 0.;				//radius
-		double t1 = 0.;				//starting angle
-		double t2 = 0.;				//end angle
-		glm::dvec2 p;			    //center
+		double r = 0.;	// radius
+		double t1 = 0.; // starting angle
+		double t2 = 0.; // end angle
+		glm::dvec2 p;	// center
 
 		// returns distance to circle segment if closest
 		// point falls between t1, t2
@@ -122,7 +122,7 @@ private:
 		circle_segment();
 	};
 
-private:
+  private:
 	// fit a fillet on line lm to l1 with radius r
 	// alternatively: find a point on lm with perpendicular distance r to l1
 	glm::dvec2 fit_fillet(double r, line lm, line l1) const;
@@ -155,8 +155,7 @@ private:
 	// if true tool consists of circle segment only
 	bool m_chamfer_debug = false;
 
-public:
-
+  public:
 	struct bbox {
 		double bbmin_x = 0.;
 		double bbmax_x = 0.;
@@ -230,7 +229,7 @@ public:
 	//		used for debugging purposes
 	glm::dvec2 center() const;
 
-	//chamfer debugging
+	// chamfer debugging
 	void get_chamfer_data(glm::dvec2 &p, double &r) const;
 	void set_chamfer(glm::dvec2 cp, double r, double t1, double t2);
 	void set_chamfer_debug(bool chamfer_debug);
@@ -250,20 +249,16 @@ public:
 	// downwards and horizontally leftwards, respectively), and
 	// fillet radius r
 	// angles are in degrees
-	tool(glm::dvec2 tl, double length, double height,
-			double rake_angle, double clearance_angle,
-			double r, double mu_fric);
+	tool(glm::dvec2 tl, double length, double height, double rake_angle, double clearance_angle, double r, double mu_fric);
 
 	// construct tool given by a reference point, length and height
 	// as well as rake and clearance angle (measured from vertically
 	// downwards and horizontally leftwards, respectively), the tool
 	// is percectly sharp
 	// angles are in degrees
-	tool(glm::dvec2 tl, double length, double height,
-			double rake_angle, double clearance_angle, double mu_fric);
+	tool(glm::dvec2 tl, double length, double height, double rake_angle, double clearance_angle, double mu_fric);
 
 	tool();
 };
 
 #endif /* TOOL_H_ */
-

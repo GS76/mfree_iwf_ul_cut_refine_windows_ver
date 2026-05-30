@@ -7,9 +7,8 @@ class body;
 
 namespace mfree::config {
 
-body* build_body_from_config(const simulation_config& cfg);
+body *build_body_from_config(const simulation_config &cfg);
 
 }
 
 #endif
-

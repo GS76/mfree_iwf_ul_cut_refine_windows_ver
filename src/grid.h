@@ -77,12 +77,11 @@ class grid {
 
 	friend class body;
 
-private:
-
+  private:
 	std::vector<int> m_cells;
 
 	void assign_hashes(std::vector<particle> &particles, unsigned int n) const;
-	bool in_bbox(glm::dvec3 qp) const ;
+	bool in_bbox(glm::dvec3 qp) const;
 	void get_bbox(glm::dvec3 &bbmin, glm::dvec3 &bbmax) const;
 	void unhash(int idx, unsigned int &i, unsigned int &j) const;
 	const std::vector<int> &get_cells(const std::vector<particle> &particles, unsigned int n);
@@ -103,15 +102,14 @@ private:
 
 	void dbg_print_bbox() const;
 
+	double m_dx;				   /*!< Box dimension (edge length of cube) */
+	double m_lx, m_ly, m_lz;	   /*!< Size in x/y/z direction */
+	unsigned int m_nx, m_ny, m_nz; /*!< Number of boxes in x/y/z direction */
+	unsigned int m_num_cell;	   /*!< Total number of boxes */
 
-	double m_dx;					/*!< Box dimension (edge length of cube) */
-	double m_lx, m_ly, m_lz;		/*!< Size in x/y/z direction */
-	unsigned int m_nx, m_ny, m_nz;	/*!< Number of boxes in x/y/z direction */
-	unsigned int m_num_cell;		/*!< Total number of boxes */
-
-	double m_bbmin_x, m_bbmax_x;	/*!< Min/Max coordinate in x- direction */
-	double m_bbmin_y, m_bbmax_y;	/*!< Min/Max coordinate in y- direction */
-	double m_bbmin_z, m_bbmax_z;	/*!< Min/Max coordinate in z- direction */
+	double m_bbmin_x, m_bbmax_x; /*!< Min/Max coordinate in x- direction */
+	double m_bbmin_y, m_bbmax_y; /*!< Min/Max coordinate in y- direction */
+	double m_bbmin_z, m_bbmax_z; /*!< Min/Max coordinate in z- direction */
 };
 
 #endif /* GRID_H_ */

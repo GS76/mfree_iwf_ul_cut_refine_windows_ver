@@ -126,11 +126,10 @@ struct simulation_config {
 	adaptivity_cfg adaptivity;
 };
 
-simulation_config load_simulation_config_file(const std::string& file_path);
+simulation_config load_simulation_config_file(const std::string &file_path);
 json_value dump_default_simulation_config_json();
-void validate_simulation_config_or_throw(const simulation_config& cfg);
+void validate_simulation_config_or_throw(const simulation_config &cfg);
 
-}
+} // namespace mfree::config
 
 #endif
-

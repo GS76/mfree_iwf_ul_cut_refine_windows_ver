@@ -50,47 +50,27 @@
 
 #include "simulation_time.h"
 
-simulation_time& simulation_time::getInstance() {
+simulation_time &simulation_time::getInstance() {
 	static simulation_time instance;
 	return instance;
 }
 
-double simulation_time::get_time() const {
-	return m_time;
-}
+double simulation_time::get_time() const { return m_time; }
 
-double simulation_time::get_dt() const {
-	return m_dt;
-}
+double simulation_time::get_dt() const { return m_dt; }
 
-simulation_time::simulation_time() : m_time(0.), m_dt(0.), m_t_final(0.), m_step(0) {
-}
+simulation_time::simulation_time() : m_time(0.), m_dt(0.), m_t_final(0.), m_step(0) {}
 
-void simulation_time::increment_time() {
-	m_time += m_dt;
-}
+void simulation_time::increment_time() { m_time += m_dt; }
 
-void simulation_time::increment_step() {
-	m_step++;
-}
+void simulation_time::increment_step() { m_step++; }
 
-void simulation_time::set_t_final(double t_final) {
-	m_t_final = t_final;
-}
+void simulation_time::set_t_final(double t_final) { m_t_final = t_final; }
 
-bool simulation_time::finished() const {
-	return m_time > m_t_final;
-}
+bool simulation_time::finished() const { return m_time > m_t_final; }
 
+unsigned int simulation_time::get_step() const { return m_step; }
 
-unsigned int simulation_time::get_step() const {
-	return m_step;
-}
+double simulation_time::get_t_final() const { return m_t_final; }
 
-double simulation_time::get_t_final() const {
-	return m_t_final;
-}
-
-void simulation_time::set_dt(double dt) {
-	m_dt = dt;
-}
+void simulation_time::set_dt(double dt) { m_dt = dt; }

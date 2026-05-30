@@ -55,7 +55,7 @@ void derive_velocity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		double vxi = particles[i].vx;
 		double vyi = particles[i].vy;
@@ -72,12 +72,12 @@ void derive_velocity(body &b) {
 			double vxj = particles[jdx].vx;
 			double vyj = particles[jdx].vy;
 
-			double quad_weight = particles[jdx].m/particles[jdx].rho;
+			double quad_weight = particles[jdx].m / particles[jdx].rho;
 
-			vx_x += (vxj-vxi)*w.w_x*quad_weight;
-			vx_y += (vxj-vxi)*w.w_y*quad_weight;
-			vy_x += (vyj-vyi)*w.w_x*quad_weight;
-			vy_y += (vyj-vyi)*w.w_y*quad_weight;
+			vx_x += (vxj - vxi) * w.w_x * quad_weight;
+			vx_y += (vxj - vxi) * w.w_y * quad_weight;
+			vy_x += (vyj - vyi) * w.w_x * quad_weight;
+			vy_y += (vyj - vyi) * w.w_y * quad_weight;
 		}
 
 		particles[i].vx_x = vx_x;
@@ -88,13 +88,13 @@ void derive_velocity(body &b) {
 }
 
 void derive_stress_monaghan(body &b) {
-	const double wdeltap  = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
+	const double wdeltap = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_wdeltap();
 	const unsigned int corr_exp = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_corr_exp();
 
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {
 		double Sxxi = particles[i].Sxx - particles[i].p;
 		double Sxyi = particles[i].Sxy;
@@ -105,7 +105,7 @@ void derive_stress_monaghan(body &b) {
 		double Ryyi = particles[i].Ryy;
 
 		double rhoi = particles[i].rho;
-		double rhoi21 = 1./(rhoi*rhoi);
+		double rhoi21 = 1. / (rhoi * rhoi);
 
 		double Sxx_x = 0.;
 		double Sxy_y = 0.;
@@ -124,36 +124,36 @@ void derive_stress_monaghan(body &b) {
 			double Rxyj = particles[jdx].Rxy;
 			double Ryyj = particles[jdx].Ryy;
 
-			double mj     = particles[jdx].m;
-			double rhoj21 = 1./(particles[jdx].rho*particles[jdx].rho);
+			double mj = particles[jdx].m;
+			double rhoj21 = 1. / (particles[jdx].rho * particles[jdx].rho);
 
 			double Rxx = 0;
 			double Rxy = 0.;
 			double Ryy = 0.;
 
 			if (wdeltap > 0 && particles[i].idx != particles[jdx].idx) {
-				double fab = w.w/wdeltap;
-//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
+				double fab = w.w / wdeltap;
+				//				fab = pow(fab,corr_exp);	//dramatically increase performance by for loop!
 				double t = 1.;
 				for (unsigned int powi = 0; powi < corr_exp; powi++) {
-					t = t*fab;
+					t = t * fab;
 				}
 				fab = t;
 
-				Rxx = fab*(Rxxi + Rxxj);
-				Rxy = fab*(Rxyi + Rxyj);
-				Ryy = fab*(Ryyi + Ryyj);
+				Rxx = fab * (Rxxi + Rxxj);
+				Rxy = fab * (Rxyi + Rxyj);
+				Ryy = fab * (Ryyi + Ryyj);
 			}
 
-			Sxx_x += mj*(Sxxi*rhoi21 + Sxxj*rhoj21 + Rxx)*w.w_x;
-			Sxy_y += mj*(Sxyi*rhoi21 + Sxyj*rhoj21 + Rxy)*w.w_y;
-			Sxy_x += mj*(Sxyi*rhoi21 + Sxyj*rhoj21 + Rxy)*w.w_x;
-			Syy_y += mj*(Syyi*rhoi21 + Syyj*rhoj21 + Ryy)*w.w_y;
+			Sxx_x += mj * (Sxxi * rhoi21 + Sxxj * rhoj21 + Rxx) * w.w_x;
+			Sxy_y += mj * (Sxyi * rhoi21 + Sxyj * rhoj21 + Rxy) * w.w_y;
+			Sxy_x += mj * (Sxyi * rhoi21 + Sxyj * rhoj21 + Rxy) * w.w_x;
+			Syy_y += mj * (Syyi * rhoi21 + Syyj * rhoj21 + Ryy) * w.w_y;
 		}
 
-		particles[i].Sxx_x = Sxx_x*rhoi;
-		particles[i].Sxy_y = Sxy_y*rhoi;
-		particles[i].Sxy_x = Sxy_x*rhoi;
-		particles[i].Syy_y = Syy_y*rhoi;
+		particles[i].Sxx_x = Sxx_x * rhoi;
+		particles[i].Sxy_y = Sxy_y * rhoi;
+		particles[i].Sxy_x = Sxy_x * rhoi;
+		particles[i].Syy_y = Syy_y * rhoi;
 	}
 }

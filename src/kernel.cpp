@@ -53,33 +53,33 @@
 #include <stdio.h>
 
 kernel_result cubic_spline(double xi, double yi, double xj, double yj, double h) {
-	const double h1 = 1./h;
-	const double xij = xi-xj;
-	const double yij = yi-yj;
-	const double rij = sqrt(xij*xij + yij*yij);
-	const double q = rij*h1;
+	const double h1 = 1. / h;
+	const double xij = xi - xj;
+	const double yij = yi - yj;
+	const double rij = sqrt(xij * xij + yij * yij);
+	const double q = rij * h1;
 
 	kernel_result w;
 
 	if (q >= 2.) {
 		return w;
 	} else if (q >= 1.) {
-		const double twominq = (2-q);
-		const double fac = 10*(M_1_PI)/7.0*h1*h1;
-		w.w =  fac*(0.25*twominq*twominq*twominq);
+		const double twominq = (2 - q);
+		const double fac = 10 * (M_1_PI) / 7.0 * h1 * h1;
+		w.w = fac * (0.25 * twominq * twominq * twominq);
 
-		const double der = -0.75*twominq*twominq * h1/rij;
-		w.w_x = xij*der*fac;
-		w.w_y = yij*der*fac;
+		const double der = -0.75 * twominq * twominq * h1 / rij;
+		w.w_x = xij * der * fac;
+		w.w_y = yij * der * fac;
 
 		return w;
 	} else {
-		const double fac = 10*(M_1_PI)/7.0*h1*h1;
-		w.w = fac*(1 - 1.5*q*q*(1-0.5*q));
+		const double fac = 10 * (M_1_PI) / 7.0 * h1 * h1;
+		w.w = fac * (1 - 1.5 * q * q * (1 - 0.5 * q));
 		if (rij > 1e-12) {
-			const double der = -3.0*q*(1-0.75*q) * h1/rij;
-			w.w_x = xij*der*fac;
-			w.w_y = yij*der*fac;
+			const double der = -3.0 * q * (1 - 0.75 * q) * h1 / rij;
+			w.w_x = xij * der * fac;
+			w.w_y = yij * der * fac;
 		}
 		return w;
 	}

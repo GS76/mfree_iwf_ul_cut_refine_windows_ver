@@ -61,8 +61,8 @@
  */
 
 class johnson_cook_constants {
-// ... existing private members ...
-private:
+	// ... existing private members ...
+  private:
 	double m_A = 0.;
 	double m_B = 0.;
 	double m_C = 0.;
@@ -76,12 +76,13 @@ private:
 	double m_s = 0.;
 
 	double m_Tmelt = 0.;
-	double m_Tref  = 0.;
+	double m_Tref = 0.;
 	double m_eps_ref = 0.;
 
-public:
+  public:
 	johnson_cook_constants(double A, double B, double C, double m, double n, double Tmelt, double Tref, double eps_ref = 1.);
-	johnson_cook_constants(double A, double B, double C, double m, double n, double a, double b, double c, double d, double s, double Tmelt, double Tref, double eps_ref = 1.);	// JC-tanh- Erweiterung, Calamaz 2008
+	johnson_cook_constants(double A, double B, double C, double m, double n, double a, double b, double c, double d, double s, double Tmelt,
+						   double Tref, double eps_ref = 1.); // JC-tanh- Erweiterung, Calamaz 2008
 	johnson_cook_constants();
 
 	double A() const;
@@ -110,22 +111,26 @@ class thermal_constants {
 	double m_Taylor_Quinney = 0.;
 	TableProperty m_k;
 
-public:
+  public:
 	thermal_constants(double cp, double Taylor_Quinney, double k = 0.);
 	thermal_constants();
 
-	double cp(double T = 293.0) const;				/*!< Heat capacity */
-	double Taylor_Quinney() const;	/*!< Percentage of plastic work converted into thermal energy */
-	double k(double T = 293.0) const;				/*!< Thermal conduction coefficient */
-	
-	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_cp.set_table(temps, values); }
-	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_k.set_table(temps, values); }
-	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_cp.set_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_k.set_linear(m, b, use_min, min_val, use_max, max_val); }
+	double cp(double T = 293.0) const; /*!< Heat capacity */
+	double Taylor_Quinney() const;	   /*!< Percentage of plastic work converted into thermal energy */
+	double k(double T = 293.0) const;  /*!< Thermal conduction coefficient */
+
+	void set_cp_table(const std::vector<double> &temps, const std::vector<double> &values) { m_cp.set_table(temps, values); }
+	void set_k_table(const std::vector<double> &temps, const std::vector<double> &values) { m_k.set_table(temps, values); }
+	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_cp.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_k.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
 };
 
 class physical_constants {
-private:
+  private:
 	TableProperty m_nu;
 	TableProperty m_E;
 	TableProperty m_rho0;
@@ -133,12 +138,13 @@ private:
 
 	johnson_cook_constants m_jc;
 	thermal_constants m_tc;
-public:
+
+  public:
 	physical_constants(double nu, double E, double rho0);
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc);
 	physical_constants(double nu, double E, double rho0, johnson_cook_constants jc, thermal_constants tc);
 	physical_constants();
-	
+
 	double nu(double T = 293.0) const;
 	double E(double T = 293.0) const;
 	double G(double T = 293.0) const;
@@ -148,23 +154,35 @@ public:
 	double c0(double T = 293.0) const;
 	double mu_lame(double T = 293.0) const;
 	double lambda_lame(double T = 293.0) const;
-	
+
 	johnson_cook_constants jc() const;
 	thermal_constants tc() const;
 
-	void set_E_table(const std::vector<double>& temps, const std::vector<double>& values) { m_E.set_table(temps, values); }
-	void set_nu_table(const std::vector<double>& temps, const std::vector<double>& values) { m_nu.set_table(temps, values); }
-	void set_rho0_table(const std::vector<double>& temps, const std::vector<double>& values) { m_rho0.set_table(temps, values); }
-	void set_alpha_table(const std::vector<double>& temps, const std::vector<double>& values) { m_alpha.set_table(temps, values); }
-	void set_cp_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_cp_table(temps, values); }
-	void set_k_table(const std::vector<double>& temps, const std::vector<double>& values) { m_tc.set_k_table(temps, values); }
+	void set_E_table(const std::vector<double> &temps, const std::vector<double> &values) { m_E.set_table(temps, values); }
+	void set_nu_table(const std::vector<double> &temps, const std::vector<double> &values) { m_nu.set_table(temps, values); }
+	void set_rho0_table(const std::vector<double> &temps, const std::vector<double> &values) { m_rho0.set_table(temps, values); }
+	void set_alpha_table(const std::vector<double> &temps, const std::vector<double> &values) { m_alpha.set_table(temps, values); }
+	void set_cp_table(const std::vector<double> &temps, const std::vector<double> &values) { m_tc.set_cp_table(temps, values); }
+	void set_k_table(const std::vector<double> &temps, const std::vector<double> &values) { m_tc.set_k_table(temps, values); }
 
-	void set_E_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_E.set_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_nu_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_nu.set_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_rho0_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_rho0.set_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_alpha_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_alpha.set_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_tc.set_cp_linear(m, b, use_min, min_val, use_max, max_val); }
-	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) { m_tc.set_k_linear(m, b, use_min, min_val, use_max, max_val); }
+	void set_E_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_E.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_nu_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_nu.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_rho0_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_rho0.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_alpha_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_alpha.set_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_cp_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_tc.set_cp_linear(m, b, use_min, min_val, use_max, max_val);
+	}
+	void set_k_linear(double m, double b, bool use_min, double min_val, bool use_max, double max_val) {
+		m_tc.set_k_linear(m, b, use_min, min_val, use_max, max_val);
+	}
 };
 
 class constants_monaghan {
@@ -172,7 +190,7 @@ class constants_monaghan {
 	unsigned int m_mghn_corr_exp = 0;
 	double m_mghn_eps = 0.;
 
-public:
+  public:
 	double mghn_wdeltap() const;
 	unsigned int mghn_corr_exp() const;
 	double mghn_eps() const;
@@ -186,7 +204,7 @@ class constants_artificial_viscosity {
 	double m_artvisc_beta = 0.;
 	double m_artvisc_eta = 0.;
 
-public:
+  public:
 	double artvisc_alpha() const;
 	double artvisc_beta() const;
 	double artvisc_eta() const;
@@ -197,12 +215,12 @@ public:
 
 class correction_constants {
 
-private:
+  private:
 	double m_xsph_eps = 0.;
 	constants_monaghan m_constants_monaghan;
 	constants_artificial_viscosity m_constants_art_visc;
 
-public:
+  public:
 	correction_constants(constants_monaghan monaghan_constants, constants_artificial_viscosity constants_art_visc, double xsph_eps);
 	correction_constants();
 	double xsph_eps() const;
@@ -211,14 +229,14 @@ public:
 };
 
 class simulation_data {
-private:
-	physical_constants   m_physical_constants;
+  private:
+	physical_constants m_physical_constants;
 	correction_constants m_correction_constants;
 
-public:
+  public:
 	simulation_data();
 	simulation_data(physical_constants physical_constants, correction_constants correction_constants);
-	physical_constants   get_physical_constants() const;
+	physical_constants get_physical_constants() const;
 	correction_constants get_correction_constants() const;
 };
 

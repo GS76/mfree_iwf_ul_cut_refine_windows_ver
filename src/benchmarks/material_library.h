@@ -66,8 +66,8 @@ physical_constants matlib_tial6v4_lesuer();
 physical_constants matlib_tial6v4_johnson_SI();
 physical_constants matlib_tial6v4_johnson_cm_musec_g();
 
-physical_constants matlib_tial6v4_Sima_tanh2010_SI();				// JC-tanh-Model
-physical_constants matlib_tial6v4_Sima_tanh2010_cm_musec_g();				// JC-tanh-Model
+physical_constants matlib_tial6v4_Sima_tanh2010_SI();		  // JC-tanh-Model
+physical_constants matlib_tial6v4_Sima_tanh2010_cm_musec_g(); // JC-tanh-Model
 
 physical_constants matlib_dummy();
 physical_constants matlib_a2024t351();

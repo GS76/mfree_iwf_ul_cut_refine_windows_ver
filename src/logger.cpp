@@ -50,27 +50,17 @@
 
 #include "logger.h"
 
-void logger::close() {
-	fclose(m_fp_forces);
-}
+void logger::close() { fclose(m_fp_forces); }
 
-void logger::set_tool(tool *t) {
-	m_t = t;
-}
+void logger::set_tool(tool *t) { m_t = t; }
 
-void logger::set_log_vtk(bool log_vtk) {
-	m_emit_vtk = log_vtk;
-}
+void logger::set_log_vtk(bool log_vtk) { m_emit_vtk = log_vtk; }
 
-void logger::set_log_forces(bool log_forces) {
-	m_log_forces = log_forces;
-}
+void logger::set_log_forces(bool log_forces) { m_log_forces = log_forces; }
 
-void logger::add_tracer_particle(unsigned int tracer_idx) {
-	m_trace_p.push_back(tracer_idx);
-}
+void logger::add_tracer_particle(unsigned int tracer_idx) { m_trace_p.push_back(tracer_idx); }
 
-void logger::set_folder(const char* folder) {
+void logger::set_folder(const char *folder) {
 	strcpy(m_folder, folder);
 
 	fclose(m_fp_forces);
@@ -80,7 +70,7 @@ void logger::set_folder(const char* folder) {
 	m_fp_forces = fopen(buf, "w+");
 }
 
-void logger::set_stage(const char* stage) {
+void logger::set_stage(const char *stage) {
 	if (!stage) {
 		m_stage[0] = '\0';
 		return;
@@ -91,7 +81,7 @@ void logger::set_stage(const char* stage) {
 
 void logger::log(const body &b, unsigned int step) {
 
-	//log forces (if desired)
+	// log forces (if desired)
 	if (m_log_forces) {
 		double fx = 0.;
 		double fy = 0.;
@@ -109,7 +99,7 @@ void logger::log(const body &b, unsigned int step) {
 		fflush(m_fp_forces);
 	}
 
-	//trace particles to be traced
+	// trace particles to be traced
 	for (const auto it : m_trace_p) {
 		fprintf(m_fp_trace, "%f %f ", b.get_particles()[it].x, b.get_particles()[it].y);
 	}
@@ -118,7 +108,7 @@ void logger::log(const body &b, unsigned int step) {
 	}
 
 	if (m_emit_vtk) {
-		const char* stage_label = (m_stage[0] != '\0') ? m_stage : nullptr;
+		const char *stage_label = (m_stage[0] != '\0') ? m_stage : nullptr;
 		vtk_writer_write(b.get_particles(), step, m_folder, stage_label, nullptr);
 		if (m_t) {
 			vtk_writer_write(m_t, step, m_folder, stage_label, nullptr);

@@ -7,12 +7,12 @@ f(x) = p1*x + p2
 x is normalized by mean 783.2 and std 287.1
 
 Coefficients and 95% Confidence Bounds
-     Value   Lower   Upper 
+     Value   Lower   Upper
 p1    0.0031    0.0031    0.0031
 p2     0.005     0.005    0.0051
 
 Goodness of Fit
-           Value 
+           Value
 SSE              0
 R-square    0.9993
 DFE             97

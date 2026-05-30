@@ -61,17 +61,17 @@
 #include "particle.h"
 
 /*
- 	 The purpose of this implementation:
- 	   - specification of plastic state by radial return algorithm.
- 	   - "SECANT" scheme is used for root finding procedure of radial return
- 	   - This choice is made motivated by the performance of "SECANT" (faster & safer)
+	 The purpose of this implementation:
+	   - specification of plastic state by radial return algorithm.
+	   - "SECANT" scheme is used for root finding procedure of radial return
+	   - This choice is made motivated by the performance of "SECANT" (faster & safer)
 */
 
 class body;
 
 class plasticity {
 
-private:
+  private:
 	double m_tol = 1e-6;
 	johnson_cook_Sima_2010 *m_plasticity_model = 0;
 	bool m_consider_dissipation = true;
@@ -79,7 +79,7 @@ private:
 	void print_debug(const std::vector<particle> &particles, unsigned int num_part, unsigned int fail_idx);
 	void do_radial_return(std::vector<particle> &particles, unsigned int num_part, simulation_data data);
 
-public:
+  public:
 	void plastic_state_by_radial_return(body &b);
 	void set_tolerance(double tol);
 	void set_dissipation_considered(bool consider);
