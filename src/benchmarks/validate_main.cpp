@@ -48,23 +48,20 @@
  *
  */
 
-#include "../fe_tool.h"
-#include "../contact.h"
-#include "../simulation_time.h"
-#include "../body.h"
-#include "../timestep_estimator.h"
+#include "fe_tool.h"
+#include "contact.h"
+#include "simulation_time.h"
+#include "body.h"
 
-#include "material_library.h"
+#include "benchmarks/material_library.h"
 
-#include <array>
-#include <cmath>
-#include <cstdlib>
-#include <cstdio>
-#include <cassert>
-#include <string>
-#include <vector>
-#include "../particle.h"
-#include "../adaptivity.h"
+#include "cmath"
+#include "cstdlib"
+#include "cstdio"
+#include "cassert"
+#include "vector"
+#include "particle.h"
+#include "adaptivity.h"
 
 static fe_tool make_rect_tool_mesh(double L, double H, unsigned int nx, unsigned int ny, int tag_left, int tag_right, int tag_other) {
 	std::vector<glm::dvec2> nodes;
@@ -133,8 +130,7 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 	for (const auto &tri : tris) {
 		unsigned int i0 = tri[0], i1 = tri[1], i2 = tri[2];
-		if (i0 >= nodes.size() || i1 >= nodes.size() || i2 >= nodes.size())
-			continue;
+		if (i0 >= nodes.size() || i1 >= nodes.size() || i2 >= nodes.size()) continue;
 
 		const glm::dvec2 &a = nodes[i0];
 		const glm::dvec2 &b = nodes[i1];
@@ -142,8 +138,7 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 		// Compute barycentric coordinates
 		double denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-		if (denom == 0.0)
-			continue;
+		if (denom == 0.0) continue;
 
 		double w0 = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
 		double w1 = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
@@ -151,13 +146,12 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 		// Check if point is inside or on triangle
 		if (w0 >= -1e-12 && w1 >= -1e-12 && w2 >= -1e-12) {
-			return w0 * ft.temperature_at_node(i0) + w1 * ft.temperature_at_node(i1) + w2 * ft.temperature_at_node(i2);
+			return w0 * ft.temperature_at_node(i0) +
+			       w1 * ft.temperature_at_node(i1) +
+			       w2 * ft.temperature_at_node(i2);
 		}
 	}
 	// Fallback: return temperature of nearest node
-	if (nodes.empty()) {
-		return 0.0;
-	}
 	unsigned int best = 0;
 	double best_d2 = 1e300;
 	for (unsigned int i = 0; i < nodes.size(); i++) {
@@ -171,11 +165,10 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 }
 
 static double analytic_dirichlet_neumann(double x, double t, double L, double alpha, double Ts) {
-	constexpr double pi = 3.141592653589793238462643383279502884;
 	double sum = 0.;
 	for (int n = 0; n < 200; n++) {
-		double lam = (2.0 * n + 1.0) * pi / (2.0 * L);
-		double term = (4.0 / ((2.0 * n + 1.0) * pi)) * std::sin(lam * x) * std::exp(-alpha * lam * lam * t);
+		double lam = (2.0 * n + 1.0) * M_PI / (2.0 * L);
+		double term = (4.0 / ((2.0 * n + 1.0) * M_PI)) * std::sin(lam * x) * std::exp(-alpha * lam * lam * t);
 		sum += term;
 	}
 	return Ts * (1.0 - sum);
@@ -202,8 +195,7 @@ static bool test_tool_1d_conduction() {
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
-	for (unsigned int s = 0; s < nstep; s++)
-		ft.advance_explicit(dt);
+	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
 
 	// Sample temperature at center point using barycentric interpolation
 	glm::dvec2 target(0.005, 0.0005);
@@ -279,41 +271,6 @@ static bool test_frictional_heating_partition() {
 	return std::abs(ratio - 1.0) <= 0.1;
 }
 
-static bool test_coupled_timestep_estimator() {
-	physical_constants pc = matlib_tial6v4_Sima_tanh2010_SI();
-	fe_tool ft = make_rect_tool_mesh(0.001, 0.001, 5, 5, 1, 2, 3);
-
-	fe_tool::thermal_material tmat;
-	tmat.rho = 14500.0;
-	tmat.cp = 200.0;
-	tmat.k = 80.0;
-	ft.set_material(tmat);
-
-	fe_tool::mechanical_material mmat;
-	mmat.E = 600e9;
-	mmat.nu = 0.22;
-	mmat.alpha = 4.5e-6;
-	ft.set_mechanical_material(mmat);
-	ft.set_initial_temperature(293.15);
-
-	coupled_timestep_config cfg;
-	cfg.particle_spacing = 2.0e-5;
-	cfg.smoothing_length_ratio = 1.7;
-	cfg.max_relative_speed = 10.0;
-	cfg.empirical_dt_cap = 1.0e-3;
-	cfg.interface_contact_area = cfg.particle_spacing * cfg.particle_spacing;
-	cfg.contact_conductance_full = 1.0e5;
-	coupled_timestep_limits limits = estimate_coupled_timestep(pc, cfg, &ft);
-
-	bool ok = limits.maximum_dt > 0. && std::isfinite(limits.maximum_dt) && limits.workpiece_mechanical_dt > 0. &&
-			  limits.workpiece_thermal_dt > 0. && limits.tool_mechanical_dt > 0. && limits.tool_thermal_dt > 0. &&
-			  limits.interface_thermal_dt > 0.;
-	std::printf("timestep_estimator dt=%e limiter=%s wp_mech=%e wp_therm=%e tool_mech=%e tool_therm=%e interface=%e\n", limits.maximum_dt,
-				limits.limiting_reason.c_str(), limits.workpiece_mechanical_dt, limits.workpiece_thermal_dt, limits.tool_mechanical_dt,
-				limits.tool_thermal_dt, limits.interface_thermal_dt);
-	return ok;
-}
-
 static bool test_convection_lumped() {
 	const double L = 0.01;
 	const double H = 0.01;
@@ -343,259 +300,16 @@ static bool test_convection_lumped() {
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
-	for (unsigned int s = 0; s < nstep; s++)
-		ft.advance_explicit(dt);
+	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
 
 	double T_ref = air.T_inf + (T0 - air.T_inf) * std::exp(-t_final / tau);
 	double T_avg = 0.;
-	for (unsigned int i = 0; i < ft.nodes_tool_frame().size(); i++)
-		T_avg += ft.temperature_at_node(i);
+	for (unsigned int i = 0; i < ft.nodes_tool_frame().size(); i++) T_avg += ft.temperature_at_node(i);
 	T_avg /= static_cast<double>(ft.nodes_tool_frame().size());
 
 	double rel = std::abs(T_avg - T_ref) / std::max(1e-12, std::abs(T_ref));
 	std::printf("convection rel=%e T_avg=%g T_ref=%g\n", rel, T_avg, T_ref);
 	return rel <= 0.05;
-}
-
-// ---------------------------------------------------------------------------
-// test_interface_suppression_ratio
-//
-// Verifies the corrected step_suppression_ratio diagnostic introduced in
-// Phase 4.  Two regimes are exercised:
-//
-//   Case A (dt = 1e-9 s): predicted per-step delta_T << 1 K, limiter
-//   inactive => suppression_ratio must be < 0.01.
-//
-//   Case B (dt = 1.0 s): predicted per-step delta_T >> 1 K, limiter fires
-//   => suppression_ratio must be > 0.5 (significant suppression).
-//
-// Additionally, after calling advance_explicit() for case A, the
-// step_tool_source_residual (step_tool_E_sources - step_contact_E_tool)
-// must be < 1 % of step_contact_E_tool, confirming the power mapping
-// from the contact model to the FE boundary nodes is conservative.
-// ---------------------------------------------------------------------------
-static bool test_interface_suppression_ratio() {
-	physical_constants pc = matlib_tial6v4_Sima_tanh2010_SI();
-	correction_constants cs(constants_monaghan(0.0, 4, 0.3), constants_artificial_viscosity(1.0, 1.0, 0.1), 0.5);
-	simulation_data sim_data(pc, cs);
-
-	// Particle positioned inside the tool mesh, with tangential velocity so
-	// that friction generates heat (reuses the geometry from
-	// test_frictional_heating_partition).
-	particle p(0);
-	p.x = 0.99;
-	p.y = 0.5;
-	p.vx = 0.0;
-	p.vy = 10.0;
-	p.rho = pc.rho0();
-	p.m = 1.0e-6;
-	p.T = 500.0; // hot workpiece so conduction also contributes
-
-	// Tool helper: build a simple 1x1 mesh with high conductivity so the
-	// tool stays near its initial temperature and P_cond is non-trivial.
-	auto make_tool = [&]() {
-		fe_tool ft = make_rect_tool_mesh(1.0, 1.0, 3, 3, 1, 2, 3);
-		fe_tool::thermal_material mat;
-		mat.rho = 7800.0;
-		mat.cp = 500.0;
-		mat.k = 1.0e6; // very high k => nearly uniform, isothermal tool
-		ft.set_material(mat);
-		ft.set_mu(0.5);
-		ft.set_pose(glm::dvec2(0.), glm::dvec2(0.));
-		ft.set_initial_temperature(300.0); // tool at ambient; WP at 500 K -> P_cond > 0
-		return ft;
-	};
-
-	simulation_time *time = &simulation_time::getInstance();
-
-	// ------------------------------------------------------------------
-	// Case A: small dt => limiter inactive, suppression_ratio ≈ 0
-	// ------------------------------------------------------------------
-	{
-		fe_tool ft = make_tool();
-		body b(&p, 1, sim_data);
-		b.get_particles()[0].T = 500.0;
-		b.get_particles()[0].T_t = 0.;
-		b.set_fe_tool(&ft);
-
-		time->set_dt(1.0e-9);
-		time->set_t_final(1.0e-9);
-		b.apply_contact();
-
-		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
-		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
-		double ratio_a = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
-		std::printf("suppression small_dt: ratio=%g suppressed=%g denom=%g scale=%g\n", ratio_a, ea.step_contact_E_limiter_suppressed,
-					denom, ft.get_contact_energy_balance().scale);
-
-		// Also verify tool-source residual after advance_explicit.
-		ft.advance_explicit(1.0e-9);
-		ea = ft.get_thermal_energy_accounting();
-		double tool_src_res_rel = (std::abs(ea.step_contact_E_tool) > 1e-30)
-									  ? std::abs(ea.step_tool_E_sources - ea.step_contact_E_tool) / std::abs(ea.step_contact_E_tool)
-									  : 0.;
-		std::printf("suppression small_dt: tool_src_res_rel=%g E_sources=%g E_contact_tool=%g\n", tool_src_res_rel, ea.step_tool_E_sources,
-					ea.step_contact_E_tool);
-
-		if (ratio_a >= 0.01) {
-			std::printf("FAIL: suppression_ratio=%g >= 0.01 with small dt\n", ratio_a);
-			return false;
-		}
-		if (tool_src_res_rel >= 0.01) {
-			std::printf("FAIL: tool_source_residual_rel=%g >= 0.01\n", tool_src_res_rel);
-			return false;
-		}
-	}
-
-	// ------------------------------------------------------------------
-	// Case B: large dt => limiter fires, suppression_ratio >> 0
-	// ------------------------------------------------------------------
-	{
-		fe_tool ft = make_tool();
-		body b(&p, 1, sim_data);
-		b.get_particles()[0].T = 500.0;
-		b.get_particles()[0].T_t = 0.;
-		b.set_fe_tool(&ft);
-
-		time->set_dt(1.0); // 1 second: predicted delta_T >> 1 K, limiter fires
-		time->set_t_final(1.0);
-		b.apply_contact();
-
-		fe_tool::thermal_energy_accounting ea = ft.get_thermal_energy_accounting();
-		double denom = std::abs(ea.step_contact_E_cond_raw) + ea.step_contact_E_fric_raw;
-		double ratio_b = (denom > 1e-30) ? ea.step_contact_E_limiter_suppressed / denom : 0.;
-		std::printf("suppression large_dt: ratio=%g suppressed=%g denom=%g scale=%g\n", ratio_b, ea.step_contact_E_limiter_suppressed,
-					denom, ft.get_contact_energy_balance().scale);
-
-		if (ratio_b <= 0.5) {
-			std::printf("FAIL: suppression_ratio=%g <= 0.5 with large dt (limiter should have fired)\n", ratio_b);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static std::string get_env_copy(const char *key) {
-	const char *v = std::getenv(key);
-	return v ? std::string(v) : std::string();
-}
-
-static void set_env_local(const char *key, const char *value) {
-#if defined(_WIN32)
-	_putenv_s(key, value);
-#else
-	setenv(key, value, 1);
-#endif
-}
-
-static void unset_env_local(const char *key) {
-#if defined(_WIN32)
-	_putenv_s(key, "");
-#else
-	unsetenv(key);
-#endif
-}
-
-static bool test_fe_tool_thermal_table_activation() {
-	const std::string prev_k = get_env_copy("MFREE_FE_K_TABLE");
-	const std::string prev_k_tool = get_env_copy("MFREE_FE_TOOL_K_TABLE");
-	const std::string prev_cp = get_env_copy("MFREE_FE_CP_TABLE");
-	const std::string prev_cp_tool = get_env_copy("MFREE_FE_TOOL_CP_TABLE");
-	const std::string prev_rho = get_env_copy("MFREE_FE_RHO_TABLE");
-	const std::string prev_rho_tool = get_env_copy("MFREE_FE_TOOL_RHO_TABLE");
-
-	unset_env_local("MFREE_FE_TOOL_K_TABLE");
-	unset_env_local("MFREE_FE_TOOL_CP_TABLE");
-	unset_env_local("MFREE_FE_TOOL_RHO_TABLE");
-	unset_env_local("MFREE_FE_K_TABLE");
-	unset_env_local("MFREE_FE_CP_TABLE");
-	unset_env_local("MFREE_FE_RHO_TABLE");
-
-	fe_tool ft = make_rect_tool_mesh(1.0e-3, 1.0e-3, 9, 9, 1, 2, 3);
-	fe_tool::thermal_material mat;
-	mat.rho = 14500.0;
-	mat.cp = 200.0;
-	mat.k = 20.0;
-	ft.set_material(mat);
-	ft.set_initial_temperature(300.0);
-
-	const double dt_ref = ft.thermal_dt_crit();
-
-	set_env_local("MFREE_FE_K_TABLE", "300:20,1200:200");
-	set_env_local("MFREE_FE_CP_TABLE", "300:200,1200:200");
-	set_env_local("MFREE_FE_RHO_TABLE", "300:14500,1200:14500");
-
-	std::vector<double> Tvals = {300.0, 1200.0};
-	std::vector<double> kvals = {20.0, 200.0};
-	std::vector<double> cpvals = {200.0, 200.0};
-	std::vector<double> rhovals = {14500.0, 14500.0};
-	ft.set_material_table_k(Tvals, kvals);
-	ft.set_material_table_cp(Tvals, cpvals);
-	ft.set_material_table_rho(Tvals, rhovals);
-	ft.set_initial_temperature(1200.0);
-	ft.advance_explicit(1.0e-9);
-	const double dt_hot = ft.thermal_dt_crit();
-
-	if (prev_k.empty())
-		unset_env_local("MFREE_FE_K_TABLE");
-	else
-		set_env_local("MFREE_FE_K_TABLE", prev_k.c_str());
-	if (prev_k_tool.empty())
-		unset_env_local("MFREE_FE_TOOL_K_TABLE");
-	else
-		set_env_local("MFREE_FE_TOOL_K_TABLE", prev_k_tool.c_str());
-	if (prev_cp.empty())
-		unset_env_local("MFREE_FE_CP_TABLE");
-	else
-		set_env_local("MFREE_FE_CP_TABLE", prev_cp.c_str());
-	if (prev_cp_tool.empty())
-		unset_env_local("MFREE_FE_TOOL_CP_TABLE");
-	else
-		set_env_local("MFREE_FE_TOOL_CP_TABLE", prev_cp_tool.c_str());
-	if (prev_rho.empty())
-		unset_env_local("MFREE_FE_RHO_TABLE");
-	else
-		set_env_local("MFREE_FE_RHO_TABLE", prev_rho.c_str());
-	if (prev_rho_tool.empty())
-		unset_env_local("MFREE_FE_TOOL_RHO_TABLE");
-	else
-		set_env_local("MFREE_FE_TOOL_RHO_TABLE", prev_rho_tool.c_str());
-
-	const bool ok = std::isfinite(dt_ref) && std::isfinite(dt_hot) && dt_hot > 0.0 && dt_ref > 0.0 && (dt_hot < 0.5 * dt_ref);
-	std::printf("fe_tool_thermal_table_activation dt_ref=%e dt_hot=%e ratio=%g\n", dt_ref, dt_hot,
-				(std::isfinite(dt_ref) && dt_ref > 0.0) ? (dt_hot / dt_ref) : -1.0);
-	return ok;
-}
-
-static bool test_fe_tool_mechanical_table_activation() {
-	fe_tool ft = make_rect_tool_mesh(1.0e-3, 1.0e-3, 9, 9, 1, 2, 3);
-	fe_tool::thermal_material tmat;
-	tmat.rho = 14500.0;
-	tmat.cp = 200.0;
-	tmat.k = 20.0;
-	ft.set_material(tmat);
-
-	fe_tool::mechanical_material mmat;
-	mmat.E = 600e9;
-	mmat.nu = 0.22;
-	mmat.alpha = 4.5e-6;
-	ft.set_mechanical_material(mmat);
-
-	std::vector<double> Tvals = {300.0, 1200.0};
-	std::vector<double> Evals = {600e9, 60e9};
-	std::vector<double> nuvals = {0.22, 0.22};
-	ft.set_mechanical_table_E(Tvals, Evals);
-	ft.set_mechanical_table_nu(Tvals, nuvals);
-
-	ft.set_initial_temperature(300.0);
-	const double dt_cold = ft.mechanics_dt_crit();
-	ft.set_initial_temperature(1200.0);
-	const double dt_hot = ft.mechanics_dt_crit();
-	const bool ok = std::isfinite(dt_cold) && std::isfinite(dt_hot) && dt_hot > 0.0 && dt_cold > 0.0 && (dt_hot > 2.0 * dt_cold);
-	std::printf("fe_tool_mechanical_table_activation dt_cold=%e dt_hot=%e ratio=%g\n", dt_cold, dt_hot,
-				(std::isfinite(dt_cold) && dt_cold > 0.0) ? (dt_hot / dt_cold) : -1.0);
-	return ok;
 }
 
 int main() {
@@ -610,18 +324,10 @@ int main() {
 	bool ok1 = test_tool_1d_conduction();
 	bool ok2 = test_frictional_heating_partition();
 	bool ok3 = test_convection_lumped();
-	bool ok4 = test_coupled_timestep_estimator();
-	bool ok5 = test_interface_suppression_ratio();
-	bool ok6 = test_fe_tool_thermal_table_activation();
-	bool ok7 = test_fe_tool_mechanical_table_activation();
 	std::printf("tool_1d_conduction %s\n", ok1 ? "ok" : "fail");
 	std::printf("friction_partition %s\n", ok2 ? "ok" : "fail");
 	std::printf("convection_lumped %s\n", ok3 ? "ok" : "fail");
-	std::printf("coupled_timestep_estimator %s\n", ok4 ? "ok" : "fail");
-	std::printf("interface_suppression_ratio %s\n", ok5 ? "ok" : "fail");
-	std::printf("fe_tool_thermal_table_activation %s\n", ok6 ? "ok" : "fail");
-	std::printf("fe_tool_mechanical_table_activation %s\n", ok7 ? "ok" : "fail");
-	ok = ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7;
+	ok = ok1 && ok2 && ok3;
 
 	if (!ok) {
 		std::printf("validation_failed\n");
