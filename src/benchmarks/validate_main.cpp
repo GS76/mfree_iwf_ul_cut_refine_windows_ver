@@ -194,6 +194,7 @@ static bool test_tool_1d_conduction() {
 	const double dt = 1.0e-7;
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
+	(void)dt_crit;
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
 	for (unsigned int s = 0; s < nstep; s++)
 		ft.advance_explicit(dt);
@@ -300,6 +301,7 @@ static bool test_convection_lumped() {
 	double dt = 1.0e-4;
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
+	(void)dt_crit;
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
 	for (unsigned int s = 0; s < nstep; s++)
 		ft.advance_explicit(dt);
