@@ -148,3 +148,24 @@
   - Validation performed
     - `python scripts/check_editorconfig_basic.py` passed.
     - `git status --porcelain=v1 --branch` clean after staging/commit.
+
+- 2026-05-30: Fork strategy — PR #4 closed; development stays in the fork
+
+  PR #4 ("Merge Windows-first development line with FE-tool coupling, validation enhancements, and stabilization fixes") was an open pull request targeting `iwf-inspire/mfree_iwf-ul-cut-refine:master` from `GS76/mfree_iwf_ul_cut_refine_windows_ver:master`. It contained 186 commits spanning FE-tool thermo-mechanical coupling, Windows/MSVC compatibility, JSON-based config, gmsh 4.x support, Model 3 refinement controls, energy accounting, and stabilization fixes.
+
+  **Decision:** The PR was closed without merging. Reasoning:
+  - The Windows-first development line (`mfree_iwf_ul_cut_refine_windows_ver`) has diverged substantially from the upstream (`mfree_iwf-ul-cut-refine`) — build system (CMake modularization, FetchContent GLM), platform target (Windows/MSVC vs Linux/GCC), and feature additions (JSON config, FE tool coupling, energy accounting) represent a distinct development direction.
+  - Upstream sync is not currently needed or requested.
+
+  **Current strategy:**
+  - `GS76/mfree_iwf_ul_cut_refine_windows_ver` is the canonical development repository.
+  - `origin` (GS76) points to this fork; `upstream` (iwf-inspire) is retained for reference and future pull.
+  - If upstream changes are ever needed, pull them selectively via `git fetch upstream; git merge upstream/master` rather than reopening a monolithic merge-back PR.
+  - This work log entry serves as the record of this decision.
+
+  - Actions taken
+    - PR #4 closed via `gh pr close 4 --repo iwf-inspire/mfree_iwf-ul-cut-refine`.
+    - This work log entry created.
+
+  - Validation performed
+    - `git --no-pager remote -v` confirms `origin` → GS76 fork, `upstream` → iwf-inspire original.

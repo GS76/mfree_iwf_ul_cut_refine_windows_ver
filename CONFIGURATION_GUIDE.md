@@ -6,9 +6,9 @@ This guide documents the user-configurable parameters for the `mfree_iwf_ul_cut_
 
 ### 1.1 Config-driven runs (recommended)
 
-*   **Run from config**: `.\build\mfree_iwf.exe --config configs\model1.json`
-*   **Dump a complete default config**: `.\build\mfree_iwf.exe --dump-config configs\default.json`
-*   **Schema reference**: see [CONFIG_SCHEMA.md](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/CONFIG_SCHEMA.md)
+*   **Run from config**: `.\build\Release\mfree_iwf.exe --config configs\model1.json`
+*   **Dump a complete default config**: `.\build\Release\mfree_iwf.exe --dump-config configs\default.json`
+*   **Schema reference**: see [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md)
 
 The simulation executable accepts a single argument to select the benchmark model.
 
@@ -20,7 +20,7 @@ The simulation executable accepts a single argument to select the benchmark mode
     *   `3`: A-priori multi-resolution (Static refinement).
     *   `4`: Same as 1.
 *   **Default**: `1`
-*   **Example**: `.\build\mfree_iwf.exe -m 2`
+*   **Example**: `.\build\Release\mfree_iwf.exe -m 2`
 
 ## 2. Simulation Configuration
 

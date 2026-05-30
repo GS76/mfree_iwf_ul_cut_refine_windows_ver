@@ -28,8 +28,8 @@ ctest --test-dir build --output-on-failure
 
 ## Running
 
-```bash
-.\mfree_iwf.exe -m 1
+```powershell
+.\build\Release\mfree_iwf.exe -m 1
 ```
 
 ## Legacy fallback: manual G++ build (MinGW)
@@ -42,7 +42,7 @@ g++ -o mfree_iwf.exe $files.FullName -I src -I src/benchmarks -I deps/glm-0.9.9.
 
 ## Documentation
 For detailed CMake installation instructions, PATH verification, toolchain notes (MinGW/MSVC), and troubleshooting, see:
-- [BUILDING.md](file:///d:/mfree_iwf_ul_cut_refine_windows_ver/BUILDING.md)
+- [BUILDING.md](BUILDING.md)
 
 ## Notes for Windows Compatibility
 
@@ -50,4 +50,4 @@ For detailed CMake installation instructions, PATH verification, toolchain notes
 - Replaced `gettimeofday` with `std::chrono::high_resolution_clock`.
 - Replaced `mkdir` and `system("rm ...")` with `std::filesystem::create_directory` and `std::filesystem::remove`.
 - Added `_USE_MATH_DEFINES` for `M_PI` compatibility.
-- Added `deps/glm-0.9.9.8` for GLM dependency.
+- GLM is fetched automatically by CMake via FetchContent (no manual dependency bundling needed).

@@ -141,8 +141,8 @@ There are no HTTP API endpoints. The primary “API surface” is the CLI.
 
 Minimal benchmark run:
 
-```bash
-./mfree_iwf -m 1
+```powershell
+.\build\Release\mfree_iwf.exe -m 1
 ```
 
 Key flags (see `src/refine_cut_main.cpp`):
@@ -160,8 +160,8 @@ Key flags (see `src/refine_cut_main.cpp`):
 
 Write a single setup frame:
 
-```bash
-./view_setup --config configs/model1.json --out results
+```powershell
+.\build\Release\view_setup.exe --config configs/model1.json --out results
 ```
 
 ### 4.2 Library-style public headers
@@ -183,14 +183,14 @@ See:
 
 Generate a fully populated default config:
 
-```bash
-./mfree_iwf --dump-config default_config.json
+```powershell
+.\build\Release\mfree_iwf.exe --dump-config default_config.json
 ```
 
 Run using a config:
 
-```bash
-./mfree_iwf --config configs/model1.json
+```powershell
+.\build\Release\mfree_iwf.exe --config configs/model1.json
 ```
 
 ### 5.2 Configuration categories
@@ -253,7 +253,7 @@ The recommended build system is CMake (cross-platform) with Ninja or Makefiles.
 
 Quick manual build:
 
-```bash
+```powershell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel 8
 ctest --test-dir build --output-on-failure
@@ -263,10 +263,10 @@ ctest --test-dir build --output-on-failure
 
 ### 9.1 Run modes
 
-- Benchmark mode: `./mfree_iwf -m <1..4>`
-- Config mode: `./mfree_iwf --config <json>`
-- Smoke mode (for fast verification): `./mfree_iwf --smoke -m 1`
-- Cooldown mode: `./mfree_iwf --cooldown --config <json>`
+- Benchmark mode: `.\build\Release\mfree_iwf.exe -m <1..4>`
+- Config mode: `.\build\Release\mfree_iwf.exe --config <json>`
+- Smoke mode (for fast verification): `.\build\Release\mfree_iwf.exe --smoke -m 1`
+- Cooldown mode: `.\build\Release\mfree_iwf.exe --cooldown --config <json>`
 
 ### 9.2 Output directories
 
@@ -286,7 +286,7 @@ There is no server deployment, container, or database requirement.
 
 Run all tests via CTest:
 
-```bash
+```powershell
 ctest --test-dir build --output-on-failure
 ```
 
@@ -329,6 +329,31 @@ Recommended integration pattern:
 - Add term implementation in a focused module (`material`, `correctors`, `thermal`, `contact`, …).
 - Add explicit coupling call in `leap_frog::step` and justify ordering.
 - Prefer symmetric/consistent discretizations already used in the codebase.
+
+### 11.4 Documentation maintenance
+
+When making changes, update the corresponding documentation:
+
+- Solver behavior, CLI, run modes, or dependencies → `README.md`
+- JSON config schema changes → `CONFIG_SCHEMA.md` and `CONFIGURATION_GUIDE.md`
+- Build system or toolchain notes → `BUILDING.md` and `README_WINDOWS.md`
+- Architecture or module changes → `TECHNICAL_OVERVIEW.md`
+- Thermal/mechanical coupling changes → `docs/coupling_thermal_mechanical.md`
+- FE tool coupling changes → `docs/fe_tool_thermal_coupling.md`
+- All significant decisions and milestone completions → `docs/work_log.md`
+- Keep command examples consistent: use `powershell` code fences and `.\build\Release\*.exe` paths.
+
+### 11.5 Commit conventions and change logging
+
+- Use conventional commit prefixes: `docs:`, `fix:`, `feat:`, `chore:`, `refactor:`
+- Keep commits scoped and atomic; separate tooling/docs changes from solver/physics changes.
+- Include `Co-Authored-By: Oz <oz-agent@warp.dev>` in every commit message.
+- Push to `origin master` after each completed change set.
+- Before creating a feature branch, ensure `master` is clean and up to date.
+
+### 11.6 Repository identity
+
+This is a standalone Windows-first fork of `iwf-inspire/mfree_iwf-ul-cut-refine`. Development happens on `GS76/mfree_iwf_ul_cut_refine_windows_ver` (origin) with `upstream` retained for selective pulls. No merge-back to upstream is planned. See `docs/work_log.md` (2026-05-30 entry) for the decision record.
 
 ## 12. Troubleshooting
 
