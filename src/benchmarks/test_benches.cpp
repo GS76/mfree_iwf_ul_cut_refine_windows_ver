@@ -52,41 +52,42 @@
 
 body *test_bench_setup_rings(unsigned int nbox) {
 	// material constants (rubber like)
-	double E    = 1e7;
-	double nu   = 0.4;
+	double E = 1e7;
+	double nu = 0.4;
 	double rho0 = 1;
 
 	physical_constants physical_constants(nu, E, rho0);
 
-	//problem dimensions (monaghan & gray)
+	// problem dimensions (monaghan & gray)
 	double ri = 0.03;
 	double ro = 0.04;
 	double spacing = ro + 0.001;
 
-	double dx = 2*ro/(nbox-1);
+	double dx = 2 * ro / (nbox - 1);
 	double hdx = 1.7;
 
-	double vel_rings =  180.;
+	double vel_rings = 180.;
 
 	double c0 = physical_constants.c0();
-	double dt = 0.1*dx*hdx/(vel_rings + c0);
+	double dt = 0.1 * dx * hdx / (vel_rings + c0);
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new particle[nbox * nbox];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
 		for (unsigned int j = 0; j < nbox; j++) {
-			double px = -ro+i*dx; double py = -ro+j*dx;
-			double dist = sqrt(px*px + py*py);
+			double px = -ro + i * dx;
+			double py = -ro + j * dx;
+			double dist = sqrt(px * px + py * py);
 			if (dist < ro && dist >= ri) {
 				particles[part_iter] = particle(part_iter);
-				particles[part_iter].x = px-spacing;
+				particles[part_iter].x = px - spacing;
 				particles[part_iter].y = py;
 				part_iter++;
 				particles[part_iter] = particle(part_iter);
-				particles[part_iter].x = px+spacing;
+				particles[part_iter].x = px + spacing;
 				particles[part_iter].y = py;
 				part_iter++;
 			}
@@ -97,31 +98,31 @@ body *test_bench_setup_rings(unsigned int nbox) {
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].vx = (particles[i].x < 0.) ? vel_rings : -vel_rings;
 	}
 
-	//correction constants (monaghan & gray)
+	// correction constants (monaghan & gray)
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
 
 	body *b = new body(particles, n, sim_data);
 
 	simulation_time *time = &simulation_time::getInstance();
-	time->set_t_final(6e3*dt);
+	time->set_t_final(6e3 * dt);
 	time->set_dt(dt);
 
 	global_logger = new logger("rings");
@@ -131,37 +132,38 @@ body *test_bench_setup_rings(unsigned int nbox) {
 
 body *test_bench_setup_ring_contact(unsigned int nbox) {
 	// material constants (rubber like)
-	double E    = 1e7;
-	double nu   = 0.4;
+	double E = 1e7;
+	double nu = 0.4;
 	double rho0 = 1;
 
 	physical_constants physical_constants(nu, E, rho0);
 
-	//problem dimensions (monaghan & gray)
+	// problem dimensions (monaghan & gray)
 	double ri = 0.03;
 	double ro = 0.04;
 	double spacing = ro + 0.001;
 
-	double dx = 2*ro/(nbox-1);
+	double dx = 2 * ro / (nbox - 1);
 	double hdx = 1.7;
 
-	double vel_rings =  180.;
+	double vel_rings = 180.;
 
 	double c0 = physical_constants.c0();
-	double dt = 0.1*dx*hdx/(vel_rings + c0);
+	double dt = 0.1 * dx * hdx / (vel_rings + c0);
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new particle[nbox * nbox];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
 		for (unsigned int j = 0; j < nbox; j++) {
-			double px = -ro+i*dx; double py = -ro+j*dx;
-			double dist = sqrt(px*px + py*py);
+			double px = -ro + i * dx;
+			double py = -ro + j * dx;
+			double dist = sqrt(px * px + py * py);
 			if (dist < ro && dist >= ri) {
 				particles[part_iter] = particle(part_iter);
-				particles[part_iter].x = px-spacing;
+				particles[part_iter].x = px - spacing;
 				particles[part_iter].y = py;
 				part_iter++;
 			}
@@ -172,37 +174,37 @@ body *test_bench_setup_ring_contact(unsigned int nbox) {
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].vx = vel_rings;
 	}
 
-	//correction constants (monaghan & gray)
+	// correction constants (monaghan & gray)
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
 
 	body *b = new body(particles, n, sim_data);
 
 	simulation_time *time = &simulation_time::getInstance();
-	time->set_t_final(6e3*dt);
+	time->set_t_final(6e3 * dt);
 	time->set_dt(dt);
 
-	glm::dvec2 bl(0.,    -2*ro);
-	glm::dvec2 br(10*dx, -2*ro);
-	glm::dvec2 tr(10*dx, +2*ro);
-	glm::dvec2 tl(0.,    +2*ro);
+	glm::dvec2 bl(0., -2 * ro);
+	glm::dvec2 br(10 * dx, -2 * ro);
+	glm::dvec2 tr(10 * dx, +2 * ro);
+	glm::dvec2 tl(0., +2 * ro);
 
 	tool *t = new tool(tl, tr, br, bl, 0.);
 	b->set_tool(t);
@@ -216,30 +218,31 @@ body *test_bench_setup_disk_impact(unsigned int nbox) {
 	physical_constants physical_constants = matlib_tial6v4_Sima_tanh2010_SI();
 	double rho0 = physical_constants.rho0();
 
-	//problem dimensions (monaghan & gray)
+	// problem dimensions (monaghan & gray)
 	double ro = 0.04;
-	double spacing = ro + ro/40;
+	double spacing = ro + ro / 40;
 
-	double dx = 2*ro/(nbox-1);
+	double dx = 2 * ro / (nbox - 1);
 	double hdx = 1.7;
 
 	double vel_rings = 180.;
 
 	double c0 = physical_constants.c0();
-	double dt = 0.1*dx*hdx/(vel_rings + c0);
+	double dt = 0.1 * dx * hdx / (vel_rings + c0);
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new particle[nbox * nbox];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
 		for (unsigned int j = 0; j < nbox; j++) {
-			double px = -ro+i*dx; double py = -ro+j*dx;
-			double dist = sqrt(px*px + py*py);
+			double px = -ro + i * dx;
+			double py = -ro + j * dx;
+			double dist = sqrt(px * px + py * py);
 			if (dist < ro) {
 				particles[part_iter] = particle(part_iter);
-				particles[part_iter].x = px-spacing;
+				particles[part_iter].x = px - spacing;
 				particles[part_iter].y = py;
 				part_iter++;
 			}
@@ -250,39 +253,39 @@ body *test_bench_setup_disk_impact(unsigned int nbox) {
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
 		particles[i].vx = vel_rings;
-		particles[i].T      = physical_constants.jc().Tref();
+		particles[i].T = physical_constants.jc().Tref();
 		particles[i].T_init = physical_constants.jc().Tref();
 	}
 
-	//correction constants (monaghan & gray)
+	// correction constants (monaghan & gray)
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
 
 	body *b = new body(particles, n, sim_data);
 
 	simulation_time *time = &simulation_time::getInstance();
-	time->set_t_final(6e3*dt);
+	time->set_t_final(6e3 * dt);
 	time->set_dt(dt);
 
-	glm::dvec2 bl(0.,    -2*ro);
-	glm::dvec2 br(10*dx, -2*ro);
-	glm::dvec2 tr(10*dx, +2*ro);
-	glm::dvec2 tl(0.,    +2*ro);
+	glm::dvec2 bl(0., -2 * ro);
+	glm::dvec2 br(10 * dx, -2 * ro);
+	glm::dvec2 tr(10 * dx, +2 * ro);
+	glm::dvec2 tl(0., +2 * ro);
 
 	tool *t = new tool(tl, tr, br, bl, 0.);
 	b->set_tool(t);
@@ -299,24 +302,25 @@ body *test_bench_setup_thermal(unsigned int nbox) {
 	physical_constants physical_constants = matlib_thermal_synthetic();
 	double rho0 = physical_constants.rho0();
 
-	//problem dimensions (monaghan & gray)
+	// problem dimensions (monaghan & gray)
 	double ri = 0.03;
 	double ro = 0.04;
 
-	double dx = 2*ro/(nbox-1);
+	double dx = 2 * ro / (nbox - 1);
 	double hdx = 1.7;
 
 	double dt = 1e-6;
 
 	printf("using timestep %e\n", dt);
 
-	particle *particles = new particle[nbox*nbox];
+	particle *particles = new particle[nbox * nbox];
 
 	unsigned int part_iter = 0;
 	for (unsigned int i = 0; i < nbox; i++) {
 		for (unsigned int j = 0; j < nbox; j++) {
-			double px = -ro+i*dx; double py = -ro+j*dx;
-			double dist = sqrt(px*px + py*py);
+			double px = -ro + i * dx;
+			double py = -ro + j * dx;
+			double dist = sqrt(px * px + py * py);
 			if (dist < ro) {
 				particles[part_iter] = particle(part_iter);
 				particles[part_iter].x = px;
@@ -330,42 +334,42 @@ body *test_bench_setup_thermal(unsigned int nbox) {
 
 	for (unsigned int i = 0; i < n; i++) {
 		particles[i].rho = rho0;
-		particles[i].h = hdx*dx;
-		particles[i].m = dx*dx*rho0;
-		particles[i].T      = 273;
+		particles[i].h = hdx * dx;
+		particles[i].m = dx * dx * rho0;
+		particles[i].T = 273;
 		particles[i].T_init = 273;
 
-		if (particles[i].x*particles[i].x + particles[i].y*particles[i].y < ri*ri) {
-			particles[i].T      = 1e3;
+		if (particles[i].x * particles[i].x + particles[i].y * particles[i].y < ri * ri) {
+			particles[i].T = 1e3;
 			particles[i].T_init = 1e3;
 		}
 	}
 
-	//correction constants (monaghan & gray)
+	// correction constants (monaghan & gray)
 	double alpha = 1.;
-	double beta  = 1.;
-	double eta   = 0.1;
+	double beta = 1.;
+	double eta = 0.1;
 
 	double art_stress_eps = 0.3;
-	kernel_result w = cubic_spline(0, 0, dx, 0, hdx*dx);
+	kernel_result w = cubic_spline(0, 0, dx, 0, hdx * dx);
 	double wdeltap = w.w;
 	double stress_exponent = 4.;
 	double xsph_eps = 0.5;
 
 	correction_constants correction_constants(constants_monaghan(wdeltap, stress_exponent, art_stress_eps),
-			constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
+											  constants_artificial_viscosity(alpha, beta, eta), xsph_eps);
 
 	simulation_data sim_data(physical_constants, correction_constants);
 
 	body *b = new body(particles, n, sim_data);
 
 	simulation_time *time = &simulation_time::getInstance();
-	time->set_t_final(1e3*dt);
+	time->set_t_final(1e3 * dt);
 	time->set_dt(dt);
 
 	thermal *trml = new thermal(sim_data.get_physical_constants());
 	trml->set_method(thermal::thermal_solver::thermal_brookshaw);
-//	trml->set_method(thermal::thermal_solver::thermal_pse);
+	//	trml->set_method(thermal::thermal_solver::thermal_pse);
 	b->set_thermal(trml);
 
 	global_logger = new logger("rings");

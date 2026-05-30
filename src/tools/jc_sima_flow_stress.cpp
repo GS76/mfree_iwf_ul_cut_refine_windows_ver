@@ -129,8 +129,10 @@ int main(int argc, char **argv) {
 
 		csv << eps << "," << sigma << "\n";
 
-		if (sigma < stress_min) stress_min = sigma;
-		if (sigma > stress_max) stress_max = sigma;
+		if (sigma < stress_min)
+			stress_min = sigma;
+		if (sigma > stress_max)
+			stress_max = sigma;
 	}
 
 	csv.close();

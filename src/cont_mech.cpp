@@ -54,21 +54,20 @@
 void contmech_continuity(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		const double rho  = particles[i].rho;
+		const double rho = particles[i].rho;
 		const double vx_x = particles[i].vx_x;
 		const double vy_y = particles[i].vy_y;
 
-		particles[i].rho_t -= rho*(vx_x + vy_y);
+		particles[i].rho_t -= rho * (vx_x + vy_y);
 	}
 }
-
 
 void contmech_momentum(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		const double Sxx_x = particles[i].Sxx_x;
 		const double Sxy_y = particles[i].Sxy_y;
@@ -77,15 +76,15 @@ void contmech_momentum(body &b) {
 
 		const double rho = particles[i].rho;
 
-		particles[i].vx_t += 1./rho*(Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
-		particles[i].vy_t += 1./rho*(Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
+		particles[i].vx_t += 1. / rho * (Sxx_x + Sxy_y) + particles[i].fcx / particles[i].m + particles[i].ftx / particles[i].m;
+		particles[i].vy_t += 1. / rho * (Sxy_x + Syy_y) + particles[i].fcy / particles[i].m + particles[i].fty / particles[i].m;
 	}
 }
 
 void contmech_advection(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
 		particles[i].x_t += particles[i].vx;
 		particles[i].y_t += particles[i].vy;
@@ -98,15 +97,15 @@ void do_boundary_conditions(body &b) {
 	// this enforces the fixed boundary conditions
 	// demonstrated in Fig. 10 of the manuscript
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned int i = 0; i < b.get_num_part(); i++) {
-		if(particles[i].fixed) {
-			particles[i].x    = particles[i].X;
-			particles[i].y    = particles[i].Y;
-			particles[i].x_t  = 0.;
-			particles[i].y_t  = 0.;
-			particles[i].vx   = 0.;
-			particles[i].vy   = 0.;
+		if (particles[i].fixed) {
+			particles[i].x = particles[i].X;
+			particles[i].y = particles[i].Y;
+			particles[i].x_t = 0.;
+			particles[i].y_t = 0.;
+			particles[i].vx = 0.;
+			particles[i].vy = 0.;
 			particles[i].vx_t = 0.;
 			particles[i].vy_t = 0.;
 		}

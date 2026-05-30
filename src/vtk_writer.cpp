@@ -57,13 +57,17 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 }
 
 static int vtk_stage_id(const char *stage_label) {
-	if (!stage_label) return 0;
-	if (std::strcmp(stage_label, "cooldown") == 0) return 1;
-	if (std::strcmp(stage_label, "residual-stress-ready") == 0) return 2;
+	if (!stage_label)
+		return 0;
+	if (std::strcmp(stage_label, "cooldown") == 0)
+		return 1;
+	if (std::strcmp(stage_label, "residual-stress-ready") == 0)
+		return 2;
 	return 0;
 }
 
-void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
+void vtk_writer_write(const std::vector<particle> &particles, unsigned int step, const char *folder, const char *stage_label,
+					  const char *frame_label) {
 	char buf[256];
 	if (frame_label && frame_label[0] != '\0') {
 		sprintf(buf, "%s/%s_%06d.vtk", folder, frame_label, step);
@@ -91,14 +95,14 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 
-	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n");		// Particle positions
+	fprintf(fp, "DATASET UNSTRUCTURED_GRID\n"); // Particle positions
 	fprintf(fp, "POINTS %d float\n", np);
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].x, particles[i].y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "CELLS %d %d\n", np, 2*np);
+	fprintf(fp, "CELLS %d %d\n", np, 2 * np);
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%d %d\n", 1, i);
 	}
@@ -126,14 +130,14 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS density float 1\n");		// Current particle density
+	fprintf(fp, "SCALARS density float 1\n"); // Current particle density
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].rho);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS temperature float 1\n");    // Particle temperature
+	fprintf(fp, "SCALARS temperature float 1\n"); // Particle temperature
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].T);
@@ -147,7 +151,7 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS Svm float 1\n");        // Particle Von Mises stress
+	fprintf(fp, "SCALARS Svm float 1\n"); // Particle Von Mises stress
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		double sxx = particles[i].Sxx - particles[i].p;
@@ -155,7 +159,7 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 		double syy = particles[i].Syy - particles[i].p;
 		double szz = particles[i].Szz - particles[i].p;
 
-		double svm = sqrt(fabs((sxx*sxx + syy*syy + szz*szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy*sxy)));
+		double svm = sqrt(fabs((sxx * sxx + syy * syy + szz * szz) - sxx * syy - sxx * szz - syy * szz + 3.0 * (sxy * sxy)));
 		fprintf(fp, "%f\n", svm);
 	}
 	fprintf(fp, "\n");
@@ -172,14 +176,14 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n");		// Current particle's equivalent plastic strain
+	fprintf(fp, "SCALARS equiv_plastic_strain float 1\n"); // Current particle's equivalent plastic strain
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f\n", particles[i].eps_pl_equiv);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "VECTORS velocity float\n");		// Particle velocities
+	fprintf(fp, "VECTORS velocity float\n"); // Particle velocities
 	for (unsigned int i = 0; i < np; i++) {
 		fprintf(fp, "%f %f %f\n", particles[i].vx, particles[i].vy, 0.);
 	}
@@ -191,10 +195,10 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "SCALARS glob_density_err double 1\n");  // global density error acc. to Feldman 2006
+	fprintf(fp, "SCALARS glob_density_err double 1\n"); // global density error acc. to Feldman 2006
 	fprintf(fp, "LOOKUP_TABLE default\n");
 	for (unsigned int i = 0; i < np; i++) {
-		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init)*(particles[i].rho - particles[i].rho_init));
+		fprintf(fp, "%e\n", (particles[i].rho - particles[i].rho_init) * (particles[i].rho - particles[i].rho_init));
 	}
 	fprintf(fp, "\n");
 
@@ -208,13 +212,12 @@ void vtk_writer_write(const std::vector<particle> &particles, unsigned int step,
 	fclose(fp);
 }
 
-void vtk_writer_write(const tool* tool, unsigned int step, const char *folder) {
-	vtk_writer_write(tool, step, folder, nullptr, nullptr);
-}
+void vtk_writer_write(const tool *tool, unsigned int step, const char *folder) { vtk_writer_write(tool, step, folder, nullptr, nullptr); }
 
-void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
+void vtk_writer_write(const tool *tool, unsigned int step, const char *folder, const char *stage_label, const char *frame_label) {
 	auto segments = tool->get_segments();
-	if (segments.size() == 0) return;
+	if (segments.size() == 0)
+		return;
 
 	assert(segments.size() == 4 || segments.size() == 5);
 
@@ -240,12 +243,14 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, c
 
 			double start = fillet->t1;
 			double end = fillet->t2;
-			if (end < start) end += 2.0 * M_PI;
+			if (end < start)
+				end += 2.0 * M_PI;
 
 			if (br_valid) {
 				double start_alt = fillet->t2;
 				double end_alt = fillet->t1;
-				if (end_alt < start_alt) end_alt += 2.0 * M_PI;
+				if (end_alt < start_alt)
+					end_alt += 2.0 * M_PI;
 
 				const double mid = start + 0.5 * (end - start);
 				const double mid_alt = start_alt + 0.5 * (end_alt - start_alt);
@@ -271,7 +276,8 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, c
 		outline.push_back(segments[2].right);
 		outline.push_back(segments[3].right);
 	}
-	if (outline.size() < 3) return;
+	if (outline.size() < 3)
+		return;
 
 	char buf[256];
 	if (frame_label && frame_label[0] != '\0') {
@@ -294,19 +300,18 @@ void vtk_writer_write(const tool* tool, unsigned int step, const char *folder, c
 	fprintf(fp, "ASCII\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "DATASET POLYDATA\n");
-	fprintf(fp, "POINTS %d float\n", (int) outline.size());
-	for (const auto& p : outline) {
+	fprintf(fp, "POINTS %d float\n", (int)outline.size());
+	for (const auto &p : outline) {
 		fprintf(fp, "%f %f %f\n", p.x, p.y, 0.);
 	}
 	fprintf(fp, "\n");
 
-	fprintf(fp, "POLYGONS 1 %d\n", (int) outline.size() + 1);
-	fprintf(fp, "%d", (int) outline.size());
-	for (int i = 0; i < (int) outline.size(); i++) {
+	fprintf(fp, "POLYGONS 1 %d\n", (int)outline.size() + 1);
+	fprintf(fp, "%d", (int)outline.size());
+	for (int i = 0; i < (int)outline.size(); i++) {
 		fprintf(fp, " %d", i);
 	}
 	fprintf(fp, "\n");
 
 	fclose(fp);
-
 }

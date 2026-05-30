@@ -63,8 +63,8 @@
 
 class simulation_time {
 
-public:
-	static simulation_time& getInstance();
+  public:
+	static simulation_time &getInstance();
 	simulation_time(simulation_time const &) = delete;
 	void operator=(simulation_time const &) = delete;
 	double get_time() const;
@@ -81,7 +81,7 @@ public:
 	double get_CFL() const;
 	void modify_dt(double dt_adapted);
 
-private:
+  private:
 	simulation_time();
 	double m_time = 0.;
 	double m_dt = 0.;

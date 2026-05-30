@@ -14,19 +14,19 @@
 
 logger *global_logger = nullptr;
 
-static void write_workpiece_outline_vtk(const std::string& path, const body& b) {
-	const auto& particles = b.get_particles();
+static void write_workpiece_outline_vtk(const std::string &path, const body &b) {
+	const auto &particles = b.get_particles();
 	double xmin = DBL_MAX, xmax = -DBL_MAX;
 	double ymin = DBL_MAX, ymax = -DBL_MAX;
 
-	for (const auto& p : particles) {
+	for (const auto &p : particles) {
 		xmin = std::min(xmin, p.x);
 		xmax = std::max(xmax, p.x);
 		ymin = std::min(ymin, p.y);
 		ymax = std::max(ymax, p.y);
 	}
 
-	FILE* fp = std::fopen(path.c_str(), "w");
+	FILE *fp = std::fopen(path.c_str(), "w");
 	if (!fp) {
 		std::cerr << "Failed to open " << path << std::endl;
 		std::abort();
@@ -46,7 +46,7 @@ static void write_workpiece_outline_vtk(const std::string& path, const body& b) 
 	std::fclose(fp);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	int model = 1;
 	std::string out_dir = "results/setup";
 	std::string config_path;
@@ -64,13 +64,14 @@ int main(int argc, char** argv) {
 
 	if (!config_path.empty()) {
 		mfree::config::simulation_config cfg = mfree::config::load_simulation_config_file(config_path);
-		if (out_dir == "results/setup") out_dir = cfg.io.output_dir + "/setup";
+		if (out_dir == "results/setup")
+			out_dir = cfg.io.output_dir + "/setup";
 	}
 
 	std::filesystem::create_directories(out_dir);
 
 	int nx = 31;
-	body* b = nullptr;
+	body *b = nullptr;
 	if (!config_path.empty()) {
 		mfree::config::simulation_config cfg = mfree::config::load_simulation_config_file(config_path);
 		b = mfree::config::build_body_from_config(cfg);
@@ -97,15 +98,16 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	const auto& particles = b->get_particles();
-	const tool* t = b->get_tool();
+	const auto &particles = b->get_particles();
+	const tool *t = b->get_tool();
 
-	simulation_time* time = &simulation_time::getInstance();
+	simulation_time *time = &simulation_time::getInstance();
 	time->set_dt(time->get_dt());
 	time->set_t_final(time->get_t_final());
 
 	vtk_writer_write(particles, 0, out_dir.c_str(), "setup", "setup");
-	if (t) vtk_writer_write(t, 0, out_dir.c_str(), "setup", "setup");
+	if (t)
+		vtk_writer_write(t, 0, out_dir.c_str(), "setup", "setup");
 	write_workpiece_outline_vtk(out_dir + "/workpiece_outline.vtk", *b);
 
 	if (global_logger) {
@@ -119,4 +121,3 @@ int main(int argc, char** argv) {
 	std::cout << "  " << out_dir << "/workpiece_outline.vtk" << std::endl;
 	return 0;
 }
-

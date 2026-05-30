@@ -130,7 +130,8 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 	for (const auto &tri : tris) {
 		unsigned int i0 = tri[0], i1 = tri[1], i2 = tri[2];
-		if (i0 >= nodes.size() || i1 >= nodes.size() || i2 >= nodes.size()) continue;
+		if (i0 >= nodes.size() || i1 >= nodes.size() || i2 >= nodes.size())
+			continue;
 
 		const glm::dvec2 &a = nodes[i0];
 		const glm::dvec2 &b = nodes[i1];
@@ -138,7 +139,8 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 		// Compute barycentric coordinates
 		double denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-		if (denom == 0.0) continue;
+		if (denom == 0.0)
+			continue;
 
 		double w0 = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
 		double w1 = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
@@ -146,9 +148,7 @@ static double interpolate_temperature_at(const fe_tool &ft, glm::dvec2 p) {
 
 		// Check if point is inside or on triangle
 		if (w0 >= -1e-12 && w1 >= -1e-12 && w2 >= -1e-12) {
-			return w0 * ft.temperature_at_node(i0) +
-			       w1 * ft.temperature_at_node(i1) +
-			       w2 * ft.temperature_at_node(i2);
+			return w0 * ft.temperature_at_node(i0) + w1 * ft.temperature_at_node(i1) + w2 * ft.temperature_at_node(i2);
 		}
 	}
 	// Fallback: return temperature of nearest node
@@ -195,7 +195,8 @@ static bool test_tool_1d_conduction() {
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
-	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
+	for (unsigned int s = 0; s < nstep; s++)
+		ft.advance_explicit(dt);
 
 	// Sample temperature at center point using barycentric interpolation
 	glm::dvec2 target(0.005, 0.0005);
@@ -300,11 +301,13 @@ static bool test_convection_lumped() {
 	double dt_crit = ft.thermal_dt_crit();
 	assert(dt <= 0.9 * dt_crit && "Time step violates stability criterion");
 	unsigned int nstep = static_cast<unsigned int>(t_final / dt);
-	for (unsigned int s = 0; s < nstep; s++) ft.advance_explicit(dt);
+	for (unsigned int s = 0; s < nstep; s++)
+		ft.advance_explicit(dt);
 
 	double T_ref = air.T_inf + (T0 - air.T_inf) * std::exp(-t_final / tau);
 	double T_avg = 0.;
-	for (unsigned int i = 0; i < ft.nodes_tool_frame().size(); i++) T_avg += ft.temperature_at_node(i);
+	for (unsigned int i = 0; i < ft.nodes_tool_frame().size(); i++)
+		T_avg += ft.temperature_at_node(i);
 	T_avg /= static_cast<double>(ft.nodes_tool_frame().size());
 
 	double rel = std::abs(T_avg - T_ref) / std::max(1e-12, std::abs(T_ref));

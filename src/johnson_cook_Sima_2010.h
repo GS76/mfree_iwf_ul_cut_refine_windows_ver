@@ -72,14 +72,13 @@
 	------------------------------------------------------------------------------
 	"Modified material constitutive models for serrated chip formation simulations
 	 and experimental validation in machining of titanium alloy ti???6al???4v"
-						     By: M. Sima, T. ??zel
+							 By: M. Sima, T. ??zel
 		Int. J. of Machine Tools & Manufacture, 50 (11) (2010), pp. 943-960
 */
 
-
 class johnson_cook_Sima_2010 {
 
-private:
+  private:
 	double m_A = 0.;
 	double m_B = 0.;
 	double m_C = 0.;
@@ -88,7 +87,7 @@ private:
 	double m_n = 0.;
 
 	double m_Tmelt = 0.;
-	double m_Tref  = 0.;
+	double m_Tref = 0.;
 
 	double m_eps_dot_ref = 0.;
 	double m_tanh_a = 0.0;
@@ -103,8 +102,8 @@ private:
 	double m_norm_Strial = 0.;
 
 	double m_t = 0.;
-public:
 
+  public:
 	void set_norm_s_trial(double norm_s_trial);
 	void set_eps_init(double eps_init);
 	void set_temp(double theta);
@@ -112,7 +111,7 @@ public:
 	double sigma_yield(double eps_pl, double eps_dot_pl) const;
 	double sigma_yield(double eps_pl, double eps_dot_pl, double theta) const;
 
-	double operator() (double delta_lambda);
+	double operator()(double delta_lambda);
 	double f(double delta_lambda);
 
 	// Stateless evaluation method for thread safety

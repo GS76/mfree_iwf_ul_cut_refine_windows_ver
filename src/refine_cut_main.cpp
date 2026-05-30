@@ -90,12 +90,12 @@ namespace fs = std::filesystem;
 
 #ifdef _WIN32
 void fpe_signal_handler(int sig) {
-    _fpreset(); // Reset floating point state
-    throw std::runtime_error("Floating Point Exception Detected (SIGFPE)");
+	_fpreset(); // Reset floating point state
+	throw std::runtime_error("Floating Point Exception Detected (SIGFPE)");
 }
 #endif
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
 #ifndef _WIN32
 	feenableexcept(FE_INVALID | FE_OVERFLOW);
 #elif defined(_WIN32)
@@ -104,7 +104,7 @@ int main(int argc, char * argv[]) {
 	// Enable (Unmask) Invalid, ZeroDivide, and Overflow exceptions
 	// _controlfp(0, ...) clears the mask bits, enabling the exceptions
 	_controlfp(0, _EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW);
-	
+
 	// Register signal handler for SIGFPE
 	signal(SIGFPE, fpe_signal_handler);
 #endif
@@ -172,7 +172,7 @@ int main(int argc, char * argv[]) {
 	}
 	if (!fs_ec && clear_output_dir) {
 		for (fs::directory_iterator it(folder, fs_ec), end; !fs_ec && it != end; it.increment(fs_ec)) {
-			const fs::directory_entry& entry = *it;
+			const fs::directory_entry &entry = *it;
 			if (entry.is_regular_file(fs_ec)) {
 				std::string ext = entry.path().extension().string();
 				if (ext == ".txt" || ext == ".vtk") {
@@ -248,21 +248,23 @@ int main(int argc, char * argv[]) {
 
 	unsigned long long num_step = 0;
 	if (cooldown && !smoke) {
-		const unsigned long long cut_steps = (cut_dt_s > 0.0) ? (unsigned long long) std::ceil(cut_end_time / cut_dt_s) : 0ULL;
-		const unsigned long long cooldown_steps = (cooldown_dt_s > 0.0) ? (unsigned long long) std::ceil(cooldown_max_time_s / cooldown_dt_s) : 0ULL;
+		const unsigned long long cut_steps = (cut_dt_s > 0.0) ? (unsigned long long)std::ceil(cut_end_time / cut_dt_s) : 0ULL;
+		const unsigned long long cooldown_steps =
+			(cooldown_dt_s > 0.0) ? (unsigned long long)std::ceil(cooldown_max_time_s / cooldown_dt_s) : 0ULL;
 		num_step = cut_steps + cooldown_steps;
 	} else {
-		num_step = (time->get_dt() > 0.0) ? (unsigned long long) std::ceil(time->get_t_final() / time->get_dt()) : 0ULL;
+		num_step = (time->get_dt() > 0.0) ? (unsigned long long)std::ceil(time->get_t_final() / time->get_dt()) : 0ULL;
 	}
 
-	unsigned int freq = (num_step > 0) ? (unsigned int) (num_step / (unsigned long long) num_print) : 1;
+	unsigned int freq = (num_step > 0) ? (unsigned int)(num_step / (unsigned long long)num_print) : 1;
 	unsigned int print_iter = 0;
 	auto begin = std::chrono::high_resolution_clock::now();
 
-	freq = std::max(1, (int) freq);
-	if (all_steps || (use_config && cfg.io.all_steps)) freq = 1;
-	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%llu print_every=%u\n",
-		   (*b).get_num_part(), time->get_dt(), time->get_t_final(), num_step, freq);
+	freq = std::max(1, (int)freq);
+	if (all_steps || (use_config && cfg.io.all_steps))
+		freq = 1;
+	printf("starting simulation: particles=%u dt=%e t_final=%e steps=%llu print_every=%u\n", (*b).get_num_part(), time->get_dt(),
+		   time->get_t_final(), num_step, freq);
 
 	/*
 	  ========================
@@ -284,7 +286,8 @@ int main(int argc, char * argv[]) {
 		bool cooldown_started = false;
 		unsigned int fixed_count_initial = 0;
 		for (unsigned int i = 0; i < b->get_num_part(); i++) {
-			if (b->get_particles()[i].fixed) fixed_count_initial++;
+			if (b->get_particles()[i].fixed)
+				fixed_count_initial++;
 		}
 
 		std::ofstream cooldown_csv;
@@ -305,9 +308,9 @@ int main(int argc, char * argv[]) {
 		double worst_max_abs_rate_C_per_min = 0.0;
 		double worst_positive_deltaT_C = 0.0;
 
-		while(!time->finished()) {
+		while (!time->finished()) {
 			if (cooldown && !cooldown_started && (time->get_time() + time->get_dt()) >= cut_end_time) {
-				thermal* trml = b->get_thermal();
+				thermal *trml = b->get_thermal();
 				if (trml) {
 					trml->set_convection(cooldown_hconv_W_m2K, ambient_T_K);
 					trml->set_max_cooling_rate(max_rate_K_per_s);
@@ -317,11 +320,12 @@ int main(int argc, char * argv[]) {
 					global_logger->set_stage("cooldown");
 				}
 
-				tool* t = b->get_tool();
+				tool *t = b->get_tool();
 				if (t) {
 					if (cooldown_remove_tool) {
 						b->set_tool(nullptr);
-						if (global_logger) global_logger->set_tool(nullptr);
+						if (global_logger)
+							global_logger->set_tool(nullptr);
 					} else {
 						glm::dvec2 v = t->get_vel();
 						const double vmag = std::sqrt(v.x * v.x + v.y * v.y);
@@ -331,7 +335,8 @@ int main(int argc, char * argv[]) {
 
 				cooldown_started = true;
 				time->set_dt(cooldown_dt_s);
-				if (all_steps) freq = 1;
+				if (all_steps)
+					freq = 1;
 				prev_T.assign(b->get_num_part(), 0.0);
 				if (global_logger) {
 					global_logger->log(*b, print_iter);
@@ -355,14 +360,15 @@ int main(int argc, char * argv[]) {
 				std::chrono::duration<double> diff = intermediate - begin;
 				double seconds_so_far = diff.count();
 
-				double percent_done = (num_step > 0) ? (100.0 * time->get_step() / ((double) num_step)) : 0.0;
+				double percent_done = (num_step > 0) ? (100.0 * time->get_step() / ((double)num_step)) : 0.0;
 				double seconds_left = 0.0;
 				if (percent_done > 0.0) {
-					double time_left = seconds_so_far/percent_done*100.0;
+					double time_left = seconds_so_far / percent_done * 100.0;
 					seconds_left = time_left - seconds_so_far;
 				}
 
-				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(), time->get_time(), percent_done, seconds_left);
+				printf("%06d: #increments %06d, cur time %e, pctg done %f, seconds left: %f\n", print_iter, time->get_step(),
+					   time->get_time(), percent_done, seconds_left);
 				fflush(stdout);
 				print_iter++;
 			}
@@ -376,7 +382,7 @@ int main(int argc, char * argv[]) {
 			} else {
 				b->construct_verlet_lists();
 
-				#pragma omp parallel for
+#pragma omp parallel for
 				for (unsigned int i = 0; i < b->get_num_part(); i++) {
 					b->get_particles()[i].T_t = 0.0;
 				}
@@ -384,7 +390,7 @@ int main(int argc, char * argv[]) {
 				b->apply_thermal_conduction();
 
 				const double dt = time->get_dt();
-				#pragma omp parallel for
+#pragma omp parallel for
 				for (unsigned int i = 0; i < b->get_num_part(); i++) {
 					b->get_particles()[i].T += dt * b->get_particles()[i].T_t;
 				}
@@ -401,34 +407,37 @@ int main(int argc, char * argv[]) {
 				double max_positive_deltaT_C = 0.0;
 				for (unsigned int i = 0; i < b->get_num_part(); i++) {
 					const double T = b->get_particles()[i].T;
-					if (T > max_T) max_T = T;
-					if (T < min_T) min_T = T;
+					if (T > max_T)
+						max_T = T;
+					if (T < min_T)
+						min_T = T;
 					const double dT = T - prev_T[i];
 					const double abs_rate_C_per_min = (dt > 0.0) ? (std::abs(dT) / dt * 60.0) : 0.0;
-					if (abs_rate_C_per_min > max_abs_rate_C_per_min) max_abs_rate_C_per_min = abs_rate_C_per_min;
-					if (dT > max_positive_deltaT_C) max_positive_deltaT_C = dT;
+					if (abs_rate_C_per_min > max_abs_rate_C_per_min)
+						max_abs_rate_C_per_min = abs_rate_C_per_min;
+					if (dT > max_positive_deltaT_C)
+						max_positive_deltaT_C = dT;
 				}
 
-				if (max_abs_rate_C_per_min > worst_max_abs_rate_C_per_min) worst_max_abs_rate_C_per_min = max_abs_rate_C_per_min;
-				if (max_positive_deltaT_C > worst_positive_deltaT_C) worst_positive_deltaT_C = max_positive_deltaT_C;
+				if (max_abs_rate_C_per_min > worst_max_abs_rate_C_per_min)
+					worst_max_abs_rate_C_per_min = max_abs_rate_C_per_min;
+				if (max_positive_deltaT_C > worst_positive_deltaT_C)
+					worst_positive_deltaT_C = max_positive_deltaT_C;
 
 				double ramp = 1.0;
-				thermal* trml = b->get_thermal();
-				if (trml) ramp = trml->last_convection_ramp();
+				thermal *trml = b->get_thermal();
+				if (trml)
+					ramp = trml->last_convection_ramp();
 
 				if (cooldown_csv.is_open()) {
-					cooldown_csv << time->get_time() << ","
-								 << (max_T - 273.15) << ","
-								 << (min_T - 273.15) << ","
-								 << max_abs_rate_C_per_min << ","
-								 << ramp
-								 << "\n";
+					cooldown_csv << time->get_time() << "," << (max_T - 273.15) << "," << (min_T - 273.15) << "," << max_abs_rate_C_per_min
+								 << "," << ramp << "\n";
 				}
 
 				if (max_T <= ambient_T_stop_K && (max_T - min_T) <= 0.5) {
 					if (global_logger) {
 						vtk_writer_write(b->get_particles(), print_iter, "results", "residual-stress-ready", "residual-stress-ready");
-						tool* t = b->get_tool();
+						tool *t = b->get_tool();
 						if (t) {
 							vtk_writer_write(t, print_iter, "results", "residual-stress-ready", "residual-stress-ready");
 						}
@@ -444,18 +453,20 @@ int main(int argc, char * argv[]) {
 		if (cooldown && cooldown_summary.is_open()) {
 			unsigned int fixed_count_final = 0;
 			for (unsigned int i = 0; i < b->get_num_part(); i++) {
-				if (b->get_particles()[i].fixed) fixed_count_final++;
+				if (b->get_particles()[i].fixed)
+					fixed_count_final++;
 			}
 			double max_T = -DBL_MAX;
 			for (unsigned int i = 0; i < b->get_num_part(); i++) {
-				if (b->get_particles()[i].T > max_T) max_T = b->get_particles()[i].T;
+				if (b->get_particles()[i].T > max_T)
+					max_T = b->get_particles()[i].T;
 			}
 			cooldown_summary << "fixed_particles_final," << fixed_count_final << "\n";
 			cooldown_summary << "max_final_T_C," << (max_T - 273.15) << "\n";
 			cooldown_summary << "worst_max_abs_dTdt_C_per_min," << worst_max_abs_rate_C_per_min << "\n";
 			cooldown_summary << "worst_positive_deltaT_C," << worst_positive_deltaT_C << "\n";
 		}
-	} catch (const std::exception& e) {
+	} catch (const std::exception &e) {
 		std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: " << e.what() << std::endl;
 		return EXIT_FAILURE;
 	} catch (...) {

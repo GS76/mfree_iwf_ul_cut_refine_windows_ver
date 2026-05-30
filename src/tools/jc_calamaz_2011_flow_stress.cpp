@@ -39,22 +39,21 @@
 // Calamaz 2011 MJC parameters (Ti-6Al-4V, Li & He, SI units)
 // ---------------------------------------------------------------------------
 struct calamaz_2011_params {
-	double A         = 968.0e6;   // [Pa]
-	double B         = 380.0e6;   // [Pa]
-	double n         = 0.421;
-	double C         = 0.0197;
-	double m         = 0.577;
-	double Tr        = 298.0;     // [K] reference temperature
-	double Tm        = 1878.0;    // [K] melting temperature
-	double eps_dot_ref = 1.0;     // [1/s] reference strain rate
-	double a         = 0.22;      // softening parameter (0 = standard JC)
+	double A = 968.0e6; // [Pa]
+	double B = 380.0e6; // [Pa]
+	double n = 0.421;
+	double C = 0.0197;
+	double m = 0.577;
+	double Tr = 298.0;		  // [K] reference temperature
+	double Tm = 1878.0;		  // [K] melting temperature
+	double eps_dot_ref = 1.0; // [1/s] reference strain rate
+	double a = 0.22;		  // softening parameter (0 = standard JC)
 };
 
 // ---------------------------------------------------------------------------
 // Flow stress computation (Calamaz 2011, Eq. 2)
 // ---------------------------------------------------------------------------
-static double sigma_calamaz_2011(double eps, double eps_dot, double T,
-                                 const calamaz_2011_params &p) {
+static double sigma_calamaz_2011(double eps, double eps_dot, double T, const calamaz_2011_params &p) {
 	// --- Strain hardening + softening term ---
 	// Term_A = A + B * (1/eps_dot)^a * eps^(n - 0.12*(eps*eps_dot)^a)
 	double Term_A;
@@ -192,8 +191,10 @@ int main(int argc, char **argv) {
 
 		csv << eps << "," << sigma << "\n";
 
-		if (sigma < stress_min) stress_min = sigma;
-		if (sigma > stress_max) stress_max = sigma;
+		if (sigma < stress_min)
+			stress_min = sigma;
+		if (sigma > stress_max)
+			stress_max = sigma;
 	}
 
 	csv.close();
