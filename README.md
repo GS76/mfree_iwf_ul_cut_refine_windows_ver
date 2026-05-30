@@ -330,6 +330,31 @@ Recommended integration pattern:
 - Add explicit coupling call in `leap_frog::step` and justify ordering.
 - Prefer symmetric/consistent discretizations already used in the codebase.
 
+### 11.4 Documentation maintenance
+
+When making changes, update the corresponding documentation:
+
+- Solver behavior, CLI, run modes, or dependencies → `README.md`
+- JSON config schema changes → `CONFIG_SCHEMA.md` and `CONFIGURATION_GUIDE.md`
+- Build system or toolchain notes → `BUILDING.md` and `README_WINDOWS.md`
+- Architecture or module changes → `TECHNICAL_OVERVIEW.md`
+- Thermal/mechanical coupling changes → `docs/coupling_thermal_mechanical.md`
+- FE tool coupling changes → `docs/fe_tool_thermal_coupling.md`
+- All significant decisions and milestone completions → `docs/work_log.md`
+- Keep command examples consistent: use `powershell` code fences and `.\build\Release\*.exe` paths.
+
+### 11.5 Commit conventions and change logging
+
+- Use conventional commit prefixes: `docs:`, `fix:`, `feat:`, `chore:`, `refactor:`
+- Keep commits scoped and atomic; separate tooling/docs changes from solver/physics changes.
+- Include `Co-Authored-By: Oz <oz-agent@warp.dev>` in every commit message.
+- Push to `origin master` after each completed change set.
+- Before creating a feature branch, ensure `master` is clean and up to date.
+
+### 11.6 Repository identity
+
+This is a standalone Windows-first fork of `iwf-inspire/mfree_iwf-ul-cut-refine`. Development happens on `GS76/mfree_iwf_ul_cut_refine_windows_ver` (origin) with `upstream` retained for selective pulls. No merge-back to upstream is planned. See `docs/work_log.md` (2026-05-30 entry) for the decision record.
+
 ## 12. Troubleshooting
 
 ### Build issues
