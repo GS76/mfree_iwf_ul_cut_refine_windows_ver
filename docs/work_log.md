@@ -1,6 +1,16 @@
 # Work Log
 
 > Legacy historical log content is preserved for traceability and is not maintained as active forward-path guidance.
+- 2026-05-31: image extraction workflow updated to default to VTK dual-scalar-bar screenshots
+  - Completed
+    - Added layout-aware extraction profile `paraview_vtk_dual_bar` and made it the default via `config/image_extraction_requirements.json`.
+    - Extended ROI handling to auto-detect the active simulation scene and exclude scalar-bar/UI-heavy bands for ParaView-style VTK screenshots.
+    - Added layout metadata to extraction outputs (`layout.profile`, `layout.analysis_roi_box_px`, scene detection diagnostics) and propagated these fields into CSV flattening.
+    - Added `--layout-profile` to `scripts/extract_results_image_info.py` and `-LayoutProfile` passthrough in `scripts/run_image_extraction.ps1`, with `legacy` retained as an explicit override.
+    - Updated `docs/image_extraction_workflow.md` to document the new default behavior and legacy override examples.
+  - Validation performed
+    - Ran strict extraction on `Bugs/Temperature_Refined_200k.png` with the updated requirements contract.
+    - Confirmed `images_with_missing_fields = 0`, scene detection succeeded, and debug artifacts were produced.
 
 - 2026-04-30: branch `feat/tighten-fe-sph-thermal-energy-accounting` — Phases 1–5 completed
 

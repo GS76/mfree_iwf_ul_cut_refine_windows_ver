@@ -6,7 +6,7 @@ from .confidence import score_fracture_confidence
 from .diagnostics import write_debug_artifacts
 from .fracture import detect_fracture_features
 from .image_io import load_rgb_image, normalize_grayscale
-from .roi import resolve_roi
+from .roi import apply_layout_profile, resolve_roi
 from .text_extract import extract_text
 
 
@@ -37,6 +37,7 @@ def analyze_image(
     roi_text: str | None = None,
     roi_relative: bool = False,
     roi_preset: str = "full",
+    layout_profile: str = "paraview_vtk_dual_bar",
     dark_threshold: int = 38,
     edge_threshold: int = 42,
     min_component_area: int = 30,
@@ -48,11 +49,16 @@ def analyze_image(
 ) -> Dict[str, Any]:
     source_image = load_rgb_image(image_path)
     normalized_grayscale = normalize_grayscale(source_image)
-    roi_box, roi_source = resolve_roi(
+    base_roi_box, base_roi_source = resolve_roi(
         source_image.size,
         roi_text=roi_text,
         roi_relative=roi_relative,
         preset_name=roi_preset,
+    )
+    roi_box, roi_source, layout_info = apply_layout_profile(
+        source_image,
+        base_roi=base_roi_box,
+        profile_name=layout_profile,
     )
 
     roi_rgb = source_image.crop(roi_box)
@@ -100,6 +106,14 @@ def analyze_image(
         "roi_width_px": roi_width,
         "roi_height_px": roi_height,
         "roi_source": roi_source,
+        "layout": {
+            "profile": layout_profile,
+            "base_roi_box_px": list(base_roi_box),
+            "base_roi_source": base_roi_source,
+            "analysis_roi_box_px": list(roi_box),
+            "analysis_roi_source": roi_source,
+            **layout_info,
+        },
         "fracture": {
             **fracture_features,
             **coordinate_mapping,
@@ -117,6 +131,7 @@ def analyze_images(
     roi_text: str | None = None,
     roi_relative: bool = False,
     roi_preset: str = "full",
+    layout_profile: str = "paraview_vtk_dual_bar",
     dark_threshold: int = 38,
     edge_threshold: int = 42,
     min_component_area: int = 30,
@@ -135,6 +150,7 @@ def analyze_images(
                     roi_text=roi_text,
                     roi_relative=roi_relative,
                     roi_preset=roi_preset,
+                    layout_profile=layout_profile,
                     dark_threshold=dark_threshold,
                     edge_threshold=edge_threshold,
                     min_component_area=min_component_area,

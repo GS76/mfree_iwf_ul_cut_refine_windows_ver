@@ -1,6 +1,8 @@
 # Result Image Extraction Workflow
 This project includes a reusable image-analysis pipeline for extracting fracture-related information from screenshots (for example SPH workpiece fracture observations from long runs).
 
+By default, extraction now uses the `paraview_vtk_dual_bar` layout profile, which auto-focuses analysis on the simulation scene and excludes scalar-bar/UI-heavy bands commonly present in ParaView VTK screenshots.
+
 ## Persistent requirements contract
 The canonical extraction contract is stored at:
 
@@ -46,6 +48,15 @@ python scripts/extract_results_image_info.py \
   --pretty-json
 ```
 
+### Example (force legacy layout behavior)
+```bash
+python scripts/extract_results_image_info.py \
+  /path/to/image.png \
+  --requirements-file config/image_extraction_requirements.json \
+  --layout-profile legacy \
+  --no-ocr
+```
+
 ### Example (directory batch)
 ```bash
 python scripts/extract_results_image_info.py \
@@ -72,6 +83,7 @@ Example:
 ```
 
 The wrapper automatically points to `config/image_extraction_requirements.json` unless overridden.
+To override the default VTK profile for a one-off run, use `-LayoutProfile legacy`.
 
 ## Output conventions
 Default outputs are written under:
