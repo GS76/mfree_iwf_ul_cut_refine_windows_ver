@@ -14,6 +14,7 @@ param(
 	[string]$Roi,
 	[switch]$RoiRelative,
 	[string]$RoiPreset,
+	[string]$LayoutProfile,
 	[int]$DarkThreshold,
 	[int]$EdgeThreshold,
 	[int]$MinComponentArea,
@@ -67,6 +68,10 @@ if ($RoiRelative)
 if ($PSBoundParameters.ContainsKey("RoiPreset"))
 {
 	$argList += @("--roi-preset", $RoiPreset)
+}
+if ($PSBoundParameters.ContainsKey("LayoutProfile"))
+{
+	$argList += @("--layout-profile", $LayoutProfile)
 }
 if ($PSBoundParameters.ContainsKey("DarkThreshold"))
 {

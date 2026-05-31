@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List
 
 DEFAULT_REQUIREMENTS_PATH = "config/image_extraction_requirements.json"
 DEFAULT_ROI_PRESET_NAMES = ["bottom_half", "center", "chip_zone", "full", "top_half"]
+DEFAULT_LAYOUT_PROFILE_NAMES = ["legacy", "paraview_vtk_dual_bar"]
 _MISSING = object()
 
 
@@ -127,6 +128,7 @@ def _flatten_record(result: Dict[str, Any]) -> Dict[str, Any]:
     fracture = result.get("fracture", {})
     text_info = result.get("text", {})
     debug = result.get("debug", {})
+    layout = result.get("layout", {})
     requirements_missing = result.get("requirements_missing_fields", [])
 
     row.update(
@@ -137,6 +139,13 @@ def _flatten_record(result: Dict[str, Any]) -> Dict[str, Any]:
             "roi_width_px": result.get("roi_width_px"),
             "roi_height_px": result.get("roi_height_px"),
             "roi_source": result.get("roi_source"),
+            "layout_profile": layout.get("profile"),
+            "layout_scene_detected": layout.get("scene_detected"),
+            "layout_foreground_ratio": layout.get("foreground_ratio"),
+            "layout_reason": layout.get("reason"),
+            "layout_base_roi_box_px": json.dumps(layout.get("base_roi_box_px")),
+            "layout_analysis_roi_box_px": json.dumps(layout.get("analysis_roi_box_px")),
+            "layout_candidate_crop_box_px": json.dumps(layout.get("candidate_crop_box_px")),
             "fracture_present": fracture.get("fracture_present"),
             "fracture_area_px": fracture.get("fracture_area_px"),
             "fracture_length_px": fracture.get("fracture_length_px"),
@@ -242,6 +251,12 @@ def build_parser(*, requirements: Dict[str, Any], requirements_path: str) -> arg
         default=str(defaults.get("roi_preset", "full")),
         choices=DEFAULT_ROI_PRESET_NAMES,
         help="Named ROI preset used when --roi is not provided.",
+    )
+    parser.add_argument(
+        "--layout-profile",
+        default=str(defaults.get("layout_profile", "paraview_vtk_dual_bar")),
+        choices=DEFAULT_LAYOUT_PROFILE_NAMES,
+        help="Image layout profile that controls auto-scene refinement.",
     )
     parser.add_argument(
         "--dark-threshold",
@@ -362,6 +377,7 @@ def main() -> int:
         roi_text=args.roi,
         roi_relative=bool(args.roi_relative),
         roi_preset=args.roi_preset,
+        layout_profile=args.layout_profile,
         dark_threshold=int(args.dark_threshold),
         edge_threshold=int(args.edge_threshold),
         min_component_area=int(args.min_component_area),
