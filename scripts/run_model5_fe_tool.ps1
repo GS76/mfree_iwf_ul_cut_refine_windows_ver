@@ -50,6 +50,17 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+function Test-InWarpSession {
+	if (-not [string]::IsNullOrWhiteSpace($env:TERM_PROGRAM) -and $env:TERM_PROGRAM -match "Warp") { return $true }
+	if (-not [string]::IsNullOrWhiteSpace($env:WARP_IS_LOCAL_SHELL_SESSION) -and $env:WARP_IS_LOCAL_SHELL_SESSION -eq "1") { return $true }
+	$warpEnv = Get-ChildItem Env:WARP_* -ErrorAction SilentlyContinue | Select-Object -First 1
+	return ($null -ne $warpEnv)
+}
+
+$allowWarpSim = ($env:MFREE_ALLOW_WARP_SIM -eq "1")
+if ((Test-InWarpSession) -and -not $allowWarpSim) {
+	throw "Simulation execution is blocked inside Warp for this repository. Open an external Windows PowerShell session and re-run from repo root. Override only when intentional by setting MFREE_ALLOW_WARP_SIM=1."
+}
 
 if (-not (Test-Path $Exe))
 { throw "Executable not found: $Exe"

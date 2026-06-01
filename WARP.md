@@ -4,6 +4,8 @@
 - Run all simulation, validation, and preprocess production runs outside Warp.
 - Execute simulation scripts/binaries in Windows PowerShell (`pwsh`/PowerShell) from the repository root.
 - In Warp, only prepare/review commands and analyze outputs; do not launch simulation runs.
+- Simulation run scripts and campaign execution tooling enforce this block in Warp by default.
+- Use override only when intentional: `MFREE_ALLOW_WARP_SIM=1` (and `--allow-in-warp` for `campaign_mvp.py execute-manifest`).
 
 ## Repository context
 - This is a standalone Windows-first fork of `iwf-inspire/mfree_iwf-ul-cut-refine`. Development happens on `GS76/mfree_iwf_ul_cut_refine_windows_ver` (origin) with `upstream` retained for selective pulls only; no merge-back to upstream is planned.
