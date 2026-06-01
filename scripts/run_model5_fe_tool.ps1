@@ -5,6 +5,7 @@
 # Model 5: SPH workpiece (dynamic refinement) with fully coupled deformable FE tool.
 # Runs a long-duration cutting simulation at 100 m/min with thermal and mechanical
 # FE tool coupling to reach thermal quasi-steady state at the tool-workpiece interface.
+# Default parameters are tuned for investigating localized heating near the contact zone.
 #
 # Step count rationale (model 5, nbox=61, 100 m/min):
 #   dt_empirical = 0.20 * hdx * dx / (c0 + vc)
@@ -23,21 +24,43 @@
 # Usage (from repo root):
 #   .\scripts\run_model5_fe_tool.ps1
 #   .\scripts\run_model5_fe_tool.ps1 -MaxSteps 10000   # quick smoke test
+#   .\scripts\run_model5_fe_tool.ps1 -MaxSteps 200000 -OutputFrames 600 -LogEveryStepData
 #
 param(
 	[string]$Exe          = ".\build\Release\mfree_iwf.exe",
 	[string]$Mesh                = ".\snapshots\tool_plane_strain\meshes\tool_h_0.01mm.msh",
 	[string]$ResultsDir          = "",
 	[int]   $MaxSteps            = 500000,  # steps to run
-	[int]   $OutputFrames        = 100,     # VTK snapshots + CSV rows
-	[double]$RefineDepthFactor   = 2.0,     # moving-frame depth = factor * target cut/feed depth
-	[double]$RefineFrameWidthMm  = 0.50,    # moving-frame width ahead of tool, mm
-	[int]   $RefineHaloLayers    = 2,       # extra coarse-grid layers around the moving frame
+	[int]   $OutputFrames        = 300,     # VTK snapshots + CSV rows (denser sampling for hotspot tracking)
+	[double]$RefineDepthFactor   = 1.0,     # moving-frame depth = factor * target cut/feed depth
+	[double]$RefineFrameWidthMm  = 0.40,    # moving-frame width ahead of tool, mm
+	[int]   $RefineHaloLayers    = 0,       # extra coarse-grid layers around the moving frame
 	[double]$TensionCutoffPa     = 3e9,     # EOS tension cutoff (Pa)
-	[double]$DensityFloorFrac    = 0.001    # density floor as fraction of rho0 (0 = disabled)
+	[double]$DensityFloorFrac    = 0.001,   # density floor as fraction of rho0 (0 = disabled)
+	[double]$ThermalHFull        = 1e6,     # W/m^2*K full-pressure contact
+	[double]$ThermalHSep         = 1e4,     # W/m^2*K partial / air-gap contact
+	[double]$ThermalPRef         = 1e9,     # Pa thermal reference pressure
+	[double]$ThermalFracWp       = 0.8,     # friction heat partition to workpiece
+	[double]$ThermalFracTool     = 0.2,     # friction heat partition to tool
+	[double]$ThermalMaxDtPerStepK = 2.0,    # K/step limiter tightened for hotspot diagnostics
+	[double]$RhoPseFloorFrac     = 0.05,    # low-density cap used in PSE/Brookshaw terms
+	[double]$ThermalSkipFrac     = 0.5,     # skip conduction if rho < this * rho0
+	[double]$WorkpieceTempWarnK  = 1200.0,  # warning threshold for hotspot tracking
+	[switch]$LogEveryStepData
 )
 
 $ErrorActionPreference = "Stop"
+function Test-InWarpSession {
+	if (-not [string]::IsNullOrWhiteSpace($env:TERM_PROGRAM) -and $env:TERM_PROGRAM -match "Warp") { return $true }
+	if (-not [string]::IsNullOrWhiteSpace($env:WARP_IS_LOCAL_SHELL_SESSION) -and $env:WARP_IS_LOCAL_SHELL_SESSION -eq "1") { return $true }
+	$warpEnv = Get-ChildItem Env:WARP_* -ErrorAction SilentlyContinue | Select-Object -First 1
+	return ($null -ne $warpEnv)
+}
+
+$allowWarpSim = ($env:MFREE_ALLOW_WARP_SIM -eq "1")
+if ((Test-InWarpSession) -and -not $allowWarpSim) {
+	throw "Simulation execution is blocked inside Warp for this repository. Open an external Windows PowerShell session and re-run from repo root. Override only when intentional by setting MFREE_ALLOW_WARP_SIM=1."
+}
 
 if (-not (Test-Path $Exe))
 { throw "Executable not found: $Exe"
@@ -92,13 +115,13 @@ $env:MFREE_FE_TOOL_RAYLEIGH_A0     = "0"
 $env:MFREE_FE_TOOL_RAYLEIGH_A1     = "0"
 
 # -- thermal contact --
-$env:MFREE_THERMAL_H_FULL          = "1000000"  # W/m^2*K  full-pressure contact
-$env:MFREE_THERMAL_H_SEP           = "10000"    # W/m^2*K  partial / air-gap contact
-$env:MFREE_THERMAL_P_REF           = "1e9"      # Pa       reference pressure
+$env:MFREE_THERMAL_H_FULL          = "$ThermalHFull"
+$env:MFREE_THERMAL_H_SEP           = "$ThermalHSep"
+$env:MFREE_THERMAL_P_REF           = "$ThermalPRef"
 
-$env:MFREE_THERMAL_FRAC_WP         = "0.8"      # friction heat fraction -> workpiece
-$env:MFREE_THERMAL_FRAC_TOOL       = "0.2"      # friction heat fraction -> tool
-$env:MFREE_THERMAL_MAX_DT_PER_STEP = "5"        # K per step limiter
+$env:MFREE_THERMAL_FRAC_WP         = "$ThermalFracWp"
+$env:MFREE_THERMAL_FRAC_TOOL       = "$ThermalFracTool"
+$env:MFREE_THERMAL_MAX_DT_PER_STEP = "$ThermalMaxDtPerStepK"
 
 # -- timestep estimator --
 $env:MFREE_TIMESTEP_PRINT             = "1"
@@ -113,13 +136,19 @@ $env:MFREE_T_FINAL_SCALE = "1.0"
 # -- tensile instability control --
 $env:MFREE_TENSION_CUTOFF     = "$TensionCutoffPa"
 $env:MFREE_DENSITY_FLOOR_FRAC = "$DensityFloorFrac"
+$env:MFREE_RHO_PSE_FLOOR_FRAC = "$RhoPseFloorFrac"
+$env:MFREE_THERMAL_SKIP_FRAC  = "$ThermalSkipFrac"
 
 # -- run control --
 $env:MFREE_MAX_STEPS = "$MaxSteps"
 
 $outputFreq = [Math]::Max(1, [int]($MaxSteps / $OutputFrames))
 $env:MFREE_OUTPUT_FREQ                   = "$outputFreq"
-$env:MFREE_LOG_TIME_STEP_DATA_EVERY_STEP = "0"   # energy CSV at output_freq only
+if ($LogEveryStepData) {
+	$env:MFREE_LOG_TIME_STEP_DATA_EVERY_STEP = "1"
+} else {
+	$env:MFREE_LOG_TIME_STEP_DATA_EVERY_STEP = "0"
+}
 
 # -- logging --
 $env:MFREE_LOG_THERMAL       = "1"   # cutting_thermal.csv
@@ -145,6 +174,10 @@ Write-Host "   cut distance ~ $cut_mm mm"
 Write-Host "   VTK frames   = $OutputFrames  (every $outputFreq steps)"
 Write-Host "   Refinement   = depth_factor $RefineDepthFactor, width ${RefineFrameWidthMm} mm, halo $RefineHaloLayers layers"
 Write-Host "   TensionCutoff= $TensionCutoffPa Pa  DensityFloor= $DensityFloorFrac * rho0"
+Write-Host "   Thermal BC   = h_full $ThermalHFull, h_sep $ThermalHSep, p_ref $ThermalPRef"
+Write-Host "   Fric split   = wp $ThermalFracWp, tool $ThermalFracTool, dT limiter ${ThermalMaxDtPerStepK} K/step"
+Write-Host "   Thermal guard= rho_pse_floor $RhoPseFloorFrac, thermal_skip $ThermalSkipFrac"
+Write-Host "   Log cadence  = every-step data: $([bool]$LogEveryStepData)"
 Write-Host "   FE tool mesh = $Mesh"
 Write-Host "   Results      -> $ResultsDir"
 Write-Host "============================================================"
@@ -182,5 +215,38 @@ Write-Host "   $ResultsDir\cutting_thermal.csv"
 Write-Host "     -> tool_Tmax, wp_Tavg, P_cond_W, P_fric_W"
 Write-Host "   $ResultsDir\cutting_metrics.csv"
 Write-Host "============================================================"
+function Get-CsvColumnMaximum {
+	param(
+		[string]$CsvPath,
+		[string]$ColumnName
+	)
+	if (-not (Test-Path $CsvPath)) { return $null }
+	$rows = Import-Csv -Path $CsvPath
+	if (($null -eq $rows) -or ($rows.Count -eq 0)) { return $null }
+	if (-not ($rows[0].PSObject.Properties.Name -contains $ColumnName)) { return $null }
+	$maxValue = $null
+	foreach ($row in $rows) {
+		$raw = $row.$ColumnName
+		if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+		try {
+			$v = [double]::Parse($raw, [System.Globalization.CultureInfo]::InvariantCulture)
+		} catch {
+			continue
+		}
+		if ([double]::IsNaN($v) -or [double]::IsInfinity($v)) { continue }
+		if (($null -eq $maxValue) -or ($v -gt $maxValue)) { $maxValue = $v }
+	}
+	return $maxValue
+}
+
+$thermalCsv = Join-Path $ResultsDir "cutting_thermal.csv"
+$wpTmax = Get-CsvColumnMaximum -CsvPath $thermalCsv -ColumnName "wp_Tmax"
+$toolTmax = Get-CsvColumnMaximum -CsvPath $thermalCsv -ColumnName "tool_Tmax"
+if ($null -ne $wpTmax) {
+	Write-Host (" Thermal maxima: wp_Tmax={0:F2} K, tool_Tmax={1:F2} K" -f $wpTmax, $toolTmax)
+	if ($wpTmax -ge $WorkpieceTempWarnK) {
+		Write-Host (" WARNING: wp_Tmax reached {0:F2} K (>= warn threshold {1:F2} K)" -f $wpTmax, $WorkpieceTempWarnK)
+	}
+}
 
 $global:LASTEXITCODE = 0

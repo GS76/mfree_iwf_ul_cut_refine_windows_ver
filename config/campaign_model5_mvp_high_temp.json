@@ -1,0 +1,87 @@
+{
+  "campaign_id": "model5_mvp_high_temp_phase1",
+  "script_entrypoint": "scripts/run_model5_fe_tool.ps1",
+  "results_root": "results/campaigns",
+  "design": {
+    "method": "lhs",
+    "seed": 20260601,
+    "replicated_center_runs": 2,
+    "parameters": [
+      {
+        "name": "ThermalHFull",
+        "type": "float",
+        "bounds": [
+          800000.0,
+          1200000.0
+        ]
+      },
+      {
+        "name": "ThermalFracWp",
+        "type": "float",
+        "bounds": [
+          0.7,
+          0.9
+        ]
+      },
+      {
+        "name": "ThermalMaxDtPerStepK",
+        "type": "float",
+        "bounds": [
+          1.5,
+          5.0
+        ]
+      },
+      {
+        "name": "RefineDepthFactor",
+        "type": "float",
+        "bounds": [
+          0.8,
+          1.5
+        ]
+      }
+    ]
+  },
+  "budget": {
+    "n_max": 48
+  },
+  "fixed_args": {
+    "MaxSteps": 500000,
+    "OutputFrames": 300,
+    "LogEveryStepData": false,
+    "TensionCutoffPa": 2000000000.0,
+    "DensityFloorFrac": 0.003,
+    "RhoPseFloorFrac": 0.08
+  },
+  "objectives": [
+    {
+      "name": "cum_contact_E_tool_frac",
+      "source_file": "cutting_energy.csv",
+      "column": "cum_contact_E_tool_frac",
+      "reducer": "last",
+      "goal": "maximize"
+    },
+    {
+      "name": "closure_residual_pct",
+      "source_file": "cutting_energy.csv",
+      "column": "closure_residual_pct",
+      "reducer": "last",
+      "goal": "minimize"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "suppression_ratio_limit",
+      "source_file": "cutting_energy.csv",
+      "column": "cum_suppression_ratio",
+      "reducer": "last",
+      "operator": "<=",
+      "threshold": 0.05
+    }
+  ],
+  "stop_rules": {
+    "best_relative_improvement_max": 0.01,
+    "median_acquisition_gain_max": 0.005,
+    "sensitivity_spearman_min": 0.9,
+    "min_feasibility_rate": 0.2
+  }
+}

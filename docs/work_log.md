@@ -1,6 +1,48 @@
 # Work Log
 
 > Legacy historical log content is preserved for traceability and is not maintained as active forward-path guidance.
+- 2026-06-01: external simulation execution guardrails enforced across scripts and campaign tooling
+  - Completed
+    - Added Warp-session execution guard to simulation PowerShell scripts:
+      - `scripts/run_model5_fe_tool.ps1`
+      - `scripts/run_steady_state_100m_min.ps1`
+      - `scripts/run_200k_thermal_fix_test.ps1`
+      - `scripts/check_timestep_100m_min.ps1`
+    - Updated `scripts/campaign_mvp.py` `execute-manifest` to block non-dry runs inside Warp by default.
+    - Added explicit override path for intentional in-Warp execution:
+      - env var `MFREE_ALLOW_WARP_SIM=1`
+      - CLI flag `--allow-in-warp` for `execute-manifest`
+    - Updated user guidance in `docs/campaign_mvp_workflow.md` and `WARP.md` to match enforced behavior.
+- 2026-06-01: Model 5 MVP campaign executed successfully and archived
+  - Completed
+    - Ran full MVP campaign from `config/campaign_model5_mvp.json` using `scripts/campaign_mvp.py` workflow.
+    - Final manifest status in `results/campaigns/model5_mvp_phase1/artifacts/manifest.json`: `completed = 18` runs, `failed = 0`.
+    - Normalized campaign dataset produced at `results/campaigns/model5_mvp_phase1/artifacts/normalized_results.csv`.
+    - Constraint verification result: `constraint_suppression_ratio_limit_satisfied = 18 / 18 (100%)`.
+    - Objective summary from normalized results:
+      - `objective_cum_contact_E_tool_frac`: min `0.2806864281456547`, max `0.3230910453474268`
+      - `objective_closure_residual_pct`: min `100.002343344018`, max `100.0023512564761`
+    - Archived snapshot created at `results/baseline/20260601-1810/model5_mvp_phase1_campaign_success`.
+  - Notes
+    - Archive operation was performed as a copy, preserving the live campaign workspace under `results/campaigns/model5_mvp_phase1`.
+- 2026-05-31: model 5 run parameters tuned for localized-heating investigation
+  - Completed
+    - Updated `scripts/run_model5_fe_tool.ps1` defaults to improve hotspot investigation fidelity:
+      - denser output sampling (`OutputFrames=300`)
+      - tighter moving-frame focus (`RefineDepthFactor=1.0`, `RefineFrameWidthMm=0.40`, `RefineHaloLayers=0`)
+      - tighter thermal limiter default (`ThermalMaxDtPerStepK=2.0`)
+    - Recorded FE tool ↔ SPH thermal contact coefficient model and defaults used by the script:
+      - pressure-dependent conductance: `h_c(p) = h_sep + (h_full - h_sep) * clamp(p / p_ref, 0, 1)`
+      - `ThermalHFull = 1.0e6` W/m²·K
+      - `ThermalHSep = 1.0e4` W/m²·K
+      - `ThermalPRef = 1.0e9` Pa
+      - resulting active heat-transfer coefficient range: `1.0e4` to `1.0e6` W/m²·K (depending on local contact pressure)
+    - Added explicit thermal-study knobs to script parameters for DOE-style sweeps:
+      - contact conductance (`ThermalHFull`, `ThermalHSep`, `ThermalPRef`)
+      - friction heat partition (`ThermalFracWp`, `ThermalFracTool`)
+      - thermal guards (`RhoPseFloorFrac`, `ThermalSkipFrac`)
+      - optional per-step data logging (`LogEveryStepData`)
+    - Added post-run hotspot summary from `cutting_thermal.csv` (`wp_Tmax`, `tool_Tmax`) with configurable warning threshold (`WorkpieceTempWarnK`).
 - 2026-05-31: image extraction workflow updated to default to VTK dual-scalar-bar screenshots
   - Completed
     - Added layout-aware extraction profile `paraview_vtk_dual_bar` and made it the default via `config/image_extraction_requirements.json`.
