@@ -50,6 +50,8 @@
 
 #include "leap_frog.h"
 #include <omp.h>
+#include <cmath>
+#include <stdexcept>
 
 void leap_frog::init(body &body) {
 	std::vector<particle> &particles = body.get_particles();
@@ -86,6 +88,18 @@ void leap_frog::predict(body &body) const {
 		particles[i].Szz = m_init[i].Szz + 0.5 * dt * particles[i].Szz_t;
 		particles[i].T = m_init[i].T + 0.5 * dt * particles[i].T_t;
 	}
+	
+	// Quick validation after predict step
+	bool has_invalid = false;
+	#pragma omp parallel for reduction(||:has_invalid)
+	for (unsigned int i = 0; i < body.get_num_part(); i++) {
+		if (!std::isfinite(particles[i].x) || !std::isfinite(particles[i].y)) {
+			has_invalid = true;
+		}
+	}
+	if (has_invalid) {
+		throw std::runtime_error("NaN/Inf detected after predict step");
+	}
 }
 
 void leap_frog::correct(body &body) const {
@@ -106,6 +120,19 @@ void leap_frog::correct(body &body) const {
 		particles[i].Syy = m_init[i].Syy + dt * particles[i].Syy_t;
 		particles[i].Szz = m_init[i].Szz + dt * particles[i].Szz_t;
 		particles[i].T = m_init[i].T + dt * particles[i].T_t;
+	}
+	
+	// Quick validation after correct step
+	bool has_invalid = false;
+	#pragma omp parallel for reduction(||:has_invalid)
+	for (unsigned int i = 0; i < body.get_num_part(); i++) {
+		if (!std::isfinite(particles[i].x) || !std::isfinite(particles[i].y) ||
+		    !std::isfinite(particles[i].vx) || !std::isfinite(particles[i].vy)) {
+			has_invalid = true;
+		}
+	}
+	if (has_invalid) {
+		throw std::runtime_error("NaN/Inf detected after correct step");
 	}
 }
 

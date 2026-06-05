@@ -49,6 +49,7 @@
  */
 
 #include "logger.h"
+#include <cstring>
 
 void logger::close() { fclose(m_fp_forces); }
 

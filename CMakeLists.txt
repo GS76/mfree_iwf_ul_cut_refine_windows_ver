@@ -86,6 +86,7 @@ set(MFREE_CORE_LIB_SOURCES
 	src/precomp_shape_functions.cpp
 	src/simulation_data.cpp
 	src/simulation_time.cpp
+	src/stability_monitor.cpp
 	src/thermal.cpp
 	src/tool.cpp
 	src/vtk_writer.cpp

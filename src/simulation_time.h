@@ -81,12 +81,35 @@ class simulation_time {
 	double get_CFL() const;
 	void modify_dt(double dt_adapted);
 
+	// Adaptive timestep control for stability monitoring
+	// Reduce timestep by a factor (e.g., 0.5 for 50% reduction)
+	// Returns false if timestep would fall below minimum
+	bool reduce_dt(double factor, double min_dt);
+	
+	// Restore the original timestep (used when stability is recovered)
+	void restore_original_dt();
+	
+	// Get the original (initial) timestep
+	double get_original_dt() const { return m_dt_original; }
+	
+	// Get the number of reductions performed
+	int get_dt_reduction_count() const { return m_dt_reduction_count; }
+	
+	// Get the minimum timestep allowed
+	double get_min_timestep() const { return m_dt_min; }
+	
+	// Set the minimum timestep allowed
+	void set_min_timestep(double min_dt) { m_dt_min = min_dt; }
+
   private:
 	simulation_time();
 	double m_time = 0.;
 	double m_dt = 0.;
-	double m_t_final = 0.;
+	double m_t_final = 0.;         // Final simulation time
+	double m_dt_original = 0.;     // Original timestep (before any reductions)
+	double m_dt_min = 1e-12;       // Minimum allowed timestep
 	unsigned int m_step = 0;
+	int m_dt_reduction_count = 0;  // Track how many times we've reduced
 };
 
 #endif /* SIMULATION_TIME_H_ */

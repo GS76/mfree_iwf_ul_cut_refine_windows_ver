@@ -52,7 +52,7 @@
 #define PARTICLE_H_
 
 #include "kernel.h"
-#include <string.h>
+#include <string>
 #include <assert.h>
 #include <stdio.h>
 
@@ -73,6 +73,11 @@ class particle {
 	// reset all time derivatives
 	virtual void reset();
 	virtual void copy_into(particle &p) const;
+
+	// Validate particle state (check for NaN, Inf, and physical bounds)
+	// Returns true if particle state is valid, false otherwise
+	// 'reason' is populated with description of failure if validation fails
+	bool is_valid(std::string &reason) const;
 
 	// index + hash for spatial hashing
 	unsigned int idx = 0, hash = 0;

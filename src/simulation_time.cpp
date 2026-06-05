@@ -73,4 +73,41 @@ unsigned int simulation_time::get_step() const { return m_step; }
 
 double simulation_time::get_t_final() const { return m_t_final; }
 
-void simulation_time::set_dt(double dt) { m_dt = dt; }
+void simulation_time::set_dt(double dt) { 
+	m_dt = dt; 
+	// Store original timestep on first setting if not already set
+	if (m_dt_original == 0.) {
+		m_dt_original = dt;
+	}
+}
+
+bool simulation_time::reduce_dt(double factor, double min_dt) {
+	// Ensure factor is reasonable (between 0.1 and 0.9)
+	if (factor < 0.1) factor = 0.1;
+	if (factor > 0.9) factor = 0.9;
+	
+	double new_dt = m_dt * factor;
+	
+	// Check against absolute minimum
+	if (new_dt < min_dt) {
+		printf("ERROR: Timestep reduction would result in dt=%.3e, which is below minimum %.3e\n", 
+			   new_dt, min_dt);
+		return false;
+	}
+	
+	m_dt = new_dt;
+	m_dt_reduction_count++;
+	
+	printf("STABILITY: Timestep reduced by %.0f%% to dt=%.6e (reduction #%d)\n", 
+		   (1.0-factor)*100.0, m_dt, m_dt_reduction_count);
+	
+	return true;
+}
+
+void simulation_time::restore_original_dt() {
+	if (m_dt_original > 0.) {
+		m_dt = m_dt_original;
+		printf("STABILITY: Timestep restored to original value dt=%.6e\n", m_dt);
+	}
+	m_dt_reduction_count = 0;
+}

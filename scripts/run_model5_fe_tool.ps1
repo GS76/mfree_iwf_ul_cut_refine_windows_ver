@@ -114,6 +114,17 @@ Remove-Item Env:\MFREE_DEFORMABLE_TOOL_THERMAL_SUBSTEPS  -ErrorAction SilentlyCo
 $env:MFREE_FE_TOOL_RAYLEIGH_A0     = "0"
 $env:MFREE_FE_TOOL_RAYLEIGH_A1     = "0"
 
+# -- stability monitoring (for NaN/Inf detection and adaptive timestep) --
+$env:MFREE_ENABLE_STABILITY_MONITOR        = "1"      # Enable stability checks for Model 5
+$env:MFREE_MAX_VELOCITY_FACTOR              = "0.5"    # Max velocity as fraction of sound speed
+$env:MFREE_ENERGY_CLOSURE_THRESHOLD         = "10.0"   # Warning threshold for energy closure (%)
+$env:MFREE_ENERGY_CLOSURE_CRITICAL          = "50.0"   # Critical threshold for timestep reduction (%)
+$env:MFREE_MIN_TIMESTEP                     = "1e-12"  # Minimum viable dt before termination (s)
+$env:MFREE_MAX_TIMESTEP_REDUCTIONS          = "10"     # Max consecutive reductions before abort
+$env:MFREE_STABILITY_VALIDATION_FREQ        = "1"      # Validate every N steps (1 = every step)
+$env:MFREE_TEMP_MIN_K                       = "200"    # Minimum physically reasonable temperature
+$env:MFREE_TEMP_MAX_K                       = "5000"   # Maximum physically reasonable temperature
+
 # -- thermal contact --
 $env:MFREE_THERMAL_H_FULL          = "$ThermalHFull"
 $env:MFREE_THERMAL_H_SEP           = "$ThermalHSep"
@@ -246,6 +257,74 @@ if ($null -ne $wpTmax) {
 	Write-Host (" Thermal maxima: wp_Tmax={0:F2} K, tool_Tmax={1:F2} K" -f $wpTmax, $toolTmax)
 	if ($wpTmax -ge $WorkpieceTempWarnK) {
 		Write-Host (" WARNING: wp_Tmax reached {0:F2} K (>= warn threshold {1:F2} K)" -f $wpTmax, $WorkpieceTempWarnK)
+	}
+}
+
+# -- post-run energy validation --
+$energyCsv = Join-Path $ResultsDir "cutting_energy.csv"
+if (Test-Path $energyCsv) {
+	$rows = Import-Csv -Path $energyCsv
+	if ($rows.Count -gt 0) {
+		# Check last row for energy closure residual
+		$lastRow = $rows[$rows.Count - 1]
+		$closureResidual = $null
+		if ($lastRow.PSObject.Properties.Name -contains "closure_residual_pct") {
+			$raw = $lastRow.closure_residual_pct
+			if (-not [string]::IsNullOrWhiteSpace($raw)) {
+				try {
+					$closureResidual = [double]::Parse($raw, [System.Globalization.CultureInfo]::InvariantCulture)
+				} catch {}
+			}
+		}
+		
+		$maxClosureResidual = $null
+		foreach ($row in $rows) {
+			$raw = $row.closure_residual_pct
+			if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+			try {
+				$v = [double]::Parse($raw, [System.Globalization.CultureInfo]::InvariantCulture)
+				if ([double]::IsNaN($v) -or [double]::IsInfinity($v)) { continue }
+				if (($null -eq $maxClosureResidual) -or ($v -gt $maxClosureResidual)) {
+					$maxClosureResidual = $v
+				}
+			} catch {}
+		}
+		
+		if ($null -ne $maxClosureResidual) {
+			Write-Host ""
+			Write-Host (" Energy closure residual: max = {0:F2}%, final = {1:F2}%" -f $maxClosureResidual, $(if ($null -ne $closureResidual) { $closureResidual } else { "N/A" }))
+			if ($maxClosureResidual -gt 50.0) {
+				Write-Host " WARNING: Energy closure residual exceeded 50% - simulation may have experienced numerical instability!"
+			} elseif ($maxClosureResidual -gt 10.0) {
+				Write-Host " WARNING: Energy closure residual exceeded 10% - recommend reviewing timestep and stability settings."
+			}
+		}
+		
+		# Check for NaN or Inf in any column
+		$hasInvalidValues = $false
+		foreach ($col in $rows[0].PSObject.Properties.Name) {
+			foreach ($row in $rows) {
+				$val = $row.$col
+				if ($val -match "NaN|Infinity" -or [string]::IsNullOrEmpty($val)) {
+					$hasInvalidValues = $true
+					break
+				}
+				try {
+					$v = [double]::Parse($val, [System.Globalization.CultureInfo]::InvariantCulture)
+					if ([double]::IsNaN($v) -or [double]::IsInfinity($v)) {
+						$hasInvalidValues = $true
+						break
+					}
+				} catch {
+					# Non-numeric columns are fine
+				}
+			}
+			if ($hasInvalidValues) { break }
+		}
+		if ($hasInvalidValues) {
+			Write-Host ""
+			Write-Host " WARNING: cutting_energy.csv contains NaN or Inf values - simulation encountered numerical instability!"
+		}
 	}
 }
 

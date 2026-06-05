@@ -75,6 +75,7 @@
 #include "body.h"
 #include "config/build_from_config.h"
 #include "config/simulation_config.h"
+#include "stability_monitor.h"
 
 logger *global_logger;
 
@@ -312,6 +313,13 @@ int main(int argc, char *argv[]) {
 		double worst_max_abs_rate_C_per_min = 0.0;
 		double worst_positive_deltaT_C = 0.0;
 
+		// Initialize stability monitoring for this simulation
+		stability_monitor &stab_monitor = stability_monitor::get_instance();
+		if (model == 5) {
+			stab_monitor.initialize(time->get_dt());
+			stab_monitor.set_enabled(true);
+		}
+
 		while (!time->finished()) {
 			if (cooldown && !cooldown_started && (time->get_time() + time->get_dt()) >= cut_end_time) {
 				thermal *trml = b->get_thermal();
@@ -382,6 +390,20 @@ int main(int argc, char *argv[]) {
 			 * over time using the LeapFrog time stepping
 			 */
 			if (!cooldown_started) {
+				// Validate before timestep (for model 5 with stability monitoring)
+				if (model == 5) {
+					std::string status_msg;
+					if (!stab_monitor.validate_step(*b, status_msg)) {
+						std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: " << status_msg << std::endl;
+						throw std::runtime_error(status_msg);
+					}
+					// Apply adaptive timestep if controller has reduced it
+					double adaptive_dt = stab_monitor.get_adaptive_dt();
+					if (adaptive_dt != time->get_dt()) {
+						time->set_dt(adaptive_dt);
+					}
+				}
+				
 				stepper.step(*b);
 			} else {
 				b->construct_verlet_lists();

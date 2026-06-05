@@ -49,6 +49,8 @@
  */
 
 #include "particle.h"
+#include <string>
+#include <cmath>
 
 particle::particle(){
 	//	memset(nbh, 0, sizeof(unsigned int)*MAX_NBH);
@@ -203,4 +205,57 @@ void particle::copy_into(particle &p) const {
 
 	memcpy(p.nbh, nbh, sizeof(unsigned int) * num_nbh);
 	memcpy(p.w, w, sizeof(kernel_result) * num_nbh);
+}
+
+// Validate particle state (check for NaN, Inf, and physical bounds)
+bool particle::is_valid(std::string &reason) const {
+	reason.clear();
+	
+	// Check position (x, y)
+	if (!std::isfinite(x) || !std::isfinite(y)) {
+		reason = "position contains NaN or Inf";
+		return false;
+	}
+	
+	// Check velocity
+	if (!std::isfinite(vx) || !std::isfinite(vy)) {
+		reason = "velocity contains NaN or Inf";
+		return false;
+	}
+	
+	// Check temperature
+	if (!std::isfinite(T)) {
+		reason = "temperature is NaN or Inf";
+		return false;
+	}
+	
+	// Check density
+	if (!std::isfinite(rho)) {
+		reason = "density is NaN or Inf";
+		return false;
+	}
+	if (rho <= 0.0) {
+		reason = "density is negative or zero";
+		return false;
+	}
+	
+	// Check stress components
+	if (!std::isfinite(Sxx) || !std::isfinite(Sxy) || !std::isfinite(Syy) || !std::isfinite(Szz)) {
+		reason = "stress components contain NaN or Inf";
+		return false;
+	}
+	
+	// Check smoothing length
+	if (!std::isfinite(h) || h <= 0.0) {
+		reason = "smoothing length is invalid";
+		return false;
+	}
+	
+	// Check mass
+	if (!std::isfinite(m) || m <= 0.0) {
+		reason = "mass is invalid";
+		return false;
+	}
+	
+	return true;
 }
