@@ -32,6 +32,7 @@ Selected modeling/stabilization features include:
 
 - Modified Johnson–Cook constitutive model for Ti–6Al–4V (Sima & Özel 2010).
 - Stabilization following Gray–Monaghan–Swift (SPH elastic dynamics).
+- **Tensile instability monitoring** with adaptive Monaghan artificial stress control (Issue #21).
 - Thermal coupling via heat conduction using Particle Strength Exchange (PSE) or Brookshaw SPH.
 - Dynamic refinement via particle splitting/merging patterns.
 
@@ -209,7 +210,21 @@ The JSON config is organized into:
 - `multiresolution`: settings for models 2/3
 - `adaptivity`: settings for dynamic refinement
 
-### 5.3 Cooldown convection (runtime-only)
+### 5.3 Tensile instability monitoring (runtime-only)
+
+Tensile instability detection is available for Model 5 (dynamic refinement with deformable FE tool) via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MFREE_ENABLE_TENSILE_MONITORING` | `0` | Enable σW'' tensile instability detection |
+| `MFREE_TENSILE_THRESHOLD_RATIO` | `0.10` | Warn if >10% particles unstable |
+| `MFREE_MGHN_ADAPTIVE_EPS` | `0` | Enable adaptive Monaghan ε control |
+| `MFREE_MGHN_EPS_MIN` | `0.0` | Minimum artificial stress coefficient |
+| `MFREE_MGHN_EPS_MAX` | `1.0` | Maximum artificial stress coefficient |
+
+Validation: 50,000-step Model 5 at 100 m/min shows 96.8% reduction in peak energy closure residual (3,569% → 113%) and 72% improvement in final residual (15% → 4.2%).
+
+### 5.4 Cooldown convection (runtime-only)
 
 Cooldown convection is not currently part of the JSON config schema. It is enabled by CLI during cooldown and uses hardcoded ambient temperature defaults in `src/refine_cut_main.cpp`.
 
