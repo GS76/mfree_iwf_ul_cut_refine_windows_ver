@@ -84,3 +84,28 @@ kernel_result cubic_spline(double xi, double yi, double xj, double yj, double h)
 		return w;
 	}
 }
+
+double cubic_spline_second_derivative(double xi, double yi, double xj, double yj, double h) {
+	const double h1 = 1. / h;
+	const double xij = xi - xj;
+	const double yij = yi - yj;
+	const double rij = sqrt(xij * xij + yij * yij);
+	const double q = rij * h1;
+	
+	const double fac = 10 * (M_1_PI) / 7.0 * h1 * h1;
+	
+	if (q >= 2.) {
+		return 0.0;
+	} else if (q >= 1.) {
+		// Outer region: W(q) = fac * 0.25 * (2-q)^3
+		// W'(q) = fac * (-0.75) * (2-q)^2
+		// W''(q) = fac * (1.5) * (2-q)
+		const double twominq = 2. - q;
+		return fac * 1.5 * twominq * h1 * h1;
+	} else {
+		// Inner region: W(q) = fac * (1 - 1.5*q^2 + 0.75*q^3)
+		// W'(q) = fac * (-3q + 2.25*q^2)
+		// W''(q) = fac * (-3 + 4.5*q)
+		return fac * (-3.0 + 4.5 * q) * h1 * h1;
+	}
+}

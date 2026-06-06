@@ -27,6 +27,7 @@
 #define STABILITY_MONITOR_H_
 
 #include "body.h"
+#include "kernel.h"
 #include <vector>
 #include <string>
 
@@ -59,6 +60,13 @@ struct stability_config {
 	double temperature_min_K = 200.0;           // minimum physically reasonable T
 	double temperature_max_K = 5000.0;          // maximum physically reasonable T
 	
+	// Tensile instability monitoring (Issue #21)
+	bool enable_tensile_monitoring = false;      // Enable tensile instability detection
+	double tensile_threshold_ratio = 0.1;        // Fraction of particles in tension before warning
+	bool adaptive_mghn_stress = false;             // Enable adaptive Monaghan artificial stress
+	double mghn_eps_min = 0.0;                   // Minimum artificial stress coefficient
+	double mghn_eps_max = 1.0;                   // Maximum artificial stress coefficient
+	
 	// Load configuration from environment variables
 	void load_from_env();
 };
@@ -80,6 +88,22 @@ struct energy_closure_result {
 
 // Check energy closure from the logger's recorded data
 energy_closure_result check_energy_closure(const body &b);
+
+// Tensile instability monitoring (Issue #21 - SPH_Tensile_Stability.md)
+struct tensile_instability_result {
+	unsigned int num_tensile_particles = 0;      // Particles under tensile stress
+	unsigned int num_unstable_particles = 0;   // Particles with σW'' < 0 (unstable)
+	double tensile_ratio = 0.0;                  // Fraction of particles in tension
+	double instability_ratio = 0.0;              // Fraction of particles unstable
+	double max_sigma_Wpp = 0.0;                  // Maximum σW'' value (positive = stable)
+	double min_sigma_Wpp = 0.0;                  // Minimum σW'' value (most negative = most unstable)
+	double recommended_epsilon = 0.0;          // Recommended Monaghan ε for correction
+	bool is_severe = false;                      // True if instability exceeds threshold
+};
+
+// Check tensile instability conditions (σW'' criterion)
+// Returns metrics on tensile stress and instability severity
+tensile_instability_result check_tensile_instability(const body &b, const stability_config &config);
 
 // Adaptive timestep control
 class adaptive_timestep_controller {
@@ -141,6 +165,15 @@ public:
 	// Get last validation result
 	const stability_check_result &get_last_validation() const { return m_last_validation; }
 	
+	// Get last tensile instability check result
+	const tensile_instability_result &get_last_tensile_check() const { return m_last_tensile; }
+	
+	// Check tensile instability for current state
+	tensile_instability_result check_current_tensile_state(const body &b);
+	
+	// Get recommended Monaghan epsilon based on tensile instability
+	double get_adaptive_mghn_epsilon() const;
+	
 	// Reset for new simulation
 	void reset();
 	
@@ -157,8 +190,10 @@ private:
 	stability_config m_config;
 	adaptive_timestep_controller m_controller;
 	stability_check_result m_last_validation;
+	tensile_instability_result m_last_tensile;
 	unsigned int m_step_count = 0;
 	bool m_initialized = false;
+	double m_current_mghn_epsilon = 0.0;  // Current adaptive epsilon value
 };
 
 #endif /* STABILITY_MONITOR_H_ */

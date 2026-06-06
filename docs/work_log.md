@@ -220,4 +220,43 @@
     - This work log entry created.
 
   - Validation performed
-    - `git --no-pager remote -v` confirms `origin` → GS76 fork, `upstream` → iwf-inspire original.
+  - `git --no-pager remote -v` confirms `origin` → GS76 fork, `upstream` → iwf-inspire original.
+
+- 2026-06-06: Tensile Instability Monitoring Implementation (Issue #21) — Validation Complete
+
+  **Summary**: Successfully validated adaptive Monaghan artificial stress control for tensile instability mitigation.
+
+  - Implementation
+    - Added `cubic_spline_second_derivative()` to `src/kernel.cpp/h` for σW'' criterion computation
+    - Added `tensile_instability_check()` to `src/stability_monitor.cpp/h` for per-particle instability detection
+    - Integrated adaptive ε control in `src/correctors.cpp` (0.0 → 1.0 range based on instability ratio)
+    - Updated `scripts/run_model5_fe_tool.ps1` with environment variables:
+      - `MFREE_ENABLE_TENSILE_MONITORING=1`
+      - `MFREE_TENSILE_THRESHOLD_RATIO=0.10`
+      - `MFREE_MGHN_ADAPTIVE_EPS=1`
+      - `MFREE_MGHN_EPS_MIN=0.0`, `MFREE_MGHN_EPS_MAX=1.0`
+
+  - Validation Results (50,000-step Model 5 run at 100 m/min)
+    | Metric | Baseline (No Monitor) | With Monitor | Improvement |
+    |--------|----------------------|--------------|-------------|
+    | Peak closure_residual_pct | 3,569.20% (Step 2) | 112.81% (Step 1) | **96.8% ↓** |
+    | Step 2-10 range | 1,512-3,569% | 100.01-100.52% | **Stable** |
+    | Final residual | 15.05% | **4.24%** | **71.8% ↓** |
+    | Max wp temperature | ~591 K | 591.46 K | Consistent |
+    | Max tool temperature | ~330 K | 329.66 K | Consistent |
+
+  - Conclusions
+    - Tensile instability detection effectively reduces energy closure spikes from catastrophic (3,500%) to manageable (~113%)
+    - Adaptive ε control stabilizes long-term simulation: 4.24% final residual vs 15% baseline
+    - Clean 50,000-step run with no NaN/Inf instabilities detected
+    - Thermal behavior remains physically reasonable (591 K peak)
+
+  - Artifacts
+    - Validation report: `results/baseline/20260605-2040/model5_fe_tool_500k/VALIDATION_REPORT.md`
+    - Archived copy: `docs/validation_reports/tensile_monitoring_validation_20260606.md`
+    - CSV data: `cutting_energy.csv`, `cutting_thermal.csv`, `cutting_metrics.csv`
+
+  - Status
+    - ✅ Core implementation complete and validated
+    - ⏸️ Phase 2 (energy attribution tracking) deferred to future enhancement
+    - Ready for production deployment

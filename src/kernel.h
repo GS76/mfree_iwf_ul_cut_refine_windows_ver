@@ -67,4 +67,11 @@ typedef struct kernel_result {
 
 kernel_result cubic_spline(double xi, double yi, double xj, double yj, double h);
 
+// Compute second derivative of cubic B-spline kernel W''(q)
+// Returns scalar W'' value (not directional)
+// Sign of W'' determines tensile instability criterion (σW'')
+// Positive W'' for q < 2/3, negative for 2/3 < q < 1 (inner region)
+// Positive W'' for q > 1 (outer region)
+double cubic_spline_second_derivative(double xi, double yi, double xj, double yj, double h);
+
 #endif /* KERNEL_H_ */

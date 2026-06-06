@@ -67,6 +67,22 @@ void stability_config::load_from_env() {
 	
 	val = std::getenv("MFREE_TEMP_MAX_K");
 	if (val) temperature_max_K = std::atof(val);
+	
+	// Tensile instability monitoring (Issue #21)
+	val = std::getenv("MFREE_ENABLE_TENSILE_MONITORING");
+	if (val) enable_tensile_monitoring = (std::atoi(val) != 0);
+	
+	val = std::getenv("MFREE_TENSILE_THRESHOLD_RATIO");
+	if (val) tensile_threshold_ratio = std::atof(val);
+	
+	val = std::getenv("MFREE_MGHN_ADAPTIVE_EPS");
+	if (val) adaptive_mghn_stress = (std::atoi(val) != 0);
+	
+	val = std::getenv("MFREE_MGHN_EPS_MIN");
+	if (val) mghn_eps_min = std::atof(val);
+	
+	val = std::getenv("MFREE_MGHN_EPS_MAX");
+	if (val) mghn_eps_max = std::atof(val);
 }
 
 // Check if a single particle is valid
@@ -227,6 +243,114 @@ energy_closure_result check_energy_closure(const body &b) {
 	return result;
 }
 
+// Compute principal stress from deviatoric stress and pressure
+// Returns max principal stress (positive = tensile, negative = compressive)
+static double compute_max_principal_stress(const particle &p) {
+	// Total stress = deviatoric stress - pressure * I
+	// Sxx, Syy are deviatoric; p is hydrostatic pressure (positive = compression)
+	double sxx_total = p.Sxx - p.p;
+	double syy_total = p.Syy - p.p;
+	double sxy_total = p.Sxy;
+	
+	// Principal stresses: (sxx + syy)/2 ± sqrt(((sxx - syy)/2)^2 + sxy^2)
+	double sigma_mean = 0.5 * (sxx_total + syy_total);
+	double sigma_dev = 0.5 * sqrt((sxx_total - syy_total) * (sxx_total - syy_total) + 4.0 * sxy_total * sxy_total);
+	
+	// Max principal stress
+	return sigma_mean + sigma_dev;
+}
+
+// Check tensile instability using σW'' criterion (Issue #21)
+// Instability occurs when σ > 0 (tensile) AND W'' < 0 (inner region 2/3 < q < 1)
+// The product σW'' < 0 indicates unstable conditions
+tensile_instability_result check_tensile_instability(const body &b, const stability_config &config) {
+	tensile_instability_result result;
+	
+	const auto &particles = b.get_particles();
+	const unsigned int num_part = b.get_num_part();
+	
+	if (num_part == 0) {
+		return result;
+	}
+	
+	unsigned int num_tensile = 0;
+	unsigned int num_unstable = 0;
+	double max_sigma_wpp = -std::numeric_limits<double>::infinity();
+	double min_sigma_wpp = std::numeric_limits<double>::infinity();
+	
+	#pragma omp parallel reduction(+:num_tensile, num_unstable) \
+					 reduction(max:max_sigma_wpp) reduction(min:min_sigma_wpp)
+	{
+		#pragma omp for
+		for (unsigned int i = 0; i < num_part; i++) {
+			const particle &p = particles[i];
+			
+			// Skip invalid particles
+			if (!std::isfinite(p.Sxx) || !std::isfinite(p.Syy) || !std::isfinite(p.Sxy)) {
+				continue;
+			}
+			
+			// Compute max principal stress
+			double sigma_max = compute_max_principal_stress(p);
+			
+			// Check if in tensile regime (positive stress)
+			if (sigma_max > 0) {
+				num_tensile++;
+				
+				// Check instability with neighbors
+				// For each neighbor, compute σW'' and check sign
+				for (unsigned int j = 0; j < p.num_nbh && j < MAX_NBH; j++) {
+					unsigned int jdx = p.nbh[j];
+					const particle &pj = particles[jdx];
+					
+					// Compute W'' for this neighbor pair
+					double Wpp = cubic_spline_second_derivative(p.x, p.y, pj.x, pj.y, p.h);
+					
+					// σW'' criterion: negative means unstable
+					double sigma_Wpp = sigma_max * Wpp;
+					
+					if (sigma_Wpp > max_sigma_wpp) {
+						max_sigma_wpp = sigma_Wpp;
+					}
+					if (sigma_Wpp < min_sigma_wpp) {
+						min_sigma_wpp = sigma_Wpp;
+					}
+					
+					// Unstable condition: σ > 0 and W'' < 0 → σW'' < 0
+					if (sigma_Wpp < 0 && Wpp < 0) {
+						num_unstable++;
+						break; // Count particle as unstable once
+					}
+				}
+			}
+		}
+	}
+	
+	result.num_tensile_particles = num_tensile;
+	result.num_unstable_particles = num_unstable;
+	result.tensile_ratio = static_cast<double>(num_tensile) / num_part;
+	result.instability_ratio = static_cast<double>(num_unstable) / num_part;
+	result.max_sigma_Wpp = max_sigma_wpp;
+	result.min_sigma_Wpp = min_sigma_wpp;
+	
+	// Determine if severe
+	result.is_severe = (result.instability_ratio > config.tensile_threshold_ratio);
+	
+	// Recommend epsilon based on instability severity
+	// Higher instability → higher epsilon needed
+	if (result.instability_ratio > 0.0) {
+		// Scale epsilon from min to max based on instability ratio
+		// At threshold: min epsilon, at 50% unstable: max epsilon
+		double scale = std::min(1.0, result.instability_ratio / 0.5);
+		result.recommended_epsilon = config.mghn_eps_min + 
+			scale * (config.mghn_eps_max - config.mghn_eps_min);
+	} else {
+		result.recommended_epsilon = config.mghn_eps_min;
+	}
+	
+	return result;
+}
+
 // Adaptive timestep controller implementation
 void adaptive_timestep_controller::initialize(double initial_dt, const stability_config &config) {
 	m_initial_dt = initial_dt;
@@ -296,6 +420,15 @@ void stability_monitor::initialize(double initial_dt) {
 		std::printf("  energy_closure_critical: %.1f%%\n", m_config.energy_closure_critical_threshold);
 		std::printf("  min_timestep: %e s\n", m_config.min_timestep);
 		std::printf("  max_reductions: %d\n", m_config.max_timestep_reductions);
+		
+		if (m_config.enable_tensile_monitoring) {
+			std::printf("  tensile_monitoring: enabled\n");
+			std::printf("  tensile_threshold_ratio: %.2f%%\n", m_config.tensile_threshold_ratio * 100.0);
+			std::printf("  adaptive_mghn_stress: %s\n", m_config.adaptive_mghn_stress ? "enabled" : "disabled");
+			if (m_config.adaptive_mghn_stress) {
+				std::printf("  mghn_eps_range: %.2f - %.2f\n", m_config.mghn_eps_min, m_config.mghn_eps_max);
+			}
+		}
 	}
 }
 
@@ -355,4 +488,28 @@ void stability_monitor::reset() {
 	m_controller.reset();
 	m_step_count = 0;
 	m_initialized = false;
+	m_current_mghn_epsilon = 0.0;
+}
+
+tensile_instability_result stability_monitor::check_current_tensile_state(const body &b) {
+	if (!m_config.enable_tensile_monitoring) {
+		tensile_instability_result empty_result;
+		return empty_result;
+	}
+	
+	m_last_tensile = check_tensile_instability(b, m_config);
+	
+	// Update adaptive epsilon if enabled
+	if (m_config.adaptive_mghn_stress) {
+		m_current_mghn_epsilon = m_last_tensile.recommended_epsilon;
+	}
+	
+	return m_last_tensile;
+}
+
+double stability_monitor::get_adaptive_mghn_epsilon() const {
+	if (!m_config.adaptive_mghn_stress) {
+		return 0.0;  // Not using adaptive epsilon
+	}
+	return m_current_mghn_epsilon;
 }
