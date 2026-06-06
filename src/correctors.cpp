@@ -49,6 +49,7 @@
  */
 
 #include "correctors.h"
+#include "stability_monitor.h"
 #include <omp.h>
 
 static double stress_angle(double sxx, double sxy, double syy, double eps) {
@@ -144,7 +145,15 @@ void correctors_mghn_artificial_stress(body &b) {
 	std::vector<particle> &particles = b.get_particles();
 	unsigned int n = b.get_num_part();
 
-	const double eps = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_eps();
+	// Get base epsilon from configuration
+	const double base_eps = b.get_sim_data().get_correction_constants().get_monaghan_const().mghn_eps();
+	
+	// Check for adaptive epsilon from tensile instability monitoring
+	stability_monitor &monitor = stability_monitor::get_instance();
+	double adaptive_eps = monitor.get_adaptive_mghn_epsilon();
+	
+	// Use adaptive epsilon if enabled, otherwise fall back to base epsilon
+	const double eps = (adaptive_eps > 0.0) ? adaptive_eps : base_eps;
 
 #pragma omp parallel for
 	for (unsigned int i = 0; i < n; i++) {

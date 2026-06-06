@@ -390,13 +390,22 @@ int main(int argc, char *argv[]) {
 			 * over time using the LeapFrog time stepping
 			 */
 			if (!cooldown_started) {
-				// Validate before timestep (for model 5 with stability monitoring)
+			// Validate before timestep (for model 5 with stability monitoring)
 				if (model == 5) {
 					std::string status_msg;
 					if (!stab_monitor.validate_step(*b, status_msg)) {
 						std::cerr << "\n[CRITICAL ERROR] Simulation Terminated: " << status_msg << std::endl;
 						throw std::runtime_error(status_msg);
 					}
+					
+					// Check tensile instability state (Issue #21)
+					tensile_instability_result tensile_result = stab_monitor.check_current_tensile_state(*b);
+					if (tensile_result.is_severe) {
+						std::printf("[TENSILE] Warning: %.1f%% particles unstable (threshold %.1f%%)\n",
+								tensile_result.instability_ratio * 100.0,
+								stab_monitor.get_config().tensile_threshold_ratio * 100.0);
+					}
+					
 					// Apply adaptive timestep if controller has reduced it
 					double adaptive_dt = stab_monitor.get_adaptive_dt();
 					if (adaptive_dt != time->get_dt()) {

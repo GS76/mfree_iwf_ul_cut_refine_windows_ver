@@ -125,6 +125,13 @@ $env:MFREE_STABILITY_VALIDATION_FREQ        = "1"      # Validate every N steps 
 $env:MFREE_TEMP_MIN_K                       = "200"    # Minimum physically reasonable temperature
 $env:MFREE_TEMP_MAX_K                       = "5000"   # Maximum physically reasonable temperature
 
+# -- tensile instability monitoring (Issue #21) --
+$env:MFREE_ENABLE_TENSILE_MONITORING        = "1"      # Enable σW'' tensile instability detection
+$env:MFREE_TENSILE_THRESHOLD_RATIO          = "0.10"   # Warn if >10% particles unstable
+$env:MFREE_MGHN_ADAPTIVE_EPS                = "1"      # Enable adaptive Monaghan artificial stress
+$env:MFREE_MGHN_EPS_MIN                     = "0.0"    # Min epsilon
+$env:MFREE_MGHN_EPS_MAX                     = "1.0"    # Max epsilon
+
 # -- thermal contact --
 $env:MFREE_THERMAL_H_FULL          = "$ThermalHFull"
 $env:MFREE_THERMAL_H_SEP           = "$ThermalHSep"
