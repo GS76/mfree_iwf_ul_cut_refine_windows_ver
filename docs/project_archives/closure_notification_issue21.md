@@ -1,8 +1,8 @@
 # Project Closure Notification: Tensile Instability Monitoring
 
-**To**: Simulation Team  
-**From**: Development Team / Oz Agent  
-**Date**: 2026-06-06  
+**To**: Simulation Team
+**From**: Development Team / Oz Agent
+**Date**: 2026-06-06
 **Subject**: ✅ Issue #21 Released — Tensile Instability Monitoring
 
 ---
@@ -120,5 +120,5 @@ For questions or issues, refer to:
 
 ---
 
-*Project completed 2026-06-06*  
+*Project completed 2026-06-06*
 *Co-Authored-By: Oz <oz-agent@warp.dev>*

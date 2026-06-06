@@ -48,3 +48,7 @@ build_cmake_bench2/
 # AI/agent scratch files
 Agent_Prompt.txt
 plan.md
+
+# Static analysis artifacts
+src/mfree_cpp_check-cppcheck-build-dir/
+src/mfree_cpp_check.cppcheck
